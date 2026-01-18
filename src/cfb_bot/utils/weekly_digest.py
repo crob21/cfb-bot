@@ -113,12 +113,12 @@ class WeeklyDigest:
         """Send the weekly digest to all bot admins"""
         try:
             embed = await self.generate_digest()
-            
+
             # Get admin IDs from environment variable or bot owner
             import os
             admin_ids_str = os.getenv('BOT_ADMIN_IDS', '')
             admin_ids = [int(id.strip()) for id in admin_ids_str.split(',') if id.strip()]
-            
+
             # If no admin IDs configured, send to bot owner
             if not admin_ids:
                 try:
@@ -128,9 +128,9 @@ class WeeklyDigest:
                 except Exception as e:
                     logger.error(f"❌ Could not get bot owner: {e}")
                     return
-            
+
             sent_count = 0
-            
+
             for admin_id in admin_ids:
                 try:
                     user = await self.bot.fetch_user(admin_id)
@@ -143,12 +143,12 @@ class WeeklyDigest:
                     logger.warning(f"⚠️ Admin {admin_id} not found")
                 except Exception as e:
                     logger.error(f"❌ Error sending digest to {admin_id}: {e}")
-            
+
             logger.info(f"✅ Weekly digest sent to {sent_count} admin(s)")
-            
+
             # Mark as sent
             await self.mark_digest_sent()
-            
+
         except Exception as e:
             logger.error(f"❌ Error generating/sending weekly digest: {e}")
 

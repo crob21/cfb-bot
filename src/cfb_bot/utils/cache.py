@@ -135,3 +135,4 @@ def get_cache() -> SimpleCache:
         logger.info("📦 Cache initialized")
 
     return _cache_instance
+

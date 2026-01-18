@@ -187,3 +187,4 @@ def get_cost_tracker() -> CostTracker:
         logger.info("💰 Cost tracker initialized")
 
     return _cost_tracker
+

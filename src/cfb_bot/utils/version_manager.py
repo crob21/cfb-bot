@@ -11,10 +11,44 @@ from typing import Dict, List, Optional
 logger = logging.getLogger('CFB26Bot.Version')
 
 # Current version
-CURRENT_VERSION = "3.5.0"
+CURRENT_VERSION = "3.5.2"
 
 # Changelog - organized by version
 CHANGELOG: Dict[str, Dict] = {
+    "3.5.2": {
+        "date": "2026-01-18",
+        "title": "Debug Tools 🐞",
+        "emoji": "🐞",
+        "features": [
+            {
+                "category": "Admin Debugging",
+                "emoji": "🔧",
+                "changes": [
+                    "NEW: `/admin debug` command with multiple tools",
+                    "View system info and scraper status",
+                    "Test URL fetching to check for blocks",
+                    "View/download recent logs directly from Discord"
+                ]
+            }
+        ]
+    },
+    "3.5.1": {
+        "date": "2026-01-18",
+        "title": "Recruiting Search Fixes 🔍",
+        "emoji": "🔍",
+        "features": [
+            {
+                "category": "Bug Fixes",
+                "emoji": "🐛",
+                "changes": [
+                    "Fixed recruiting search favoring fuzzy matches over exact matches",
+                    "Prioritizes exact matches across all search strategies (Class Year, All Players)",
+                    "Tightened fuzzy matching threshold to prevent Ross/Moss mixups",
+                    "Fixed Playwright browser installation on server deployment"
+                ]
+            }
+        ]
+    },
     "3.5.0": {
         "date": "2026-01-13",
         "title": "Weekly Digest Reporting 📊",
