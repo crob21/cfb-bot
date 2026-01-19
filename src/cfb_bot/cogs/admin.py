@@ -64,171 +64,6 @@ class AdminCog(commands.Cog):
 
     @admin_group.command(name="debug", description="Bot debugging tools")
     @app_commands.describe(
-        tool="Tool to run: info, scraper, or test_url",
-        url="URL to test (for test_url only)"
-    )
-    @app_commands.choices(tool=[
-        app_commands.Choice(name="ℹ️ System Info", value="info"),
-        app_commands.Choice(name="🕸️ Scraper Status", value="scraper"),
-        app_commands.Choice(name="🌐 Test URL Fetch", value="test_url"),
-    ])
-    async def debug(
-        self,
-        interaction: discord.Interaction,
-        tool: str,
-        url: Optional[str] = None
-    ):
-        """Run debug tools"""
-        # Check admin
-        is_admin = (
-            interaction.user.guild_permissions.administrator or
-            (self.admin_manager and self.admin_manager.is_admin(interaction.user, interaction))
-        )
-        if not is_admin:
-            await interaction.response.send_message("❌ Only admins can use debug tools!", ephemeral=True)
-            return
-
-        await interaction.response.defer(ephemeral=True)
-
-        if tool == "info":
-            # System Info
-            embed = discord.Embed(
-                title="ℹ️ System Debug Info",
-                color=Colors.PRIMARY
-            )
-
-            # System
-            embed.add_field(
-                name="💻 System",
-                value=f"**OS:** {platform.system()} {platform.release()}\n"
-                      f"**Python:** {sys.version.split()[0]}\n"
-                      f"**Discord.py:** {discord.__version__}",
-                inline=True
-            )
-
-            # Bot
-            uptime = datetime.now() - datetime.fromtimestamp(self.bot.user.created_at.timestamp())
-            # Note: bot.user.created_at is account creation, not start time.
-            # We don't have start time tracked here easily without adding it to bot.py
-            # So just skip uptime for now or use process time
-
-            embed.add_field(
-                name="🤖 Bot",
-                value=f"**Latency:** {self.bot.latency * 1000:.1f}ms\n"
-                      f"**Guilds:** {len(self.bot.guilds)}\n"
-                      f"**Users:** {len(self.bot.users)}",
-                inline=True
-            )
-
-            # Modules status for this guild
-            if interaction.guild:
-                enabled = server_config.get_enabled_modules(interaction.guild.id)
-                enabled_list = [m.upper() for m in enabled]
-                embed.add_field(
-                    name="⚙️ Enabled Modules",
-                    value=", ".join(enabled_list) if enabled_list else "None",
-                    inline=False
-                )
-
-            await interaction.followup.send(embed=embed, ephemeral=True)
-
-        elif tool == "scraper":
-            # Scraper Status
-            embed = discord.Embed(
-                title="🕸️ Scraper Debug Info",
-                color=Colors.PRIMARY
-            )
-
-            # Playwright Status
-            pw_status = "✅ Available" if on3_scraper.PLAYWRIGHT_AVAILABLE else "❌ Not Installed"
-            if on3_scraper.PLAYWRIGHT_AVAILABLE and on3_scraper._browser:
-                pw_status += " (Running)"
-
-            embed.add_field(
-                name="🎭 Playwright",
-                value=pw_status,
-                inline=True
-            )
-
-            # Blocked Status
-            blocked = "🔴 YES" if on3_scraper.is_blocked() else "🟢 No"
-            embed.add_field(
-                name="🚫 Blocked?",
-                value=blocked,
-                inline=True
-            )
-
-            # Cache Stats
-            stats = on3_scraper._cache
-            embed.add_field(
-                name="💾 Cache",
-                value=f"**Size:** {len(stats)} entries",
-                inline=True
-            )
-
-            # Zyte Status
-            zyte = on3_scraper.get_zyte_usage()
-            zyte_status = "✅ Configured" if zyte['is_available'] else "❌ Not Configured"
-            embed.add_field(
-                name="⚡ Zyte API",
-                value=f"{zyte_status}\n**Requests:** {zyte['request_count']}",
-                inline=True
-            )
-
-            await interaction.followup.send(embed=embed, ephemeral=True)
-
-        elif tool == "test_url":
-            if not url:
-                await interaction.followup.send("❌ Please provide a URL to test!", ephemeral=True)
-                return
-
-            embed = discord.Embed(
-                title="🌐 URL Test",
-                description=f"Fetching: {url}",
-                color=Colors.PRIMARY
-            )
-
-            start_time = time.time()
-            try:
-                # Try fetching using the scraper's method to test its bypass
-                html = await on3_scraper._fetch_page(url)
-                duration = time.time() - start_time
-
-                if html:
-                    content_len = len(html)
-                    title = "Unknown"
-                    try:
-                        soup = BeautifulSoup(html, 'html.parser')
-                        if soup.title:
-                            title = soup.title.string.strip()
-                    except Exception:
-                        pass
-
-                    embed.color = Colors.SUCCESS
-                    embed.add_field(name="✅ Status", value="Success (200 OK)", inline=True)
-                    embed.add_field(name="⏱️ Time", value=f"{duration:.2f}s", inline=True)
-                    embed.add_field(name="📄 Size", value=f"{content_len:,} bytes", inline=True)
-                    embed.add_field(name="📑 Title", value=title[:100], inline=False)
-
-                    # Check for blocking text
-                    is_blocked = on3_scraper._check_if_blocked(html)
-                    embed.add_field(name="🛡️ Block Detected?", value="🔴 YES" if is_blocked else "🟢 No", inline=True)
-
-                else:
-                    embed.color = Colors.ERROR
-                    embed.add_field(name="❌ Status", value="Failed (None returned)", inline=True)
-                    embed.add_field(name="⏱️ Time", value=f"{duration:.2f}s", inline=True)
-
-            except Exception as e:
-                duration = time.time() - start_time
-                embed.color = Colors.ERROR
-                embed.add_field(name="❌ Error", value=str(e), inline=False)
-                embed.add_field(name="⏱️ Time", value=f"{duration:.2f}s", inline=True)
-
-            await interaction.followup.send(embed=embed, ephemeral=True)
-
-    @admin_group.command(name="debug", description="Bot debugging tools")
-    @app_commands.describe(
         tool="Tool to run: info, scraper, test_url, or logs",
         url="URL to test (for test_url only)",
         lines="Number of log lines to retrieve (for logs only, default 50)"
@@ -345,6 +180,10 @@ class AdminCog(commands.Cog):
                 await interaction.followup.send("❌ Please provide a URL to test!", ephemeral=True)
                 return
 
+            if not url.startswith(('http://', 'https://')):
+                await interaction.followup.send("❌ URL must start with http:// or https://", ephemeral=True)
+                return
+
             embed = discord.Embed(
                 title="🌐 URL Test",
                 description=f"Fetching: {url}",
@@ -397,7 +236,7 @@ class AdminCog(commands.Cog):
                 max_lines = 1000
                 if lines and lines > max_lines:
                     lines = max_lines
-                
+
                 # Use to_thread to prevent blocking event loop during file I/O
                 def read_last_lines(fname, n_lines):
                     with open(fname, 'r', encoding='utf-8') as f:
@@ -407,9 +246,9 @@ class AdminCog(commands.Cog):
 
                 import asyncio
                 last_lines = await asyncio.to_thread(read_last_lines, 'bot.log', lines or 50)
-                
+
                 log_content = "".join(last_lines)
-                
+
                 if not log_content:
                     await interaction.followup.send("ℹ️ Log file is empty.", ephemeral=True)
                     return
@@ -417,7 +256,7 @@ class AdminCog(commands.Cog):
                 # Create a file object to send
                 from io import StringIO
                 log_file = discord.File(StringIO(log_content), filename="bot_debug.log")
-                
+
                 await interaction.followup.send(
                     f"📝 Here are the last **{len(last_lines)}** log lines:",
                     file=log_file,
