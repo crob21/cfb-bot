@@ -11,10 +11,26 @@ from typing import Dict, List, Optional
 logger = logging.getLogger('CFB26Bot.Version')
 
 # Current version
-CURRENT_VERSION = "3.5.3"
+CURRENT_VERSION = "3.5.4"
 
 # Changelog - organized by version
 CHANGELOG: Dict[str, Dict] = {
+    "3.5.4": {
+        "date": "2026-01-18",
+        "title": "Channel Summarizer Fix 🔧",
+        "emoji": "🔧",
+        "features": [
+            {
+                "category": "Bug Fixes",
+                "emoji": "🐛",
+                "changes": [
+                    "Fixed Channel Summarizer failing to initialize",
+                    "Resolved import error in main bot loop",
+                    "Restored `/summarize` and charter editing functionality"
+                ]
+            }
+        ]
+    },
     "3.5.3": {
         "date": "2026-01-18",
         "title": "Optimization & Security Audit 🛡️",
