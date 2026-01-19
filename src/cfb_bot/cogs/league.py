@@ -35,42 +35,9 @@ from discord.ext import commands
 from ..config import Colors, Footers
 from ..services.checks import check_module_enabled
 from ..utils.server_config import server_config, FeatureModule
+from ..utils.timekeeper import CFB_DYNASTY_WEEKS, TOTAL_WEEKS_PER_SEASON, get_week_info, get_week_name
 
 logger = logging.getLogger('CFB26Bot.League')
-
-# Week schedule constants (imported from bot.py logic)
-TOTAL_WEEKS_PER_SEASON = 14
-CFB_DYNASTY_WEEKS = {
-    0: {"name": "Week 0", "short": "W0", "phase": "Regular Season", "actions": "Play Week 0 Games"},
-    1: {"name": "Week 1", "short": "W1", "phase": "Regular Season", "actions": "Play Week 1 Games"},
-    2: {"name": "Week 2", "short": "W2", "phase": "Regular Season", "actions": "Play Week 2 Games"},
-    3: {"name": "Week 3", "short": "W3", "phase": "Regular Season", "actions": "Play Week 3 Games"},
-    4: {"name": "Week 4", "short": "W4", "phase": "Regular Season", "actions": "Play Week 4 Games"},
-    5: {"name": "Week 5", "short": "W5", "phase": "Regular Season", "actions": "Play Week 5 Games"},
-    6: {"name": "Week 6", "short": "W6", "phase": "Regular Season", "actions": "Play Week 6 Games"},
-    7: {"name": "Week 7", "short": "W7", "phase": "Regular Season", "actions": "Play Week 7 Games"},
-    8: {"name": "Week 8", "short": "W8", "phase": "Regular Season", "actions": "Play Week 8 Games"},
-    9: {"name": "Week 9", "short": "W9", "phase": "Regular Season", "actions": "Play Week 9 Games"},
-    10: {"name": "Week 10", "short": "W10", "phase": "Regular Season", "actions": "Play Week 10 Games"},
-    11: {"name": "Conference Championship Week", "short": "CCG", "phase": "Post-Season", "actions": "Play Championship Games"},
-    12: {"name": "Bowl Selection Week", "short": "Bowls", "phase": "Post-Season", "actions": "Play Bowl Games"},
-    13: {"name": "National Championship & Offseason", "short": "Natty/Off", "phase": "Offseason", "actions": "Play Championship, Recruiting, Transfers"},
-}
-
-
-def get_week_info(week_num: int) -> dict:
-    """Get week info from the schedule"""
-    return CFB_DYNASTY_WEEKS.get(week_num, {
-        "name": f"Week {week_num}",
-        "short": f"W{week_num}",
-        "phase": "Unknown",
-        "actions": ""
-    })
-
-
-def get_week_name(week_num: int) -> str:
-    """Get just the week name"""
-    return get_week_info(week_num).get("name", f"Week {week_num}")
 
 
 class LeagueCog(commands.Cog):
@@ -337,6 +304,7 @@ class LeagueCog(commands.Cog):
 
         description = ""
         if current_week is not None:
+            # Use imported get_week_info
             curr_info = get_week_info(current_week)
             description = f"**Season {current_season}**\n📍 Current: **{curr_info['name']}**\n\n"
 
@@ -355,7 +323,9 @@ class LeagueCog(commands.Cog):
 
         for wn in sorted(CFB_DYNASTY_WEEKS.keys()):
             wd = CFB_DYNASTY_WEEKS[wn]
+            # Use imported logic
             line = f"**► `{wn:2d}` {wd['short']}** ◄" if current_week == wn else f"`{wn:2d}` {wd['short']}"
+
             if wd['phase'] == "Regular Season":
                 regular.append(line)
             elif wd['phase'] == "Post-Season":
@@ -363,10 +333,18 @@ class LeagueCog(commands.Cog):
             else:
                 off.append(line)
 
-        embed.add_field(name="🏈 Regular Season", value="\n".join(regular), inline=True)
+        # Split regular season into two columns if it's too long (it is)
+        if len(regular) > 10:
+            half = (len(regular) + 1) // 2
+            embed.add_field(name="🏈 Regular Season (1/2)", value="\n".join(regular[:half]), inline=True)
+            embed.add_field(name="🏈 Regular Season (2/2)", value="\n".join(regular[half:]), inline=True)
+        else:
+            embed.add_field(name="🏈 Regular Season", value="\n".join(regular), inline=True)
+
         embed.add_field(name="🏆 Post-Season", value="\n".join(post), inline=True)
         embed.add_field(name="📝 Offseason", value="\n".join(off), inline=True)
-        embed.set_footer(text="Harry's Week Tracker 🏈")
+
+        embed.set_footer(text="Harry's Week Tracker 🏈 | Use /league set_week to update")
         await interaction.response.send_message(embed=embed)
 
     @league_group.command(name="games", description="View the games for a specific week")
@@ -488,7 +466,7 @@ class LeagueCog(commands.Cog):
         await interaction.followup.send(embed=embed)
 
     @league_group.command(name="set_week", description="Set the current season and week (Admin only)")
-    @app_commands.describe(season="Season number", week="Week number (0-13)")
+    @app_commands.describe(season="Season number", week="Week number (0-29)")
     async def set_week(self, interaction: discord.Interaction, season: int, week: int):
         """Set the current season and week"""
         if not self.admin_manager or not self.admin_manager.is_admin(interaction.user, interaction):
@@ -499,8 +477,12 @@ class LeagueCog(commands.Cog):
             await interaction.response.send_message("❌ Timekeeper not available", ephemeral=True)
             return
 
-        if season < 1 or week < 0:
-            await interaction.response.send_message("❌ Invalid season/week!", ephemeral=True)
+        if season < 1:
+            await interaction.response.send_message("❌ Season must be at least 1!", ephemeral=True)
+            return
+
+        if week < 0 or week >= TOTAL_WEEKS_PER_SEASON:
+            await interaction.response.send_message(f"❌ Week must be between 0 and {TOTAL_WEEKS_PER_SEASON - 1}!\nUse `/league weeks` to see valid week numbers.", ephemeral=True)
             return
 
         success = await self.timekeeper_manager.set_season_week(season, week)
@@ -509,7 +491,7 @@ class LeagueCog(commands.Cog):
             week_info = get_week_info(week)
             embed = discord.Embed(
                 title="📅 Season/Week Set!",
-                description=f"**Season {season}** - {week_info['name']}",
+                description=f"**Season {season}** - {week_info['name']}\nPhase: {week_info['phase']}",
                 color=Colors.SUCCESS
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
@@ -746,4 +728,3 @@ async def setup(bot: commands.Bot):
     cog = LeagueCog(bot)
     await bot.add_cog(cog)
     logger.info("✅ LeagueCog loaded")
-
