@@ -24,13 +24,15 @@ import sys
 import discord
 from discord.ext import commands, tasks
 
+from logging.handlers import RotatingFileHandler
+
 # Setup logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.StreamHandler(sys.stdout),
-        logging.FileHandler('bot.log', encoding='utf-8')
+        RotatingFileHandler('bot.log', maxBytes=5*1024*1024, backupCount=3, encoding='utf-8')
     ]
 )
 logger = logging.getLogger('CFB26Bot')

@@ -393,26 +393,36 @@ class AdminCog(commands.Cog):
         elif tool == "logs":
             # View Logs
             try:
-                with open('bot.log', 'r', encoding='utf-8') as f:
-                    # Read all lines
-                    all_lines = f.readlines()
-                    # Get last N lines
-                    last_lines = all_lines[-lines:] if lines else all_lines[-50:]
-                    log_content = "".join(last_lines)
+                # Cap lines to prevent memory issues
+                max_lines = 1000
+                if lines and lines > max_lines:
+                    lines = max_lines
+                
+                # Use to_thread to prevent blocking event loop during file I/O
+                def read_last_lines(fname, n_lines):
+                    with open(fname, 'r', encoding='utf-8') as f:
+                        # Simple approach for small files, seek approach better for huge ones
+                        # But RotatingFileHandler limits size to 5MB, so readlines is safe enough
+                        return f.readlines()[-n_lines:]
 
-                    if not log_content:
-                        await interaction.followup.send("ℹ️ Log file is empty.", ephemeral=True)
-                        return
+                import asyncio
+                last_lines = await asyncio.to_thread(read_last_lines, 'bot.log', lines or 50)
+                
+                log_content = "".join(last_lines)
+                
+                if not log_content:
+                    await interaction.followup.send("ℹ️ Log file is empty.", ephemeral=True)
+                    return
 
-                    # Create a file object to send
-                    from io import StringIO
-                    log_file = discord.File(StringIO(log_content), filename="bot_debug.log")
-
-                    await interaction.followup.send(
-                        f"📝 Here are the last **{len(last_lines)}** log lines:",
-                        file=log_file,
-                        ephemeral=True
-                    )
+                # Create a file object to send
+                from io import StringIO
+                log_file = discord.File(StringIO(log_content), filename="bot_debug.log")
+                
+                await interaction.followup.send(
+                    f"📝 Here are the last **{len(last_lines)}** log lines:",
+                    file=log_file,
+                    ephemeral=True
+                )
             except FileNotFoundError:
                 await interaction.followup.send("❌ Log file `bot.log` not found. Logging might not be configured to file.", ephemeral=True)
             except Exception as e:

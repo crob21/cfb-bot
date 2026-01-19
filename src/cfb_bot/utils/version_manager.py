@@ -11,10 +11,34 @@ from typing import Dict, List, Optional
 logger = logging.getLogger('CFB26Bot.Version')
 
 # Current version
-CURRENT_VERSION = "3.5.2"
+CURRENT_VERSION = "3.5.3"
 
 # Changelog - organized by version
 CHANGELOG: Dict[str, Dict] = {
+    "3.5.3": {
+        "date": "2026-01-18",
+        "title": "Optimization & Security Audit 🛡️",
+        "emoji": "🛡️",
+        "features": [
+            {
+                "category": "Security Improvements",
+                "emoji": "🔒",
+                "changes": [
+                    "Added strict URL validation for debug tools to prevent SSRF",
+                    "Audited dependency usage for known vulnerabilities"
+                ]
+            },
+            {
+                "category": "Performance",
+                "emoji": "⚡",
+                "changes": [
+                    "Implemented rotating log files (max 5MB) to prevent disk fill-up",
+                    "Optimized log reading in debug tools to run in background thread",
+                    "Prevented event loop blocking during heavy I/O operations"
+                ]
+            }
+        ]
+    },
     "3.5.2": {
         "date": "2026-01-18",
         "title": "Debug Tools 🐞",
