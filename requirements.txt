@@ -31,6 +31,9 @@ rapidfuzz>=3.0.0
 openai==1.6.1
 anthropic==0.7.8
 
+# Optional Monitoring & Error Tracking
+sentry-sdk>=1.40.0
+
 # Optional Google Docs Integration
 google-api-python-client==2.110.0
 google-auth-httplib2==0.2.0
