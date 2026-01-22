@@ -18,6 +18,7 @@ from discord.ext import commands
 
 from ..config import Colors
 from ..utils.server_config import server_config, FeatureModule
+from ..utils.input_validation import sanitize_string, MAX_INPUT_LENGTH
 
 logger = logging.getLogger('CFB26Bot.AIChat')
 
@@ -43,6 +44,17 @@ class AIChatCog(commands.Cog):
     @app_commands.describe(question="Your question about college football or league rules")
     async def harry(self, interaction: discord.Interaction, question: str):
         """Ask Harry about college football or league rules"""
+        # Validate and sanitize input
+        if len(question) > MAX_INPUT_LENGTH:
+            await interaction.response.send_message(
+                f"❌ Question too long! Must be under {MAX_INPUT_LENGTH} characters. "
+                f"(You provided {len(question)} characters)",
+                ephemeral=True
+            )
+            return
+        
+        question = sanitize_string(question)
+        
         guild_id = interaction.guild.id if interaction.guild else 0
         channel_id = interaction.channel.id if interaction.channel else 0
 

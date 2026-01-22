@@ -14,6 +14,7 @@ import aiohttp
 from dotenv import load_dotenv
 
 from ..utils.storage import get_storage
+from ..security import HTTP_TIMEOUT
 
 # Load environment variables
 load_dotenv()
@@ -27,7 +28,9 @@ class AICharterAssistant:
     def __init__(self):
         self.openai_api_key = os.getenv('OPENAI_API_KEY')
         self.anthropic_api_key = os.getenv('ANTHROPIC_API_KEY')
-        self.charter_url = "https://docs.google.com/document/d/1lX28DlMmH0P77aficBA_1Vo9ykEm_bAroSTpwMhWr_8/edit"
+        
+        # Charter URL (configurable via environment variable)
+        self.charter_url = os.getenv('CHARTER_URL', 'https://docs.google.com/document/d/1lX28DlMmH0P77aficBA_1Vo9ykEm_bAroSTpwMhWr_8/edit')
         self.charter_content = None
 
         # Token usage tracking (loaded from storage)
@@ -237,7 +240,8 @@ class AICharterAssistant:
                 async with session.post(
                     'https://api.openai.com/v1/chat/completions',
                     headers=headers,
-                    json=data
+                    json=data,
+                    timeout=aiohttp.ClientTimeout(total=HTTP_TIMEOUT)
                 ) as response:
                     if response.status == 200:
                         result = await response.json()
@@ -386,7 +390,8 @@ class AICharterAssistant:
                 async with session.post(
                     'https://api.anthropic.com/v1/messages',
                     headers=headers,
-                    json=data
+                    json=data,
+                    timeout=aiohttp.ClientTimeout(total=HTTP_TIMEOUT)
                 ) as response:
                     if response.status == 200:
                         result = await response.json()
