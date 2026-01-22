@@ -2,146 +2,160 @@
   "season": 1,
   "schedule": {
     "0": {
-      "bye_teams": ["Michigan St", "Nebraska", "Notre Dame"],
+      "bye_teams": ["LSU", "Nebraska"],
       "games": [
-        {"away": "UTEP", "home": "Texas"},
-        {"away": "Arizona St", "home": "LSU"},
-        {"away": "Arizona", "home": "Hawaii"}
+        {"away": "Western Michigan", "home": "USF"},
+        {"away": "Delaware", "home": "Hawaii"},
+        {"away": "Stanford", "home": "Texas"}
       ]
     },
     "1": {
-      "bye_teams": ["Nebraska"],
+      "bye_teams": [],
       "games": [
-        {"away": "FCS Southeast", "home": "LSU"},
-        {"away": "UL Monroe", "home": "Texas"},
-        {"away": "FCS East", "home": "Michigan St"},
-        {"away": "Alabama", "home": "Notre Dame"},
-        {"away": "FCS Northwest", "home": "Hawaii"}
+        {"away": "Nebraska", "home": "Auburn"},
+        {"away": "LSU", "home": "FSU"},
+        {"away": "FCS", "home": "Hawaii"},
+        {"away": "Texas", "home": "Miami"},
+        {"away": "FCS", "home": "Western Michigan"},
+        {"away": "USF", "home": "Louisville"},
+        {"away": "Stanford", "home": "Air Force"}
       ]
     },
     "2": {
-      "bye_teams": ["Hawaii"],
+      "bye_teams": ["Hawaii", "Nebraska", "Stanford", "USF"],
       "games": [
-        {"away": "Texas", "home": "Alabama"},
-        {"away": "South Carolina", "home": "LSU"},
-        {"away": "Nebraska", "home": "UCLA"},
-        {"away": "East Carolina", "home": "Michigan St"},
-        {"away": "Syracuse", "home": "Notre Dame"}
+        {"away": "LSU", "home": "Kentucky"},
+        {"away": "Arkansas", "home": "Texas"},
+        {"away": "Cincinnati", "home": "Western Michigan"}
       ]
     },
     "3": {
-      "bye_teams": ["Hawaii", "Michigan St", "Notre Dame"],
+      "bye_teams": ["USF", "Western Michigan"],
       "games": [
-        {"away": "LSU", "home": "Kentucky"},
-        {"away": "Nebraska", "home": "Boise St"},
-        {"away": "Texas", "home": "Mississippi St"}
+        {"away": "Oklahoma", "home": "Nebraska"},
+        {"away": "LSU", "home": "ASU"},
+        {"away": "Texas", "home": "Hawaii"},
+        {"away": "Stanford", "home": "VT"}
       ]
     },
     "4": {
-      "bye_teams": [],
+      "bye_teams": ["Western Michigan"],
       "games": [
-        {"away": "Texas A&M", "home": "LSU"},
-        {"away": "Washington St", "home": "Hawaii"},
-        {"away": "Penn St", "home": "Michigan St"},
-        {"away": "Notre Dame", "home": "Texas"},
-        {"away": "FCS West", "home": "Nebraska"}
+        {"away": "Nebraska", "home": "LSU"},
+        {"away": "Texas", "home": "Georgia"},
+        {"away": "Hawaii", "home": "Washington"},
+        {"away": "Toledo", "home": "USF"},
+        {"away": "Clemson", "home": "Stanford"}
       ]
     },
     "5": {
       "bye_teams": [],
       "games": [
-        {"away": "Rice", "home": "LSU"},
-        {"away": "Florida", "home": "Texas"},
-        {"away": "Notre Dame", "home": "Miami"},
-        {"away": "Nebraska", "home": "Minnesota"},
-        {"away": "Michigan St", "home": "USC"},
-        {"away": "Auburn", "home": "Hawaii"}
+        {"away": "Nebraska", "home": "Ohio St"},
+        {"away": "Kentucky", "home": "Texas"},
+        {"away": "Hawaii", "home": "San Diego St"},
+        {"away": "Mississippi St", "home": "LSU"},
+        {"away": "USF", "home": "Navy"},
+        {"away": "Syracuse", "home": "Stanford"},
+        {"away": "UMass", "home": "Western Michigan"}
       ]
     },
     "6": {
-      "bye_teams": ["LSU"],
+      "bye_teams": ["Nebraska", "Texas"],
       "games": [
-        {"away": "North Carolina", "home": "Notre Dame"},
-        {"away": "Michigan St", "home": "Nebraska"},
-        {"away": "Hawaii", "home": "Colorado St"},
-        {"away": "South Carolina", "home": "Texas"}
+        {"away": "LSU", "home": "Oklahoma"},
+        {"away": "New Mexico", "home": "Hawaii"},
+        {"away": "Kent St", "home": "Western Michigan"},
+        {"away": "Temple", "home": "USF"},
+        {"away": "Stanford", "home": "Louisville"}
       ]
     },
     "7": {
-      "bye_teams": [],
+      "bye_teams": ["Western Michigan"],
       "games": [
         {"away": "Oklahoma", "home": "Texas"},
-        {"away": "Northwestern", "home": "Nebraska"},
-        {"away": "Notre Dame", "home": "Duke"},
-        {"away": "Hawaii", "home": "San Diego St"},
-        {"away": "LSU", "home": "Auburn"},
-        {"away": "Maryland", "home": "Michigan St"}
+        {"away": "LSU", "home": "Vanderbilt"},
+        {"away": "Hawaii", "home": "Utah St"},
+        {"away": "Stanford", "home": "Notre Dame"},
+        {"away": "Nebraska", "home": "USC"},
+        {"away": "UMass", "home": "USF"}
       ]
     },
     "8": {
-      "bye_teams": [],
+      "bye_teams": ["Hawaii", "Stanford", "USF"],
       "games": [
-        {"away": "Michigan St", "home": "Indiana"},
-        {"away": "Texas", "home": "Kentucky"},
-        {"away": "San Jose St", "home": "Hawaii"},
-        {"away": "USC", "home": "Notre Dame"},
-        {"away": "Nebraska", "home": "Oklahoma"},
-        {"away": "LSU", "home": "Oklahoma St"}
+        {"away": "UCLA", "home": "Nebraska"},
+        {"away": "Texas", "home": "Florida"},
+        {"away": "Western Michigan", "home": "Ohio"},
+        {"away": "Ole Miss", "home": "LSU"}
       ]
     },
     "9": {
       "bye_teams": [],
       "games": [
-        {"away": "Ole Miss", "home": "Texas"},
-        {"away": "Nebraska", "home": "Maryland"},
-        {"away": "UCLA", "home": "Michigan St"},
-        {"away": "Navy", "home": "Notre Dame"},
-        {"away": "Hawaii", "home": "Oregon St"},
-        {"away": "Georgia", "home": "LSU"}
+        {"away": "FSU", "home": "Stanford"},
+        {"away": "USC", "home": "Texas"},
+        {"away": "Wisconsin", "home": "Nebraska"},
+        {"away": "Fresno St", "home": "Hawaii"},
+        {"away": "Texas A&M", "home": "LSU"},
+        {"away": "Western Michigan", "home": "Miami University"},
+        {"away": "Charlotte", "home": "USF"}
       ]
     },
     "10": {
-      "bye_teams": [],
+      "bye_teams": ["Hawaii", "Texas"],
       "games": [
-        {"away": "Michigan St", "home": "Minnesota"},
-        {"away": "Texas", "home": "Arkansas"},
-        {"away": "Hawaii", "home": "Utah St"},
-        {"away": "LSU", "home": "Vanderbilt"},
-        {"away": "Michigan", "home": "Nebraska"},
-        {"away": "Notre Dame", "home": "Georgia Tech"}
+        {"away": "Rutgers", "home": "Nebraska"},
+        {"away": "TCU", "home": "LSU"},
+        {"away": "Ball St", "home": "Western Michigan"},
+        {"away": "UAB", "home": "USF"},
+        {"away": "Pitt", "home": "Stanford"}
       ]
     },
     "11": {
-      "bye_teams": [],
+      "bye_teams": ["LSU"],
       "games": [
-        {"away": "Tennessee", "home": "LSU"},
-        {"away": "Nebraska", "home": "Penn St"},
-        {"away": "Michigan", "home": "Michigan St"},
-        {"away": "Louisville", "home": "Notre Dame"},
-        {"away": "Ohio", "home": "Texas"},
-        {"away": "Boise St", "home": "Hawaii"}
+        {"away": "Hawaii", "home": "San Jose St"},
+        {"away": "Illinois", "home": "Nebraska"},
+        {"away": "Texas", "home": "Ole Miss"},
+        {"away": "Stanford", "home": "Miami"},
+        {"away": "UConn", "home": "Western Michigan"},
+        {"away": "USF", "home": "North Texas"}
       ]
     },
     "12": {
-      "bye_teams": ["Texas"],
+      "bye_teams": [],
       "games": [
-        {"away": "Michigan St", "home": "Iowa"},
-        {"away": "LSU", "home": "Arkansas"},
-        {"away": "Oklahoma", "home": "Hawaii"},
-        {"away": "Virginia Tech", "home": "Notre Dame"},
-        {"away": "USC", "home": "Nebraska"}
+        {"away": "Nebraska", "home": "Indiana"},
+        {"away": "LSU", "home": "Missouri"},
+        {"away": "Texas", "home": "Mississippi St"},
+        {"away": "Oregon St", "home": "Hawaii"},
+        {"away": "Western Michigan", "home": "Northern Illinois"},
+        {"away": "USF", "home": "FAU"},
+        {"away": "Stanford", "home": "NC State"}
       ]
     },
     "13": {
+      "bye_teams": ["Stanford"],
+      "games": [
+        {"away": "Nebraska", "home": "Purdue"},
+        {"away": "Florida", "home": "LSU"},
+        {"away": "Hawaii", "home": "Colorado St"},
+        {"away": "Alabama", "home": "Texas"},
+        {"away": "Western Michigan", "home": "Toledo"},
+        {"away": "USF", "home": "Tulsa"}
+      ]
+    },
+    "14": {
       "bye_teams": ["LSU", "Texas"],
       "games": [
-        {"away": "Iowa", "home": "Nebraska"},
-        {"away": "New Mexico", "home": "Hawaii"},
-        {"away": "UConn", "home": "Michigan St"},
-        {"away": "Notre Dame", "home": "Stanford"}
+        {"away": "Nebraska", "home": "Iowa"},
+        {"away": "Washington St", "home": "Hawaii"},
+        {"away": "Buffalo", "home": "Western Michigan"},
+        {"away": "Tulane", "home": "USF"},
+        {"away": "Ole Miss", "home": "Stanford"}
       ]
     }
   },
-  "teams": ["Hawaii", "LSU", "Michigan St", "Nebraska", "Notre Dame", "Texas"]
+  "teams": ["Hawaii", "LSU", "Nebraska", "Stanford", "Texas", "USF", "Western Michigan"]
 }
-
