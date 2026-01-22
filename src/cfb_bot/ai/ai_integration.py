@@ -45,6 +45,10 @@ class AICharterAssistant:
         # Storage
         self._storage = get_storage()
         self._loaded = False
+        
+        # Response cache (question hash -> response, timestamp)
+        self._response_cache = {}
+        self._cache_ttl = 3600  # 1 hour cache TTL
 
     async def _load_usage_stats(self):
         """Load usage statistics from persistent storage"""
@@ -141,6 +145,34 @@ class AICharterAssistant:
 
         return "\n".join(context_parts)
 
+    def _get_cache_key(self, question: str, include_league_context: bool) -> str:
+        """Generate cache key from question"""
+        import hashlib
+        # Normalize question (lowercase, strip whitespace)
+        normalized = question.lower().strip()
+        # Add context flag to key
+        cache_str = f"{normalized}:{include_league_context}"
+        return hashlib.md5(cache_str.encode()).hexdigest()
+
+    def _get_cached_response(self, cache_key: str) -> Optional[str]:
+        """Get cached response if available and not expired"""
+        import time
+        if cache_key in self._response_cache:
+            cached_response, timestamp = self._response_cache[cache_key]
+            if time.time() - timestamp < self._cache_ttl:
+                logger.info(f"💾 Cache hit for question (saved ~$0.001)")
+                return cached_response
+            else:
+                # Expired, remove from cache
+                del self._response_cache[cache_key]
+        return None
+
+    def _cache_response(self, cache_key: str, response: str):
+        """Cache a response"""
+        import time
+        self._response_cache[cache_key] = (response, time.time())
+        logger.debug(f"💾 Cached response (key: {cache_key[:8]}...)")
+
     async def ask_openai(self, question: str, context: str, max_tokens: int = 500, personality_prompt: str = None, include_league_context: bool = True) -> Optional[str]:
         """Ask OpenAI - optionally includes league charter and schedule context
 
@@ -151,6 +183,12 @@ class AICharterAssistant:
             personality_prompt: Custom personality prompt
             include_league_context: Whether to include league schedule/charter info (False for non-league servers)
         """
+        # Check cache first
+        cache_key = self._get_cache_key(question, include_league_context)
+        cached = self._get_cached_response(cache_key)
+        if cached:
+            return cached
+        
         if not self.openai_api_key:
             logger.warning("⚠️ OpenAI API key not found")
             return None
@@ -285,6 +323,9 @@ class AICharterAssistant:
                         response_text = result['choices'][0]['message']['content'].strip()
                         logger.info(f"📝 Response length: {len(response_text)} characters")
 
+                        # Cache the response
+                        self._cache_response(cache_key, response_text)
+
                         return response_text
                     else:
                         error_text = await response.text()
@@ -304,6 +345,12 @@ class AICharterAssistant:
             personality_prompt: Custom personality prompt
             include_league_context: Whether to include league schedule/charter info (False for non-league servers)
         """
+        # Check cache first
+        cache_key = self._get_cache_key(question, include_league_context)
+        cached = self._get_cached_response(cache_key)
+        if cached:
+            return cached
+        
         if not self.anthropic_api_key:
             logger.warning("⚠️ Anthropic API key not found")
             return None
@@ -415,6 +462,9 @@ class AICharterAssistant:
 
                         response_text = result['content'][0]['text'].strip()
                         logger.info(f"📝 Response length: {len(response_text)} characters")
+
+                        # Cache the response
+                        self._cache_response(cache_key, response_text)
 
                         return response_text
                     else:

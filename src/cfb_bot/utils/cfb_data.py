@@ -684,14 +684,29 @@ class CFBDataLookup:
         tasks = []
 
         if player_team:
-            # Stats for ALL available years
+            # Stats for ALL available years - PARALLEL FETCH
             async def get_all_stats():
                 all_stats = {}
-                for stat_year in [2025, 2024, 2023, 2022, 2021]:
-                    s = await self.get_player_stats(player_name, player_team, stat_year)
-                    if s and any(v for v in s.values() if v):
-                        logger.info(f"✅ Found stats for {stat_year} season")
-                        all_stats[stat_year] = s
+                years_to_check = [2025, 2024, 2023, 2022, 2021]
+                
+                # Create parallel tasks for all years
+                year_tasks = [
+                    self.get_player_stats(player_name, player_team, year)
+                    for year in years_to_check
+                ]
+                
+                # Fetch all years in parallel
+                logger.info(f"🚀 Fetching stats for {len(years_to_check)} years in parallel...")
+                year_results = await asyncio.gather(*year_tasks, return_exceptions=True)
+                
+                # Process results
+                for year, result in zip(years_to_check, year_results):
+                    if isinstance(result, Exception):
+                        logger.debug(f"⚠️ Error fetching {year}: {result}")
+                    elif result and any(v for v in result.values() if v):
+                        logger.info(f"✅ Found stats for {year} season")
+                        all_stats[year] = result
+                
                 return all_stats if all_stats else None
 
             tasks.append(('stats', get_all_stats()))
