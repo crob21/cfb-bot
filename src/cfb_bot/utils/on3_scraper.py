@@ -601,12 +601,6 @@ class On3Scraper:
         player_name = None
         is_transfer = False
 
-        # Track best fuzzy match globally across all search strategies
-        # We only use this if NO exact match is found in any strategy
-        global_best_fuzzy_match = None
-        global_best_fuzzy_score = 0
-        global_fuzzy_is_transfer = False
-
         for search_url, search_type, search_name in search_urls:
             logger.info(f"🔍 Trying search: {search_type}")
             html = await self._fetch_page(search_url)
@@ -629,6 +623,10 @@ class On3Scraper:
                 name_parts = name_lower.split()
 
                 logger.info(f"📋 Found {len(player_links)} player links to check for '{name}'")
+
+                # Track best fuzzy match
+                best_fuzzy_match = None
+                best_fuzzy_score = 0
 
                 for link in player_links:
                     link_text = link.get_text(strip=True)
@@ -680,16 +678,27 @@ class On3Scraper:
                             last_score = fuzz.ratio(search_parts[-1], result_parts[-1])
 
                             # BOTH first AND last name must be reasonably similar (>= 70%)
-                            # Increased last name threshold to 80% to avoid Moss/Ross false positives
-                            if first_score >= 70 and last_score >= 80:
+                            # This prevents "Emmanuel Karnley" matching "Emmanuel Poag"
+                            if first_score >= 70 and last_score >= 70:
                                 # Overall score is average of both
                                 score = (first_score + last_score) // 2
 
-                                if score > global_best_fuzzy_score and score >= 75:  # 75% overall threshold
-                                    global_best_fuzzy_score = score
-                                    global_best_fuzzy_match = (href, link_text)
-                                    global_fuzzy_is_transfer = (search_type == "all players (including transfers)")
-                                    logger.debug(f"🔍 New best fuzzy candidate: {link_text} (first:{first_score}%, last:{last_score}%, avg:{score}%)")
+                                if score > best_fuzzy_score and score >= 75:  # 75% overall threshold
+                                    best_fuzzy_score = score
+                                    best_fuzzy_match = (href, link_text)
+                                    logger.debug(f"🔍 Fuzzy candidate: {link_text} (first:{first_score}%, last:{last_score}%, avg:{score}%)")
+
+                # If no exact match but we have a good fuzzy match, use it
+                if not profile_url and best_fuzzy_match:
+                    href, link_text = best_fuzzy_match
+                    profile_url = href
+                    player_name = link_text
+
+                    if not profile_url.startswith('http'):
+                        profile_url = self.BASE_URL + profile_url
+
+                    is_transfer = (search_type == "all players (including transfers)")
+                    logger.info(f"✅ Found profile (fuzzy {best_fuzzy_score}%): {player_name} -> {profile_url} ({search_type})")
 
                 if profile_url:
                     break  # Found a match, stop searching
@@ -697,18 +706,6 @@ class On3Scraper:
             except Exception as e:
                 logger.error(f"Error parsing search results: {e}")
                 continue
-
-        # If no exact match but we have a good fuzzy match from ANY strategy, use it
-        if not profile_url and global_best_fuzzy_match:
-            href, link_text = global_best_fuzzy_match
-            profile_url = href
-            player_name = link_text
-
-            if not profile_url.startswith('http'):
-                profile_url = self.BASE_URL + profile_url
-
-            is_transfer = global_fuzzy_is_transfer
-            logger.info(f"✅ Found profile (fuzzy {global_best_fuzzy_score}%): {player_name} -> {profile_url} (from best match)")
 
         if not profile_url:
             logger.info(f"❌ No profile found for {name} ({year})")
@@ -886,24 +883,16 @@ class On3Scraper:
             if nil_match:
                 recruit['nil_value'] = nil_match.group(0)
 
-            # Commitment status - use regex for specific label first
-            # Pattern: "Status Signed" or "Status Committed"
-            status_match = re.search(r'(?:Status|Commitment)\s*[:\s]?\s*(Signed|Committed|Enrolled|Uncommitted)', page_text, re.IGNORECASE)
-            if status_match:
-                recruit['status'] = status_match.group(1).title()
-
-            # If no explicit status label, check for strong phrases
-            if recruit['status'] == 'Uncommitted':
-                if 'Signed with' in page_text:
-                    recruit['status'] = 'Signed'
-                elif 'Committed to' in page_text:
-                    recruit['status'] = 'Committed'
-                elif 'Enrolled at' in page_text:
-                    recruit['status'] = 'Enrolled'
+            # Commitment status - look for school images/links or status text
+            if 'Signed' in page_text:
+                recruit['status'] = 'Signed'
+            elif 'Committed' in page_text:
+                recruit['status'] = 'Committed'
+            elif 'Enrolled' in page_text:
+                recruit['status'] = 'Enrolled'
 
             # Try to find committed school from college links
-            # STRICTER LOGIC: Only assume commitment if status confirms it,
-            # or if we find a very strong indicator in the link itself.
+            # Look for the first college link that's part of status/commitment info
             player_name_lower = recruit.get('name', '').lower()
             college_links = soup.select('a[href*="/college/"]')
             for link in college_links:
@@ -912,7 +901,6 @@ class On3Scraper:
                 if '/football/' in href or href.endswith('/'):
                     # Get school name from image alt text first (more reliable)
                     school_name = None
-                    alt_text = ""
                     img = link.select_one('img')
                     if img and img.get('alt'):
                         alt_text = img.get('alt', '')
@@ -939,28 +927,10 @@ class On3Scraper:
                             if not any(word in school_name_lower for word in known_school_words):
                                 continue
                         if school_name not in ['College', 'NCAA', 'Avatar', 'Teams', 'All Teams']:
-
-                            # CRITICAL FIX: Only set committed_to if:
-                            # 1. Status is already confirmed (Signed/Committed/Enrolled)
-                            # 2. OR the image alt text says "Committed" or "Signed"
-
-                            is_strong_indicator = False
-                            if 'commit' in alt_text.lower() or 'signed' in alt_text.lower():
-                                is_strong_indicator = True
-
-                            # If we already know they are committed/signed, the first school link is almost certainly it
-                            if recruit['status'] in ['Signed', 'Committed', 'Enrolled']:
-                                recruit['committed_to'] = school_name
-                                break
-
-                            # If we found a strong indicator in the link itself, trust it and update status
-                            elif is_strong_indicator:
-                                recruit['committed_to'] = school_name
-                                recruit['status'] = 'Committed' if 'commit' in alt_text.lower() else 'Signed'
-                                break
-
-                            # Otherwise, assume it's just a prediction/offer link and IGNORE IT
-                            # This prevents "Georgia Tech" (prediction) from becoming "Committed to Georgia Tech"
+                            recruit['committed_to'] = school_name
+                            if recruit['status'] == 'Uncommitted':
+                                recruit['status'] = 'Committed'
+                            break
 
             # Parse commitment date
             commit_date_match = re.search(r'Commitment Date\s*(\d{1,2}/\d{1,2}/\d{2,4})', page_text)

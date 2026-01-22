@@ -24,15 +24,12 @@ import sys
 import discord
 from discord.ext import commands, tasks
 
-from logging.handlers import RotatingFileHandler
-
 # Setup logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.StreamHandler(sys.stdout),
-        RotatingFileHandler('bot.log', maxBytes=5*1024*1024, backupCount=3, encoding='utf-8')
+        logging.StreamHandler(sys.stdout)
     ]
 )
 logger = logging.getLogger('CFB26Bot')
@@ -122,7 +119,7 @@ async def setup_dependencies():
         logger.warning("⚠️ Charter editor not available")
 
     try:
-        from .utils.summarizer import ChannelSummarizer
+        from .utils.channel_summarizer import ChannelSummarizer
         channel_summarizer = ChannelSummarizer(ai_assistant if AI_AVAILABLE else None)
         logger.info("✅ Channel summarizer initialized")
     except ImportError:
@@ -181,7 +178,7 @@ async def setup_dependencies():
             elif cog_name == 'LeagueCog':
                 cog.set_dependencies(timekeeper_manager=timekeeper_manager, admin_manager=admin_manager, schedule_manager=schedule_manager, channel_summarizer=channel_summarizer, ai_assistant=ai_assistant, AI_AVAILABLE=AI_AVAILABLE)
             elif cog_name == 'AdminCog':
-                cog.set_dependencies(admin_manager=admin_manager, channel_manager=channel_manager, timekeeper_manager=timekeeper_manager, ai_assistant=ai_assistant)
+                cog.set_dependencies(admin_manager=admin_manager, channel_manager=channel_manager, timekeeper_manager=timekeeper_manager, ai_assistant=ai_assistant, schedule_manager=schedule_manager)
             elif cog_name == 'RecruitingCog':
                 if hasattr(cog, 'admin_manager'):
                     cog.admin_manager = admin_manager

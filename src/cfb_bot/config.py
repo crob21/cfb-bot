@@ -8,10 +8,7 @@ Contains colors, footers, and shared constants used across all cogs.
 import os
 from dotenv import load_dotenv
 
-try:
-    load_dotenv()
-except Exception:
-    pass  # Ignore errors loading .env (e.g. permission denied in tests)
+load_dotenv()
 
 # =============================================================================
 # Bot Configuration

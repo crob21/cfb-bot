@@ -17,21 +17,15 @@ Commands:
 """
 
 import logging
-import sys
-import platform
-import time
 from datetime import datetime
 from typing import Optional
 
 import discord
-import aiohttp
 from discord import app_commands
 from discord.ext import commands
-from bs4 import BeautifulSoup
 
 from ..config import Colors, Footers
 from ..utils.server_config import server_config, FeatureModule
-from ..utils.on3_scraper import on3_scraper
 
 logger = logging.getLogger('CFB26Bot.Admin')
 
@@ -47,11 +41,12 @@ class AdminCog(commands.Cog):
         self.timekeeper_manager = None
         logger.info("🔧 AdminCog initialized")
 
-    def set_dependencies(self, admin_manager=None, channel_manager=None, timekeeper_manager=None, ai_assistant=None):
+    def set_dependencies(self, admin_manager=None, channel_manager=None, timekeeper_manager=None, ai_assistant=None, schedule_manager=None):
         """Set dependencies after bot is ready"""
         self.admin_manager = admin_manager
         self.channel_manager = channel_manager
         self.timekeeper_manager = timekeeper_manager
+        self.schedule_manager = schedule_manager
         # Store ai_assistant on bot for access in commands
         if ai_assistant:
             self.bot.ai_assistant = ai_assistant
@@ -61,211 +56,6 @@ class AdminCog(commands.Cog):
         name="admin",
         description="🔧 Admin commands for managing Harry"
     )
-
-    @admin_group.command(name="debug", description="Bot debugging tools")
-    @app_commands.describe(
-        tool="Tool to run: info, scraper, test_url, or logs",
-        url="URL to test (for test_url only)",
-        lines="Number of log lines to retrieve (for logs only, default 50)"
-    )
-    @app_commands.choices(tool=[
-        app_commands.Choice(name="ℹ️ System Info", value="info"),
-        app_commands.Choice(name="🕸️ Scraper Status", value="scraper"),
-        app_commands.Choice(name="🌐 Test URL Fetch", value="test_url"),
-        app_commands.Choice(name="📝 View Logs", value="logs"),
-    ])
-    async def debug(
-        self,
-        interaction: discord.Interaction,
-        tool: str,
-        url: Optional[str] = None,
-        lines: Optional[int] = 50
-    ):
-        """Run debug tools"""
-        # Check admin
-        is_admin = (
-            interaction.user.guild_permissions.administrator or
-            (self.admin_manager and self.admin_manager.is_admin(interaction.user, interaction))
-        )
-        if not is_admin:
-            await interaction.response.send_message("❌ Only admins can use debug tools!", ephemeral=True)
-            return
-
-        await interaction.response.defer(ephemeral=True)
-
-        if tool == "info":
-            # System Info
-            embed = discord.Embed(
-                title="ℹ️ System Debug Info",
-                color=Colors.PRIMARY
-            )
-
-            # System
-            embed.add_field(
-                name="💻 System",
-                value=f"**OS:** {platform.system()} {platform.release()}\n"
-                      f"**Python:** {sys.version.split()[0]}\n"
-                      f"**Discord.py:** {discord.__version__}",
-                inline=True
-            )
-
-            # Bot
-            embed.add_field(
-                name="🤖 Bot",
-                value=f"**Latency:** {self.bot.latency * 1000:.1f}ms\n"
-                      f"**Guilds:** {len(self.bot.guilds)}\n"
-                      f"**Users:** {len(self.bot.users)}",
-                inline=True
-            )
-
-            # Modules status for this guild
-            if interaction.guild:
-                enabled = server_config.get_enabled_modules(interaction.guild.id)
-                enabled_list = [m.upper() for m in enabled]
-                embed.add_field(
-                    name="⚙️ Enabled Modules",
-                    value=", ".join(enabled_list) if enabled_list else "None",
-                    inline=False
-                )
-
-            await interaction.followup.send(embed=embed, ephemeral=True)
-
-        elif tool == "scraper":
-            # Scraper Status
-            embed = discord.Embed(
-                title="🕸️ Scraper Debug Info",
-                color=Colors.PRIMARY
-            )
-
-            # Playwright Status
-            pw_status = "✅ Available" if on3_scraper.PLAYWRIGHT_AVAILABLE else "❌ Not Installed"
-            if on3_scraper.PLAYWRIGHT_AVAILABLE and on3_scraper._browser:
-                pw_status += " (Running)"
-
-            embed.add_field(
-                name="🎭 Playwright",
-                value=pw_status,
-                inline=True
-            )
-
-            # Blocked Status
-            blocked = "🔴 YES" if on3_scraper.is_blocked() else "🟢 No"
-            embed.add_field(
-                name="🚫 Blocked?",
-                value=blocked,
-                inline=True
-            )
-
-            # Cache Stats
-            stats = on3_scraper._cache
-            embed.add_field(
-                name="💾 Cache",
-                value=f"**Size:** {len(stats)} entries",
-                inline=True
-            )
-
-            # Zyte Status
-            zyte = on3_scraper.get_zyte_usage()
-            zyte_status = "✅ Configured" if zyte['is_available'] else "❌ Not Configured"
-            embed.add_field(
-                name="⚡ Zyte API",
-                value=f"{zyte_status}\n**Requests:** {zyte['request_count']}",
-                inline=True
-            )
-
-            await interaction.followup.send(embed=embed, ephemeral=True)
-
-        elif tool == "test_url":
-            if not url:
-                await interaction.followup.send("❌ Please provide a URL to test!", ephemeral=True)
-                return
-
-            if not url.startswith(('http://', 'https://')):
-                await interaction.followup.send("❌ URL must start with http:// or https://", ephemeral=True)
-                return
-
-            embed = discord.Embed(
-                title="🌐 URL Test",
-                description=f"Fetching: {url}",
-                color=Colors.PRIMARY
-            )
-
-            start_time = time.time()
-            try:
-                # Try fetching using the scraper's method to test its bypass
-                html = await on3_scraper._fetch_page(url)
-                duration = time.time() - start_time
-
-                if html:
-                    content_len = len(html)
-                    title = "Unknown"
-                    try:
-                        soup = BeautifulSoup(html, 'html.parser')
-                        if soup.title:
-                            title = soup.title.string.strip()
-                    except Exception:
-                        pass
-
-                    embed.color = Colors.SUCCESS
-                    embed.add_field(name="✅ Status", value="Success (200 OK)", inline=True)
-                    embed.add_field(name="⏱️ Time", value=f"{duration:.2f}s", inline=True)
-                    embed.add_field(name="📄 Size", value=f"{content_len:,} bytes", inline=True)
-                    embed.add_field(name="📑 Title", value=title[:100], inline=False)
-
-                    # Check for blocking text
-                    is_blocked = on3_scraper._check_if_blocked(html)
-                    embed.add_field(name="🛡️ Block Detected?", value="🔴 YES" if is_blocked else "🟢 No", inline=True)
-
-                else:
-                    embed.color = Colors.ERROR
-                    embed.add_field(name="❌ Status", value="Failed (None returned)", inline=True)
-                    embed.add_field(name="⏱️ Time", value=f"{duration:.2f}s", inline=True)
-
-            except Exception as e:
-                duration = time.time() - start_time
-                embed.color = Colors.ERROR
-                embed.add_field(name="❌ Error", value=str(e), inline=False)
-                embed.add_field(name="⏱️ Time", value=f"{duration:.2f}s", inline=True)
-
-            await interaction.followup.send(embed=embed, ephemeral=True)
-
-        elif tool == "logs":
-            # View Logs
-            try:
-                # Cap lines to prevent memory issues
-                max_lines = 1000
-                if lines and lines > max_lines:
-                    lines = max_lines
-
-                # Use to_thread to prevent blocking event loop during file I/O
-                def read_last_lines(fname, n_lines):
-                    with open(fname, 'r', encoding='utf-8') as f:
-                        # Simple approach for small files, seek approach better for huge ones
-                        # But RotatingFileHandler limits size to 5MB, so readlines is safe enough
-                        return f.readlines()[-n_lines:]
-
-                import asyncio
-                last_lines = await asyncio.to_thread(read_last_lines, 'bot.log', lines or 50)
-
-                log_content = "".join(last_lines)
-
-                if not log_content:
-                    await interaction.followup.send("ℹ️ Log file is empty.", ephemeral=True)
-                    return
-
-                # Create a file object to send
-                from io import StringIO
-                log_file = discord.File(StringIO(log_content), filename="bot_debug.log")
-
-                await interaction.followup.send(
-                    f"📝 Here are the last **{len(last_lines)}** log lines:",
-                    file=log_file,
-                    ephemeral=True
-                )
-            except FileNotFoundError:
-                await interaction.followup.send("❌ Log file `bot.log` not found. Logging might not be configured to file.", ephemeral=True)
-            except Exception as e:
-                await interaction.followup.send(f"❌ Error reading logs: {e}", ephemeral=True)
 
     @admin_group.command(name="set_channel", description="Set the channel for admin outputs")
     @app_commands.describe(
@@ -1534,6 +1324,47 @@ class AdminCog(commands.Cog):
                 "✅ Weekly digest sent to all admins!",
                 ephemeral=True
             )
+
+    @admin_group.command(name="schedule_reload", description="Reload the league schedule from file (Admin only)")
+    async def schedule_reload(self, interaction: discord.Interaction):
+        """Reload the schedule from schedule.json without restarting the bot"""
+        if not self.admin_manager or not self.admin_manager.is_admin(interaction.user, interaction):
+            await interaction.response.send_message("❌ Only admins can reload the schedule!", ephemeral=True)
+            return
+
+        if not self.schedule_manager:
+            await interaction.response.send_message("❌ Schedule manager not available", ephemeral=True)
+            return
+
+        await interaction.response.defer(ephemeral=True)
+
+        # Reload the schedule
+        success = self.schedule_manager.reload_schedule()
+
+        if success:
+            # Get schedule info
+            season = self.schedule_manager.season
+            team_count = len(self.schedule_manager.teams)
+            teams_list = ", ".join(self.schedule_manager.teams)
+            
+            embed = discord.Embed(
+                title="📅 Schedule Reloaded!",
+                description=f"Successfully reloaded schedule from `data/schedule.json`",
+                color=Colors.SUCCESS
+            )
+            embed.add_field(name="Season", value=f"Season {season}", inline=True)
+            embed.add_field(name="User Teams", value=f"{team_count} teams", inline=True)
+            embed.add_field(name="Teams", value=teams_list, inline=False)
+            embed.set_footer(text="Harry's Schedule Manager 🏈")
+            
+            await interaction.followup.send(embed=embed, ephemeral=True)
+            logger.info(f"✅ Schedule reloaded by {interaction.user}")
+        else:
+            await interaction.followup.send(
+                "❌ Failed to reload schedule! Check logs for errors.",
+                ephemeral=True
+            )
+            logger.error(f"❌ Schedule reload failed (requested by {interaction.user})")
 
 
 async def setup(bot: commands.Bot):

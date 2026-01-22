@@ -35,9 +35,42 @@ from discord.ext import commands
 from ..config import Colors, Footers
 from ..services.checks import check_module_enabled
 from ..utils.server_config import server_config, FeatureModule
-from ..utils.timekeeper import CFB_DYNASTY_WEEKS, TOTAL_WEEKS_PER_SEASON, get_week_info, get_week_name
 
 logger = logging.getLogger('CFB26Bot.League')
+
+# Week schedule constants (imported from bot.py logic)
+TOTAL_WEEKS_PER_SEASON = 14
+CFB_DYNASTY_WEEKS = {
+    0: {"name": "Week 0", "short": "W0", "phase": "Regular Season", "actions": "Play Week 0 Games"},
+    1: {"name": "Week 1", "short": "W1", "phase": "Regular Season", "actions": "Play Week 1 Games"},
+    2: {"name": "Week 2", "short": "W2", "phase": "Regular Season", "actions": "Play Week 2 Games"},
+    3: {"name": "Week 3", "short": "W3", "phase": "Regular Season", "actions": "Play Week 3 Games"},
+    4: {"name": "Week 4", "short": "W4", "phase": "Regular Season", "actions": "Play Week 4 Games"},
+    5: {"name": "Week 5", "short": "W5", "phase": "Regular Season", "actions": "Play Week 5 Games"},
+    6: {"name": "Week 6", "short": "W6", "phase": "Regular Season", "actions": "Play Week 6 Games"},
+    7: {"name": "Week 7", "short": "W7", "phase": "Regular Season", "actions": "Play Week 7 Games"},
+    8: {"name": "Week 8", "short": "W8", "phase": "Regular Season", "actions": "Play Week 8 Games"},
+    9: {"name": "Week 9", "short": "W9", "phase": "Regular Season", "actions": "Play Week 9 Games"},
+    10: {"name": "Week 10", "short": "W10", "phase": "Regular Season", "actions": "Play Week 10 Games"},
+    11: {"name": "Conference Championship Week", "short": "CCG", "phase": "Post-Season", "actions": "Play Championship Games"},
+    12: {"name": "Bowl Selection Week", "short": "Bowls", "phase": "Post-Season", "actions": "Play Bowl Games"},
+    13: {"name": "National Championship & Offseason", "short": "Natty/Off", "phase": "Offseason", "actions": "Play Championship, Recruiting, Transfers"},
+}
+
+
+def get_week_info(week_num: int) -> dict:
+    """Get week info from the schedule"""
+    return CFB_DYNASTY_WEEKS.get(week_num, {
+        "name": f"Week {week_num}",
+        "short": f"W{week_num}",
+        "phase": "Unknown",
+        "actions": ""
+    })
+
+
+def get_week_name(week_num: int) -> str:
+    """Get just the week name"""
+    return get_week_info(week_num).get("name", f"Week {week_num}")
 
 
 class LeagueCog(commands.Cog):
@@ -304,7 +337,6 @@ class LeagueCog(commands.Cog):
 
         description = ""
         if current_week is not None:
-            # Use imported get_week_info
             curr_info = get_week_info(current_week)
             description = f"**Season {current_season}**\n📍 Current: **{curr_info['name']}**\n\n"
 
@@ -323,9 +355,7 @@ class LeagueCog(commands.Cog):
 
         for wn in sorted(CFB_DYNASTY_WEEKS.keys()):
             wd = CFB_DYNASTY_WEEKS[wn]
-            # Use imported logic
             line = f"**► `{wn:2d}` {wd['short']}** ◄" if current_week == wn else f"`{wn:2d}` {wd['short']}"
-
             if wd['phase'] == "Regular Season":
                 regular.append(line)
             elif wd['phase'] == "Post-Season":
@@ -333,22 +363,14 @@ class LeagueCog(commands.Cog):
             else:
                 off.append(line)
 
-        # Split regular season into two columns if it's too long (it is)
-        if len(regular) > 10:
-            half = (len(regular) + 1) // 2
-            embed.add_field(name="🏈 Regular Season (1/2)", value="\n".join(regular[:half]), inline=True)
-            embed.add_field(name="🏈 Regular Season (2/2)", value="\n".join(regular[half:]), inline=True)
-        else:
-            embed.add_field(name="🏈 Regular Season", value="\n".join(regular), inline=True)
-
+        embed.add_field(name="🏈 Regular Season", value="\n".join(regular), inline=True)
         embed.add_field(name="🏆 Post-Season", value="\n".join(post), inline=True)
         embed.add_field(name="📝 Offseason", value="\n".join(off), inline=True)
-
-        embed.set_footer(text="Harry's Week Tracker 🏈 | Use /league set_week to update")
+        embed.set_footer(text="Harry's Week Tracker 🏈")
         await interaction.response.send_message(embed=embed)
 
     @league_group.command(name="games", description="View the games for a specific week")
-    @app_commands.describe(week="Week number (0-13, leave empty for current)")
+    @app_commands.describe(week="Week number (0-14, leave empty for current)")
     async def games(self, interaction: discord.Interaction, week: Optional[int] = None):
         """View the schedule for a specific week"""
         if not await check_module_enabled(interaction, FeatureModule.LEAGUE, server_config):
@@ -369,30 +391,51 @@ class LeagueCog(commands.Cog):
             await interaction.followup.send("❌ Schedule manager not available", ephemeral=True)
             return
 
-        games = self.schedule_manager.get_week_games(target_week)
+        # Get week data
+        week_data = self.schedule_manager.get_week_schedule(target_week)
         week_info = get_week_info(target_week)
 
-        if not games:
+        if not week_data:
             embed = discord.Embed(
                 title=f"📅 {week_info['name']} Schedule",
-                description="No games found for this week.",
+                description="No schedule data found for this week.",
                 color=Colors.WARNING
             )
         else:
-            lines = []
-            for g in games:
-                lines.append(f"🏈 **{g.get('away', '?')}** @ **{g.get('home', '?')}**")
+            # Build description with bye teams and games
+            description_lines = []
+            
+            # Bye teams (with user teams bolded)
+            bye_teams = week_data.get('bye_teams', [])
+            if bye_teams:
+                bye_formatted = self.schedule_manager.format_bye_teams(bye_teams)
+                description_lines.append(f"😴 **Bye Week:** {bye_formatted}\n")
+            
+            # Games (with user teams bolded)
+            games = week_data.get('games', [])
+            if games:
+                description_lines.append("**Games:**")
+                for game in games:
+                    description_lines.append(self.schedule_manager.format_game(game))
+            else:
+                description_lines.append("No games scheduled for this week.")
+            
             embed = discord.Embed(
                 title=f"📅 {week_info['name']} Schedule",
-                description="\n".join(lines),
+                description="\n".join(description_lines),
                 color=Colors.SUCCESS
             )
+            
+            # Add user teams list in footer
+            if self.schedule_manager.teams:
+                embed.set_footer(text=f"User Teams: {', '.join(self.schedule_manager.teams)} | Harry's Schedule 🏈")
+            else:
+                embed.set_footer(text="Harry's Schedule 🏈")
 
-        embed.set_footer(text="Harry's Schedule 🏈")
         await interaction.followup.send(embed=embed)
 
     @league_group.command(name="find_game", description="Find a team's game for a specific week")
-    @app_commands.describe(team="Team name", week="Week number")
+    @app_commands.describe(team="Team name", week="Week number (0-14)")
     async def find_game(self, interaction: discord.Interaction, team: str, week: Optional[int] = None):
         """Find a team's game"""
         if not await check_module_enabled(interaction, FeatureModule.LEAGUE, server_config):
@@ -409,19 +452,29 @@ class LeagueCog(commands.Cog):
             await interaction.followup.send("❌ Schedule manager not available", ephemeral=True)
             return
 
-        game = self.schedule_manager.find_team_game(team, target_week)
+        # Use schedule_manager's get_team_game method which handles formatting
+        game = self.schedule_manager.get_team_game(team, target_week)
         week_info = get_week_info(target_week or 0)
 
-        if game:
+        if game and not game.get('bye'):
+            # Team has a game
             embed = discord.Embed(
-                title=f"🏈 {team}'s Game - {week_info['name']}",
-                description=f"**{game.get('away', '?')}** @ **{game.get('home', '?')}**",
+                title=f"🏈 {self.schedule_manager.format_team(team)}'s Game - {week_info['name']}",
+                description=game.get('matchup', 'Game info not available'),
                 color=Colors.SUCCESS
             )
-        else:
+        elif game and game.get('bye'):
+            # Team has a bye
             embed = discord.Embed(
-                title=f"🏈 {team} - {week_info['name']}",
-                description=f"**{team}** has a BYE this week or team not found.",
+                title=f"😴 {self.schedule_manager.format_team(team)} - {week_info['name']}",
+                description=f"**{self.schedule_manager.format_team(team)}** has a BYE this week.",
+                color=Colors.WARNING
+            )
+        else:
+            # Team not found
+            embed = discord.Embed(
+                title=f"🔍 {team} - {week_info['name']}",
+                description=f"Team **{team}** not found in schedule.",
                 color=Colors.WARNING
             )
 
@@ -429,7 +482,7 @@ class LeagueCog(commands.Cog):
         await interaction.followup.send(embed=embed)
 
     @league_group.command(name="byes", description="Show which teams have a bye this week")
-    @app_commands.describe(week="Week number")
+    @app_commands.describe(week="Week number (0-14)")
     async def byes(self, interaction: discord.Interaction, week: Optional[int] = None):
         """Show teams on bye"""
         if not await check_module_enabled(interaction, FeatureModule.LEAGUE, server_config):
@@ -450,9 +503,11 @@ class LeagueCog(commands.Cog):
         week_info = get_week_info(target_week or 0)
 
         if bye_teams:
+            # Format bye teams with user teams bolded
+            bye_formatted = self.schedule_manager.format_bye_teams(bye_teams)
             embed = discord.Embed(
                 title=f"😴 Bye Teams - {week_info['name']}",
-                description="\n".join([f"• {t}" for t in bye_teams]),
+                description=bye_formatted,
                 color=Colors.WARNING
             )
         else:
@@ -466,7 +521,7 @@ class LeagueCog(commands.Cog):
         await interaction.followup.send(embed=embed)
 
     @league_group.command(name="set_week", description="Set the current season and week (Admin only)")
-    @app_commands.describe(season="Season number", week="Week number (0-29)")
+    @app_commands.describe(season="Season number", week="Week number (0-13)")
     async def set_week(self, interaction: discord.Interaction, season: int, week: int):
         """Set the current season and week"""
         if not self.admin_manager or not self.admin_manager.is_admin(interaction.user, interaction):
@@ -477,12 +532,8 @@ class LeagueCog(commands.Cog):
             await interaction.response.send_message("❌ Timekeeper not available", ephemeral=True)
             return
 
-        if season < 1:
-            await interaction.response.send_message("❌ Season must be at least 1!", ephemeral=True)
-            return
-
-        if week < 0 or week >= TOTAL_WEEKS_PER_SEASON:
-            await interaction.response.send_message(f"❌ Week must be between 0 and {TOTAL_WEEKS_PER_SEASON - 1}!\nUse `/league weeks` to see valid week numbers.", ephemeral=True)
+        if season < 1 or week < 0:
+            await interaction.response.send_message("❌ Invalid season/week!", ephemeral=True)
             return
 
         success = await self.timekeeper_manager.set_season_week(season, week)
@@ -491,7 +542,7 @@ class LeagueCog(commands.Cog):
             week_info = get_week_info(week)
             embed = discord.Embed(
                 title="📅 Season/Week Set!",
-                description=f"**Season {season}** - {week_info['name']}\nPhase: {week_info['phase']}",
+                description=f"**Season {season}** - {week_info['name']}",
                 color=Colors.SUCCESS
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)

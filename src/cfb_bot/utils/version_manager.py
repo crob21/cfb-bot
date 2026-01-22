@@ -11,84 +11,10 @@ from typing import Dict, List, Optional
 logger = logging.getLogger('CFB26Bot.Version')
 
 # Current version
-CURRENT_VERSION = "3.5.4"
+CURRENT_VERSION = "3.5.0"
 
 # Changelog - organized by version
 CHANGELOG: Dict[str, Dict] = {
-    "3.5.4": {
-        "date": "2026-01-18",
-        "title": "Channel Summarizer Fix 🔧",
-        "emoji": "🔧",
-        "features": [
-            {
-                "category": "Bug Fixes",
-                "emoji": "🐛",
-                "changes": [
-                    "Fixed Channel Summarizer failing to initialize",
-                    "Resolved import error in main bot loop",
-                    "Restored `/summarize` and charter editing functionality"
-                ]
-            }
-        ]
-    },
-    "3.5.3": {
-        "date": "2026-01-18",
-        "title": "Optimization & Security Audit 🛡️",
-        "emoji": "🛡️",
-        "features": [
-            {
-                "category": "Security Improvements",
-                "emoji": "🔒",
-                "changes": [
-                    "Added strict URL validation for debug tools to prevent SSRF",
-                    "Audited dependency usage for known vulnerabilities"
-                ]
-            },
-            {
-                "category": "Performance",
-                "emoji": "⚡",
-                "changes": [
-                    "Implemented rotating log files (max 5MB) to prevent disk fill-up",
-                    "Optimized log reading in debug tools to run in background thread",
-                    "Prevented event loop blocking during heavy I/O operations"
-                ]
-            }
-        ]
-    },
-    "3.5.2": {
-        "date": "2026-01-18",
-        "title": "Debug Tools 🐞",
-        "emoji": "🐞",
-        "features": [
-            {
-                "category": "Admin Debugging",
-                "emoji": "🔧",
-                "changes": [
-                    "NEW: `/admin debug` command with multiple tools",
-                    "View system info and scraper status",
-                    "Test URL fetching to check for blocks",
-                    "View/download recent logs directly from Discord"
-                ]
-            }
-        ]
-    },
-    "3.5.1": {
-        "date": "2026-01-18",
-        "title": "Recruiting Search Fixes 🔍",
-        "emoji": "🔍",
-        "features": [
-            {
-                "category": "Bug Fixes",
-                "emoji": "🐛",
-                "changes": [
-                    "Fixed recruiting search favoring fuzzy matches over exact matches",
-                    "Prioritizes exact matches across all search strategies (Class Year, All Players)",
-                    "Tightened fuzzy matching threshold to prevent Ross/Moss mixups",
-                    "Fixed Playwright browser installation on server deployment"
-                ]
-            }
-        ]
-    },
     "3.5.0": {
         "date": "2026-01-13",
         "title": "Weekly Digest Reporting 📊",

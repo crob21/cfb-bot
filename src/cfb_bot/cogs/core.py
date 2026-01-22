@@ -63,12 +63,10 @@ class CoreCog(commands.Cog):
                 name="⭐ `/recruiting`",
                 value=(
                     "`player` - Look up a recruit\n"
-                    "`portal` - Transfer portal player\n"
                     "`top` - Top recruits by pos/state\n"
                     "`class` - Team's recruiting class\n"
                     "`commits` - List team's commits\n"
-                    "`rankings` - Top 25 team rankings\n"
-                    "`source` - Switch On3/247"
+                    "`rankings` - Top 25 team rankings"
                 ),
                 inline=True
             )
@@ -81,14 +79,10 @@ class CoreCog(commands.Cog):
                 name="📊 `/cfb`",
                 value=(
                     "`player` - College player lookup\n"
-                    "`players` - Bulk player lookup\n"
                     "`rankings` - AP/Coaches/CFP polls\n"
                     "`schedule` - Team's schedule\n"
                     "`matchup` - Head-to-head history\n"
-                    "`transfers` - Portal activity\n"
-                    "`draft` - NFL draft picks\n"
-                    "`betting` - Game lines/odds\n"
-                    "`ratings` - SP+, SRS, Elo"
+                    "`transfers` - Portal activity"
                 ),
                 inline=True
             )
@@ -113,18 +107,19 @@ class CoreCog(commands.Cog):
             embed.add_field(
                 name="🏆 `/league`",
                 value=(
-                    "**Season:** `week`, `weeks`, `games`, `find_game`, `byes`\n"
+                    "**Season:** `week`, `weeks`, `games`, `byes`\n"
                     "**Timer:** `timer`, `timer_status`, `timer_stop`\n"
-                    "**Staff:** `staff`, `pick_commish`\n"
-                    "**Admin:** `set_week`, `set_owner`, `set_commish`, `timer_channel`"
+                    "**Staff:** `staff`, `set_owner`, `set_commish`"
                 ),
                 inline=True
             )
             embed.add_field(
                 name="📜 `/charter`",
                 value=(
-                    "**View:** `lookup`, `search`, `link`, `history`\n"
-                    "**Admin:** `scan`, `add`, `update`, `sync`, `backups`, `restore`"
+                    "`lookup` - Find a rule\n"
+                    "`search` - Search charter\n"
+                    "`link` - Charter URL\n"
+                    "`history` - Recent changes"
                 ),
                 inline=True
             )
@@ -145,19 +140,6 @@ class CoreCog(commands.Cog):
             )
         else:
             disabled_modules.append("AI Chat")
-
-        # Admin Group - Always available to admins (but we show it here for reference)
-        # Only show if user is admin to avoid clutter? No, prompt asked for ALL commands.
-        embed.add_field(
-            name="🔧 `/admin` (Restricted)",
-            value=(
-                "**Config:** `config`, `channels`, `set_channel`\n"
-                "**Stats:** `ai`, `zyte`, `cache`, `budget`, `digest`\n"
-                "**Manage:** `add`, `remove`, `list` (Bot Admins)\n"
-                "**Debug:** `debug`, `sync`"
-            ),
-            inline=False
-        )
 
         # Always available commands
         embed.add_field(
