@@ -593,30 +593,21 @@ class On3Scraper:
         logger.info(f"🔍 Searching On3 for: '{name}' (default year: {year})")
 
         # Build search strategies:
-        # 1. Full name with class year (high school recruits)
-        # 2. Full name without year (transfer portal)
-        # 3. Last name only with year (handles first name typos)
-        # 4. Last name only without year (transfers with first name typos)
+        # Search BOTH class year and all players to catch both HS recruits and transfer portal
+        # Then deduplicate and pick best matches
         name_parts = name.strip().split()
         last_name = name_parts[-1] if name_parts else name
 
         search_urls = [
-            (self.SEARCH_URL.format(name=quote_plus(name), year=year), f"class {year}", name),
-            (self.SEARCH_URL_ALL.format(name=quote_plus(name)), "all players (including transfers)", name),
+            (self.SEARCH_URL.format(name=quote_plus(name), year=year), f"class {year}", name, False),
+            (self.SEARCH_URL_ALL.format(name=quote_plus(name)), "all players (including transfers)", name, True),
         ]
 
-        # Add last-name-only searches if name has multiple parts
-        if len(name_parts) >= 2:
-            search_urls.extend([
-                (self.SEARCH_URL.format(name=quote_plus(last_name), year=year), f"class {year} (last name)", name),
-                (self.SEARCH_URL_ALL.format(name=quote_plus(last_name)), "all players (last name)", name),
-            ])
+        # Collect all exact matches from all searches
+        all_exact_matches = {}  # href -> (link_text, is_transfer)
+        all_fuzzy_matches = {}  # href -> (link_text, score, is_transfer)
 
-        profile_url = None
-        player_name = None
-        is_transfer = False
-
-        for search_url, search_type, search_name in search_urls:
+        for search_url, search_type, search_name, is_transfer_search in search_urls:
             logger.info(f"🔍 Trying search: {search_type}")
             html = await self._fetch_page(search_url)
 
@@ -637,15 +628,7 @@ class On3Scraper:
                 name_lower = name.lower()
                 name_parts = name_lower.split()
 
-                logger.info(f"📋 Found {len(player_links)} player links to check for '{name}'")
-
-                # Track best fuzzy match
-                best_fuzzy_match = None
-                best_fuzzy_score = 0
-
-                # Track matches with position filtering
-                exact_matches = []  # (href, link_text, is_transfer)
-                fuzzy_matches = []  # (href, link_text, score, is_transfer)
+                logger.info(f"📋 Checking {len(player_links)} player links from {search_type}")
 
                 for link in player_links:
                     link_text = link.get_text(strip=True)
@@ -671,13 +654,13 @@ class On3Scraper:
                     )
 
                     if exact_match:
-                        # Track if this came from the broader search (likely transfer portal)
-                        is_transfer_flag = (search_type == "all players (including transfers)")
-                        exact_matches.append((href, link_text, is_transfer_flag))
-                        logger.debug(f"✅ Exact match candidate: {link_text} -> {href}")
+                        # Add to global exact matches (dedupe by href)
+                        if href not in all_exact_matches:
+                            all_exact_matches[href] = (link_text, is_transfer_search)
+                            logger.debug(f"✅ Exact match: {link_text} -> {href} ({search_type})")
 
                     # Fuzzy matching for typos (e.g., "Daylon" vs "Daylan")
-                    if FUZZY_AVAILABLE and not exact_match:
+                    elif FUZZY_AVAILABLE:
                         # Split into parts to check first AND last name
                         search_parts = name_lower.split()
                         result_parts = link_text_lower.split()
@@ -696,60 +679,56 @@ class On3Scraper:
                                 score = (first_score + last_score) // 2
 
                                 if score >= 75:  # 75% overall threshold
-                                    is_transfer_flag = (search_type == "all players (including transfers)")
-                                    fuzzy_matches.append((href, link_text, score, is_transfer_flag))
-                                    logger.debug(f"🔍 Fuzzy candidate: {link_text} (first:{first_score}%, last:{last_score}%, avg:{score}%)")
-
-                # Now filter by position if specified
-                chosen_match = None
-                if exact_matches or fuzzy_matches:
-                    # Prefer exact matches over fuzzy
-                    candidates = exact_matches if exact_matches else []
-
-                    # If position filter is specified, try to find match with that position
-                    if position and candidates:
-                        logger.info(f"🎯 Filtering {len(candidates)} matches by position: {position}")
-                        # We need to fetch each candidate's profile to check position
-                        # For now, just pick the first exact match (position check comes after profile fetch)
-                        # TODO: Could optimize by checking position in search results if available
-
-                    if candidates:
-                        href, link_text, is_transfer_flag = candidates[0]
-                        chosen_match = (href, link_text, is_transfer_flag)
-                    elif fuzzy_matches:
-                        # Pick best fuzzy match
-                        fuzzy_matches.sort(key=lambda x: x[2], reverse=True)
-                        href, link_text, score, is_transfer_flag = fuzzy_matches[0]
-                        chosen_match = (href, link_text, is_transfer_flag)
-                        logger.info(f"✅ Using fuzzy match ({score}%): {link_text}")
-
-                if chosen_match:
-                    href, link_text, is_transfer_flag = chosen_match
-                    profile_url = href
-                    player_name = link_text
-                    is_transfer = is_transfer_flag
-
-                    if not profile_url.startswith('http'):
-                        profile_url = self.BASE_URL + profile_url
-
-                    logger.info(f"✅ Selected profile: {player_name} -> {profile_url}")
-                    break  # Found a match, stop searching
+                                    # Add to global fuzzy matches (keep best score for each href)
+                                    if href not in all_fuzzy_matches or score > all_fuzzy_matches[href][1]:
+                                        all_fuzzy_matches[href] = (link_text, score, is_transfer_search)
+                                        logger.debug(f"🔍 Fuzzy match: {link_text} (first:{first_score}%, last:{last_score}%, avg:{score}%)")
 
             except Exception as e:
-                logger.error(f"Error parsing search results: {e}")
+                logger.error(f"❌ Error parsing {search_type} search results: {e}")
                 continue
+        
+        # After searching all URLs, process collected matches
+        logger.info(f"🔍 Total unique exact matches: {len(all_exact_matches)}, fuzzy matches: {len(all_fuzzy_matches)}")
+        
+        # Convert dicts to lists for processing
+        exact_matches = [(href, text, is_transfer) for href, (text, is_transfer) in all_exact_matches.items()]
+        fuzzy_matches = [(href, text, score, is_transfer) for href, (text, score, is_transfer) in all_fuzzy_matches.items()]
+        
+        profile_url = None
+        player_name = None
+        is_transfer = False
+        
+        # Pick best match
+        if exact_matches:
+            # Use first exact match (or could prioritize non-transfers)
+            href, link_text, is_transfer_flag = exact_matches[0]
+            profile_url = href
+            player_name = link_text
+            is_transfer = is_transfer_flag
+            logger.info(f"✅ Using exact match: {player_name}")
+        elif fuzzy_matches:
+            # Pick best fuzzy match by score
+            fuzzy_matches.sort(key=lambda x: x[2], reverse=True)
+            href, link_text, score, is_transfer_flag = fuzzy_matches[0]
+            profile_url = href
+            player_name = link_text
+            is_transfer = is_transfer_flag
+            logger.info(f"✅ Using fuzzy match ({score}%): {player_name}")
+        
+        if profile_url and not profile_url.startswith('http'):
+            profile_url = self.BASE_URL + profile_url
 
         if not profile_url:
             logger.info(f"❌ No profile found for {name} ({year})")
             return None
 
         # If we have multiple exact matches, fetch all their profiles and return as list
-        all_candidates = exact_matches if exact_matches else []
-        if len(all_candidates) > 1:
-            total_found = len(all_candidates)
+        if len(exact_matches) > 1:
+            total_found = len(exact_matches)
             logger.info(f"🔍 Found {total_found} players named '{name}' - fetching up to 5 profiles")
             candidates = []
-            for href, link_text, is_transfer_flag in all_candidates[:5]:  # Limit to 5 to avoid Discord limits
+            for href, link_text, is_transfer_flag in exact_matches[:5]:  # Limit to 5 to avoid Discord limits
                 candidate_url = href if href.startswith('http') else self.BASE_URL + href
                 recruit = await self._scrape_player_profile(candidate_url, year)
                 if recruit:
