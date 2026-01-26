@@ -687,18 +687,18 @@ class On3Scraper:
             except Exception as e:
                 logger.error(f"❌ Error parsing {search_type} search results: {e}")
                 continue
-        
+
         # After searching all URLs, process collected matches
         logger.info(f"🔍 Total unique exact matches: {len(all_exact_matches)}, fuzzy matches: {len(all_fuzzy_matches)}")
-        
+
         # Convert dicts to lists for processing
         exact_matches = [(href, text, is_transfer) for href, (text, is_transfer) in all_exact_matches.items()]
         fuzzy_matches = [(href, text, score, is_transfer) for href, (text, score, is_transfer) in all_fuzzy_matches.items()]
-        
+
         profile_url = None
         player_name = None
         is_transfer = False
-        
+
         # Pick best match
         if exact_matches:
             # Use first exact match (or could prioritize non-transfers)
@@ -715,7 +715,7 @@ class On3Scraper:
             player_name = link_text
             is_transfer = is_transfer_flag
             logger.info(f"✅ Using fuzzy match ({score}%): {player_name}")
-        
+
         if profile_url and not profile_url.startswith('http'):
             profile_url = self.BASE_URL + profile_url
 
@@ -726,9 +726,9 @@ class On3Scraper:
         # If we have multiple exact matches, fetch all their profiles and return as list
         if len(exact_matches) > 1:
             total_found = len(exact_matches)
-            logger.info(f"🔍 Found {total_found} players named '{name}' - fetching up to 5 profiles")
+            logger.info(f"🔍 Found {total_found} players named '{name}' - fetching up to 15 profiles")
             candidates = []
-            for href, link_text, is_transfer_flag in exact_matches[:5]:  # Limit to 5 to avoid Discord limits
+            for href, link_text, is_transfer_flag in exact_matches[:15]:  # Limit to 15 (Discord max is 25)
                 candidate_url = href if href.startswith('http') else self.BASE_URL + href
                 recruit = await self._scrape_player_profile(candidate_url, year)
                 if recruit:
@@ -736,7 +736,7 @@ class On3Scraper:
                         recruit['is_transfer'] = True
                         recruit['status'] = recruit.get('status') or 'Transfer'
                     candidates.append(recruit)
-            
+
             # Filter by position if specified
             if position and candidates:
                 position_upper = position.upper()

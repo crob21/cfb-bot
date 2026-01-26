@@ -149,7 +149,7 @@ class RecruitingCog(commands.Cog):
                     # Show "X of Y" if we had to limit results
                     count_msg = f"**{len(candidates)}** player(s)"
                     if total_found > len(candidates):
-                        count_msg = f"**{len(candidates)} of {total_found}** players (showing top 5)"
+                        count_msg = f"**{len(candidates)} of {total_found}** players (showing top 15)"
                     
                     embed = discord.Embed(
                         title=f"🔍 Multiple players found: {query_name}",
@@ -158,7 +158,7 @@ class RecruitingCog(commands.Cog):
                     )
 
                     # Add each candidate as a field
-                    for i, candidate in enumerate(candidates[:5], 1):  # Limit to 5
+                    for i, candidate in enumerate(candidates, 1):  # Show all candidates (up to 15)
                         stars = '⭐' * candidate.get('stars', 0) if candidate.get('stars') else 'Unranked'
                         pos = candidate.get('position', '?')
                         school = candidate.get('committed_to') or candidate.get('high_school', 'Unknown')
@@ -185,7 +185,7 @@ class RecruitingCog(commands.Cog):
                                 description=f"Class {candidate.get('class', '?')} - {(candidate.get('committed_to') or candidate.get('high_school') or 'Unknown')[:50]}",
                                 value=str(i)
                             )
-                            for i, candidate in enumerate(candidates[:5])
+                            for i, candidate in enumerate(candidates)  # Show all candidates (up to 15)
                         ]
                     )
 
@@ -219,7 +219,7 @@ class RecruitingCog(commands.Cog):
                     
                     # Add helpful footer
                     footer_text = "Harry's Recruiting 🏈 | Use the menu below to select"
-                    if total_found > 5 and not position:
+                    if total_found > 15 and not position:
                         footer_text = "Harry's Recruiting 🏈 | 💡 Tip: Use position: filter to narrow results"
                     
                     embed.set_footer(text=footer_text)
