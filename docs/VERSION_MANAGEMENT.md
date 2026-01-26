@@ -1,8 +1,8 @@
 # Version Management Guide 📜
 
-This guide explains how to manage versions and maintain the changelog for Harry (CFB Rules Bot).
+This guide explains how to manage versions and maintain the changelog for CFB Bot (Harry).
 
-**Current Version:** 1.14.0  
+**Current Version:** 3.7.0  
 **Version File:** `src/cfb_bot/utils/version_manager.py`
 
 ---

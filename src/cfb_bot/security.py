@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Security constants for CFB Rules Bot
+Security constants for CFB Bot (Harry)
 
 Centralized security settings to prevent issues like:
 - Hanging requests

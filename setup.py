@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Setup script for CFB Rules Bot
+Setup script for CFB Bot (Harry)
 """
 
 from setuptools import setup, find_packages
@@ -12,10 +12,10 @@ with open("requirements.txt", "r", encoding="utf-8") as fh:
     requirements = [line.strip() for line in fh if line.strip() and not line.startswith("#")]
 
 setup(
-    name="cfb-rules-bot",
-    version="1.0.0",
-    author="CFB 26 League",
-    description="A Discord bot for College Football 26 Online Dynasty League",
+    name="cfb-bot-harry",
+    version="3.7.0",
+    author="CFB League",
+    description="Comprehensive Discord bot for College Football dynasty leagues - player lookups, recruiting, AI insights, and league management",
     long_description=long_description,
     long_description_content_type="text/markdown",
     packages=find_packages(where="src"),

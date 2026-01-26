@@ -1,6 +1,6 @@
-# CFB Rules Bot 🏈
+# CFB Bot (Harry) 🏈
 
-A Discord bot for College Football 26 Online Dynasty League that provides league rule information, AI-powered responses, player lookups, interactive charter management, and fun rivalry interactions.
+A comprehensive Discord bot for College Football dynasty leagues. Provides player lookups, recruiting data, high school stats, AI-powered insights, league management, interactive charter editing, and Harry's signature cockney personality.
 
 **Current Version:** 3.7.0  
 **Harry** - Your cockney, Oregon-hating assistant

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-CFB Rules Bot - Main Entry Point
+CFB Bot (Harry) - Main Entry Point
 
-A Discord bot for College Football 26 Online Dynasty League
+Comprehensive Discord bot for College Football dynasty leagues
 """
 
 import os
