@@ -125,15 +125,35 @@ class RecruitingCog(commands.Cog):
             if recruit and recruit.get('multiple'):
                 candidates = recruit.get('candidates', [])
                 query_name = recruit.get('query_name', name)
-
-                if len(candidates) <= 1:
-                    # Edge case - treat as single result
-                    recruit = candidates[0] if candidates else None
+                total_found = recruit.get('total_found', len(candidates))
+                
+                if len(candidates) == 0:
+                    # No candidates found (likely filtered out by position)
+                    pos_msg = f" with position **{position}**" if position else ""
+                    embed = discord.Embed(
+                        title="❓ No Players Found",
+                        description=f"Couldn't find **{query_name}**{pos_msg}.\n\n"
+                                   f"💡 Try removing the position filter or check the spelling.",
+                        color=Colors.WARNING
+                    )
+                    embed.set_footer(text=f"Harry's Recruiting 🏈 | Data from {source_name}")
+                    await interaction.followup.send(embed=embed, ephemeral=True)
+                    return
+                elif len(candidates) == 1:
+                    # Exactly one candidate (possibly after position filter)
+                    recruit = candidates[0]
                 else:
                     # Show selection menu
+                    filter_msg = f" (filtered by position: **{position}**)" if position else ""
+                    
+                    # Show "X of Y" if we had to limit results
+                    count_msg = f"**{len(candidates)}** player(s)"
+                    if total_found > len(candidates):
+                        count_msg = f"**{len(candidates)} of {total_found}** players (showing top 5)"
+                    
                     embed = discord.Embed(
                         title=f"🔍 Multiple players found: {query_name}",
-                        description=f"Found **{len(candidates)}** players with this name. Please select which one you're looking for:",
+                        description=f"Found {count_msg} with this name{filter_msg}. Please select which one you're looking for:",
                         color=Colors.WARNING
                     )
 
@@ -196,8 +216,13 @@ class RecruitingCog(commands.Cog):
                     select.callback = select_callback
                     view = discord.ui.View(timeout=180)  # 3 minute timeout
                     view.add_item(select)
-
-                    embed.set_footer(text=f"Harry's Recruiting 🏈 | Use the menu below to select")
+                    
+                    # Add helpful footer
+                    footer_text = "Harry's Recruiting 🏈 | Use the menu below to select"
+                    if total_found > 5 and not position:
+                        footer_text = "Harry's Recruiting 🏈 | 💡 Tip: Use position: filter to narrow results"
+                    
+                    embed.set_footer(text=footer_text)
                     await interaction.followup.send(embed=embed, view=view)
                     return
 

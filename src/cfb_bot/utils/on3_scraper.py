@@ -746,7 +746,8 @@ class On3Scraper:
         # If we have multiple exact matches, fetch all their profiles and return as list
         all_candidates = exact_matches if exact_matches else []
         if len(all_candidates) > 1:
-            logger.info(f"🔍 Found {len(all_candidates)} players named '{name}' - fetching all profiles")
+            total_found = len(all_candidates)
+            logger.info(f"🔍 Found {total_found} players named '{name}' - fetching up to 5 profiles")
             candidates = []
             for href, link_text, is_transfer_flag in all_candidates[:5]:  # Limit to 5 to avoid Discord limits
                 candidate_url = href if href.startswith('http') else self.BASE_URL + href
@@ -756,16 +757,27 @@ class On3Scraper:
                         recruit['is_transfer'] = True
                         recruit['status'] = recruit.get('status') or 'Transfer'
                     candidates.append(recruit)
+            
+            # Filter by position if specified
+            if position and candidates:
+                position_upper = position.upper()
+                filtered = [c for c in candidates if (c.get('position') or '').upper() == position_upper]
+                if filtered:
+                    logger.info(f"🎯 Filtered to {len(filtered)} candidate(s) with position {position}")
+                    candidates = filtered
+                else:
+                    logger.warning(f"⚠️ No candidates found with position {position}, showing all")
 
             if len(candidates) > 1:
                 # Return multiple candidates for user to choose
                 return {
                     "multiple": True,
                     "candidates": candidates,
-                    "query_name": name
+                    "query_name": name,
+                    "total_found": total_found  # How many total before limiting to 5
                 }
             elif candidates:
-                # Only one profile successfully loaded
+                # Only one profile successfully loaded (or filtered to one)
                 recruit = candidates[0]
                 self._set_cached(cache_key, recruit)
                 return recruit
