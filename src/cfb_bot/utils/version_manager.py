@@ -11,10 +11,48 @@ from typing import Dict, List, Optional
 logger = logging.getLogger('CFB26Bot.Version')
 
 # Current version
-CURRENT_VERSION = "3.6.0"
+CURRENT_VERSION = "3.7.0"
 
 # Changelog - organized by version
 CHANGELOG: Dict[str, Dict] = {
+    "3.7.0": {
+        "date": "2026-01-22",
+        "title": "Security Hardening & Optimizations 🔒",
+        "emoji": "🔒",
+        "features": [
+            {
+                "category": "Security Enhancements",
+                "emoji": "🛡️",
+                "changes": [
+                    "API retry logic with exponential backoff (2^attempt)",
+                    "Automatic retry on 429 rate limits with Retry-After",
+                    "Input validation decorators (2000-char limit)",
+                    "CORS middleware for dashboard (configurable origins)",
+                    "All high-priority security issues resolved"
+                ]
+            },
+            {
+                "category": "Cost Optimizations",
+                "emoji": "💰",
+                "changes": [
+                    "Recruiting rankings cached (24-hour TTL)",
+                    "User-agent rotation to reduce Zyte usage",
+                    "Smart fallback: Playwright → Cloudscraper → Zyte",
+                    "Est. $3-5/mo additional savings on scraping"
+                ]
+            },
+            {
+                "category": "API Improvements",
+                "emoji": "🔧",
+                "changes": [
+                    "@with_retry decorator for any async function",
+                    "fetch_with_retry() helper for easy API calls",
+                    "Handles network timeouts, connection errors",
+                    "Configurable retry attempts and backoff"
+                ]
+            }
+        ]
+    },
     "3.6.0": {
         "date": "2026-01-22",
         "title": "Performance & Monitoring 🚀",

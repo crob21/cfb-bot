@@ -11,6 +11,7 @@ from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import RedirectResponse
+from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
 from .routes import router
@@ -34,26 +35,36 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application"""
-    
+
     app = FastAPI(
         title="Harry Bot Dashboard",
         description="Manage Harry bot settings for your Discord servers",
         version="1.0.0",
         lifespan=lifespan,
     )
-    
+
+    # CORS middleware - restrict to specific origins in production
+    allowed_origins = os.getenv('CORS_ORIGINS', '*').split(',')
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=allowed_origins,  # ["https://yourdomain.com"] in production
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PUT", "DELETE"],
+        allow_headers=["*"],
+    )
+
     # Session middleware for OAuth
     secret_key = os.getenv('DASHBOARD_SECRET_KEY', os.urandom(32).hex())
     app.add_middleware(SessionMiddleware, secret_key=secret_key)
-    
+
     # Mount static files
     if STATIC_DIR.exists():
         app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
-    
+
     # Include routers
     app.include_router(auth_router, prefix="/auth", tags=["auth"])
     app.include_router(router, tags=["dashboard"])
-    
+
     @app.get("/")
     async def root(request: Request):
         """Redirect to dashboard or login"""
@@ -61,15 +72,14 @@ def create_app() -> FastAPI:
         if user:
             return RedirectResponse(url="/dashboard")
         return RedirectResponse(url="/auth/login")
-    
+
     @app.get("/health")
     async def health():
         """Health check endpoint"""
         return {"status": "healthy", "service": "harry-dashboard"}
-    
+
     return app
 
 
 # Create app instance for running directly
 app = create_app()
-

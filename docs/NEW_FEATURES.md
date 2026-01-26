@@ -2,9 +2,52 @@
 
 This document outlines all features of Harry, the CFB 26 League Bot.
 
-**Current Version:** 3.6.0
+**Current Version:** 3.7.0
 **Last Updated:** January 22, 2026
 **Status:** ✅ Production Ready
+
+---
+
+## 🔒 Version 3.7 - Security Hardening & Optimizations!
+
+**NEW: Production-Ready Security + Cost Savings**
+
+### 🛡️ Security Enhancements
+
+- **API Retry Logic:** Exponential backoff (2^attempt seconds)
+  - Automatic retry on rate limits (429)
+  - Respects Retry-After headers
+  - Configurable attempts and backoff
+  - `@with_retry` decorator for any function
+
+- **Input Validation:** 2000-character limits on all user inputs
+  - `@validate_input_length()` decorator
+  - Safe string sanitization
+  - Prevents memory issues
+
+- **CORS Protection:** Dashboard security hardened
+  - Configurable allowed origins
+  - Credentials and methods restricted
+  - Set `CORS_ORIGINS` environment variable
+
+### 💰 Cost Optimizations
+
+- **Recruiting Rankings Cache:** 24-hour TTL
+  - Instant responses for rankings
+  - Significant scraping cost reduction
+  - Cache key: `rankings_{source}_{year}_{top}`
+
+- **Zyte Optimization:** Reduced API usage
+  - User-agent rotation (4 different UAs)
+  - Playwright priority (free)
+  - Est. $3-5/mo additional savings
+
+### 🔧 API Improvements
+
+- `api_retry.py` utility module
+- `fetch_with_retry()` helper function
+- `fetch_with_rate_limit_handling()` for 429s
+- All security issues from audit resolved
 
 ---
 

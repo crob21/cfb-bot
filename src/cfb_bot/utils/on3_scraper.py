@@ -154,8 +154,17 @@ class On3Scraper:
                 logger.warning("⚠️ zyte-api library not installed - premium bypass unavailable")
 
         # HTTP headers for fallback httpx client
+        # Rotate user agents to reduce detection
+        self._user_agents = [
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15',
+        ]
+        self._user_agent_index = 0
+
         self._headers = {
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'User-Agent': self._user_agents[0],
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
             'Accept-Language': 'en-US,en;q=0.5',
         }
@@ -282,6 +291,10 @@ class On3Scraper:
     async def _fetch_page(self, url: str) -> Optional[str]:
         """Fetch a page with rate limiting and Cloudflare bypass (Playwright > Cloudscraper > httpx)"""
         await self._rate_limit()
+
+        # Rotate user agent to reduce detection
+        self._user_agent_index = (self._user_agent_index + 1) % len(self._user_agents)
+        self._headers['User-Agent'] = self._user_agents[self._user_agent_index]
 
         try:
             logger.info(f"🔍 Fetching: {url}")

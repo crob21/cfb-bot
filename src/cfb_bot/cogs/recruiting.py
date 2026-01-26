@@ -454,7 +454,20 @@ class RecruitingCog(commands.Cog):
             actual_year = year or scraper._get_current_recruiting_year()
             logger.info(f"🔍 /recruiting rankings via {source_name}: year={actual_year}, top={top}")
 
-            teams = await scraper.get_team_rankings(actual_year, top or 25)
+            # Check cache first
+            cache_key = f"rankings_{source_name}_{actual_year}_{top}"
+            cached_teams = self.cache.get(cache_key)
+
+            if cached_teams:
+                logger.info(f"💾 Cache hit for recruiting rankings: {cache_key}")
+                teams = cached_teams
+            else:
+                logger.info(f"🔍 Cache miss for recruiting rankings: {cache_key}")
+                teams = await scraper.get_team_rankings(actual_year, top or 25)
+
+                # Cache for 24 hours (rankings don't change often)
+                if teams:
+                    self.cache.set(cache_key, teams, ttl=86400)
 
             if teams:
                 lines = [f"**Top {len(teams)} Recruiting Classes ({actual_year})**", ""]
