@@ -726,9 +726,9 @@ class On3Scraper:
         # If we have multiple exact matches, fetch all their profiles and return as list
         if len(exact_matches) > 1:
             total_found = len(exact_matches)
-            logger.info(f"🔍 Found {total_found} players named '{name}' - fetching up to 15 profiles")
+            logger.info(f"🔍 Found {total_found} players named '{name}' - fetching up to 5 profiles")
             candidates = []
-            for href, link_text, is_transfer_flag in exact_matches[:15]:  # Limit to 15 (Discord max is 25)
+            for href, link_text, is_transfer_flag in exact_matches[:5]:  # Limit to 5 to avoid Discord limits
                 candidate_url = href if href.startswith('http') else self.BASE_URL + href
                 recruit = await self._scrape_player_profile(candidate_url, year)
                 if recruit:
