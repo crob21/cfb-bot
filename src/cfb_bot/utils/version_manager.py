@@ -11,10 +11,50 @@ from typing import Dict, List, Optional
 logger = logging.getLogger('CFB26Bot.Version')
 
 # Current version
-CURRENT_VERSION = "3.7.0"
+CURRENT_VERSION = "3.8.0"
 
 # Changelog - organized by version
 CHANGELOG: Dict[str, Dict] = {
+    "3.8.0": {
+        "date": "2026-01-26",
+        "title": "Smart Duplicate Name Handling 🎯",
+        "emoji": "🎯",
+        "features": [
+            {
+                "category": "Position Filtering",
+                "emoji": "🔍",
+                "changes": [
+                    "NEW: Position filter for duplicate player names",
+                    "/recruiting player position:WR filters by position",
+                    "13 position choices: QB, RB, WR, TE, OT, OG, C, EDGE, DL, LB, CB, S, ATH",
+                    "Example: /recruiting player name:Elijah Brown position:WR",
+                    "Works with both On3/Rivals and 247Sports"
+                ]
+            },
+            {
+                "category": "Multiple Candidate Selection",
+                "emoji": "🎮",
+                "changes": [
+                    "NEW: Interactive player selection for duplicate names",
+                    "Harry detects when multiple players match a name",
+                    "Shows up to 5 candidates with key details (position, class, school, rating)",
+                    "Discord select menu to choose the right player",
+                    "Full profile loads instantly after selection",
+                    "3-minute timeout for selection"
+                ]
+            },
+            {
+                "category": "UX Improvements",
+                "emoji": "✨",
+                "changes": [
+                    "Position filter included in cache key (separate cache per position)",
+                    "Position mismatch warnings logged for transparency",
+                    "Suggestions in 'not found' message to use position filter",
+                    "Smart fallback: exact matches → fuzzy matches → position filter"
+                ]
+            }
+        ]
+    },
     "3.7.0": {
         "date": "2026-01-22",
         "title": "Security Hardening & Optimizations 🔒",

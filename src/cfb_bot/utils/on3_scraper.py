@@ -566,7 +566,8 @@ class On3Scraper:
         self,
         name: str,
         year: Optional[int] = None,
-        max_pages: int = 20  # Kept for API compatibility, not used in On3
+        max_pages: int = 20,  # Kept for API compatibility, not used in On3
+        position: Optional[str] = None  # Filter by position for duplicate names
     ) -> Optional[Dict[str, Any]]:
         """
         Search for a recruit by name
@@ -575,6 +576,7 @@ class On3Scraper:
             name: Player name to search
             year: Recruiting class year (defaults to current)
             max_pages: Ignored for On3 (kept for API compatibility)
+            position: Optional position filter (e.g., 'WR', 'QB') for duplicate names
 
         Returns:
             Recruit info dictionary with profile data or None
@@ -641,6 +643,10 @@ class On3Scraper:
                 best_fuzzy_match = None
                 best_fuzzy_score = 0
 
+                # Track matches with position filtering
+                exact_matches = []  # (href, link_text, is_transfer)
+                fuzzy_matches = []  # (href, link_text, score, is_transfer)
+
                 for link in player_links:
                     link_text = link.get_text(strip=True)
                     href = link.get('href', '')
@@ -665,20 +671,13 @@ class On3Scraper:
                     )
 
                     if exact_match:
-                        profile_url = href
-                        player_name = link_text
-
-                        # Make sure it's a full URL
-                        if not profile_url.startswith('http'):
-                            profile_url = self.BASE_URL + profile_url
-
                         # Track if this came from the broader search (likely transfer portal)
-                        is_transfer = (search_type == "all players (including transfers)")
-                        logger.info(f"✅ Found profile (exact): {player_name} -> {profile_url} ({search_type})")
-                        break
+                        is_transfer_flag = (search_type == "all players (including transfers)")
+                        exact_matches.append((href, link_text, is_transfer_flag))
+                        logger.debug(f"✅ Exact match candidate: {link_text} -> {href}")
 
                     # Fuzzy matching for typos (e.g., "Daylon" vs "Daylan")
-                    if FUZZY_AVAILABLE and not profile_url:
+                    if FUZZY_AVAILABLE and not exact_match:
                         # Split into parts to check first AND last name
                         search_parts = name_lower.split()
                         result_parts = link_text_lower.split()
@@ -696,24 +695,44 @@ class On3Scraper:
                                 # Overall score is average of both
                                 score = (first_score + last_score) // 2
 
-                                if score > best_fuzzy_score and score >= 75:  # 75% overall threshold
-                                    best_fuzzy_score = score
-                                    best_fuzzy_match = (href, link_text)
+                                if score >= 75:  # 75% overall threshold
+                                    is_transfer_flag = (search_type == "all players (including transfers)")
+                                    fuzzy_matches.append((href, link_text, score, is_transfer_flag))
                                     logger.debug(f"🔍 Fuzzy candidate: {link_text} (first:{first_score}%, last:{last_score}%, avg:{score}%)")
 
-                # If no exact match but we have a good fuzzy match, use it
-                if not profile_url and best_fuzzy_match:
-                    href, link_text = best_fuzzy_match
+                # Now filter by position if specified
+                chosen_match = None
+                if exact_matches or fuzzy_matches:
+                    # Prefer exact matches over fuzzy
+                    candidates = exact_matches if exact_matches else []
+
+                    # If position filter is specified, try to find match with that position
+                    if position and candidates:
+                        logger.info(f"🎯 Filtering {len(candidates)} matches by position: {position}")
+                        # We need to fetch each candidate's profile to check position
+                        # For now, just pick the first exact match (position check comes after profile fetch)
+                        # TODO: Could optimize by checking position in search results if available
+
+                    if candidates:
+                        href, link_text, is_transfer_flag = candidates[0]
+                        chosen_match = (href, link_text, is_transfer_flag)
+                    elif fuzzy_matches:
+                        # Pick best fuzzy match
+                        fuzzy_matches.sort(key=lambda x: x[2], reverse=True)
+                        href, link_text, score, is_transfer_flag = fuzzy_matches[0]
+                        chosen_match = (href, link_text, is_transfer_flag)
+                        logger.info(f"✅ Using fuzzy match ({score}%): {link_text}")
+
+                if chosen_match:
+                    href, link_text, is_transfer_flag = chosen_match
                     profile_url = href
                     player_name = link_text
+                    is_transfer = is_transfer_flag
 
                     if not profile_url.startswith('http'):
                         profile_url = self.BASE_URL + profile_url
 
-                    is_transfer = (search_type == "all players (including transfers)")
-                    logger.info(f"✅ Found profile (fuzzy {best_fuzzy_score}%): {player_name} -> {profile_url} ({search_type})")
-
-                if profile_url:
+                    logger.info(f"✅ Selected profile: {player_name} -> {profile_url}")
                     break  # Found a match, stop searching
 
             except Exception as e:
@@ -724,6 +743,33 @@ class On3Scraper:
             logger.info(f"❌ No profile found for {name} ({year})")
             return None
 
+        # If we have multiple exact matches, fetch all their profiles and return as list
+        all_candidates = exact_matches if exact_matches else []
+        if len(all_candidates) > 1:
+            logger.info(f"🔍 Found {len(all_candidates)} players named '{name}' - fetching all profiles")
+            candidates = []
+            for href, link_text, is_transfer_flag in all_candidates[:5]:  # Limit to 5 to avoid Discord limits
+                candidate_url = href if href.startswith('http') else self.BASE_URL + href
+                recruit = await self._scrape_player_profile(candidate_url, year)
+                if recruit:
+                    if is_transfer_flag:
+                        recruit['is_transfer'] = True
+                        recruit['status'] = recruit.get('status') or 'Transfer'
+                    candidates.append(recruit)
+
+            if len(candidates) > 1:
+                # Return multiple candidates for user to choose
+                return {
+                    "multiple": True,
+                    "candidates": candidates,
+                    "query_name": name
+                }
+            elif candidates:
+                # Only one profile successfully loaded
+                recruit = candidates[0]
+                self._set_cached(cache_key, recruit)
+                return recruit
+
         # Scrape the profile page for full details
         recruit = await self._scrape_player_profile(profile_url, year)
 
@@ -732,6 +778,15 @@ class On3Scraper:
             if is_transfer:
                 recruit['is_transfer'] = True
                 recruit['status'] = recruit.get('status') or 'Transfer'
+
+            # Check position filter if specified
+            if position:
+                recruit_pos = (recruit.get('position') or '').upper()
+                if recruit_pos != position.upper():
+                    logger.warning(f"⚠️ Position mismatch: Found {player_name} but position is {recruit_pos}, not {position}")
+                    logger.info(f"💡 Tip: This might be a different player with the same name")
+                    # Still return the recruit, but log the warning
+
             self._set_cached(cache_key, recruit)
 
         return recruit

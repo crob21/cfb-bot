@@ -58,13 +58,30 @@ class RecruitingCog(commands.Cog):
     @app_commands.describe(
         name="Recruit name (e.g., 'Arch Manning')",
         year="Recruiting class year (default: current)",
+        position="Position filter (for duplicate names like 'Elijah Brown')",
         deep_search="(247Sports only) Search ALL ranked recruits (~3000+) instead of top 1000"
     )
+    @app_commands.choices(position=[
+        app_commands.Choice(name="QB - Quarterback", value="QB"),
+        app_commands.Choice(name="RB - Running Back", value="RB"),
+        app_commands.Choice(name="WR - Wide Receiver", value="WR"),
+        app_commands.Choice(name="TE - Tight End", value="TE"),
+        app_commands.Choice(name="OT - Offensive Tackle", value="OT"),
+        app_commands.Choice(name="OG - Offensive Guard", value="OG"),
+        app_commands.Choice(name="C - Center", value="C"),
+        app_commands.Choice(name="EDGE - Edge Rusher", value="EDGE"),
+        app_commands.Choice(name="DL - Defensive Line", value="DL"),
+        app_commands.Choice(name="LB - Linebacker", value="LB"),
+        app_commands.Choice(name="CB - Cornerback", value="CB"),
+        app_commands.Choice(name="S - Safety", value="S"),
+        app_commands.Choice(name="ATH - Athlete", value="ATH"),
+    ])
     async def player(
         self,
         interaction: discord.Interaction,
         name: str,
         year: Optional[int] = None,
+        position: Optional[str] = None,
         deep_search: bool = False
     ):
         """Look up a recruit from configured recruiting source"""
@@ -84,11 +101,12 @@ class RecruitingCog(commands.Cog):
             scraper, source_name = get_recruiting_scraper(guild_id)
 
             search_depth = "deep (all ~3000)" if deep_search else "standard"
-            logger.info(f"🔍 /recruiting player: {name} ({year or 'current'}) via {source_name} - {search_depth}")
+            pos_filter = f" (position: {position})" if position else ""
+            logger.info(f"🔍 /recruiting player: {name} ({year or 'current'}){pos_filter} via {source_name} - {search_depth}")
 
-            # Check cache first (24 hour TTL)
+            # Check cache first (24 hour TTL) - include position in cache key
             cache = get_cache()
-            cache_key = f"{name.lower()}:{year or 'current'}:{source_name}:{deep_search}"
+            cache_key = f"{name.lower()}:{year or 'current'}:{source_name}:{deep_search}:{position or 'any'}"
             recruit = cache.get(cache_key, namespace='recruiting')
 
             if recruit:
@@ -96,12 +114,92 @@ class RecruitingCog(commands.Cog):
             else:
                 # Cache miss - scrape the data
                 max_pages = 65 if deep_search else 20
-                recruit = await scraper.search_recruit(name, year, max_pages=max_pages)
+                recruit = await scraper.search_recruit(name, year, max_pages=max_pages, position=position)
 
                 if recruit:
                     # Cache successful lookups for 24 hours (86400 seconds)
                     cache.set(cache_key, recruit, ttl_seconds=86400, namespace='recruiting')
                     logger.info(f"💾 Cached {name} for 24 hours")
+
+            # Check if we got multiple candidates
+            if recruit and recruit.get('multiple'):
+                candidates = recruit.get('candidates', [])
+                query_name = recruit.get('query_name', name)
+
+                if len(candidates) <= 1:
+                    # Edge case - treat as single result
+                    recruit = candidates[0] if candidates else None
+                else:
+                    # Show selection menu
+                    embed = discord.Embed(
+                        title=f"🔍 Multiple players found: {query_name}",
+                        description=f"Found **{len(candidates)}** players with this name. Please select which one you're looking for:",
+                        color=Colors.WARNING
+                    )
+
+                    # Add each candidate as a field
+                    for i, candidate in enumerate(candidates[:5], 1):  # Limit to 5
+                        stars = '⭐' * candidate.get('stars', 0) if candidate.get('stars') else 'Unranked'
+                        pos = candidate.get('position', '?')
+                        school = candidate.get('committed_to') or candidate.get('high_school', 'Unknown')
+                        class_year = candidate.get('class', year or '?')
+
+                        field_value = f"**Position:** {pos}\n**Class:** {class_year}\n**Rating:** {stars}"
+                        if candidate.get('committed_to'):
+                            field_value += f"\n**Committed:** {candidate['committed_to']} ✅"
+                        elif candidate.get('high_school'):
+                            field_value += f"\n**HS:** {school}"
+
+                        embed.add_field(
+                            name=f"{i}. {candidate.get('name', query_name)}",
+                            value=field_value,
+                            inline=True
+                        )
+
+                    # Create select menu
+                    select = discord.ui.Select(
+                        placeholder="Choose which player you want to see...",
+                        options=[
+                            discord.SelectOption(
+                                label=f"{candidate.get('name', query_name)} ({candidate.get('position', '?')})",
+                                description=f"Class {candidate.get('class', '?')} - {candidate.get('committed_to') or candidate.get('high_school', 'Unknown')[:50]}",
+                                value=str(i)
+                            )
+                            for i, candidate in enumerate(candidates[:5])
+                        ]
+                    )
+
+                    async def select_callback(select_interaction: discord.Interaction):
+                        selected_idx = int(select.values[0])
+                        selected_recruit = candidates[selected_idx]
+
+                        # Build the full recruit embed
+                        result_embed = discord.Embed(
+                            title=f"⭐ Recruit: {selected_recruit.get('name', query_name)}",
+                            description=scraper.format_recruit(selected_recruit),
+                            color=Colors.RECRUITING
+                        )
+
+                        if selected_recruit.get('image_url'):
+                            result_embed.set_thumbnail(url=selected_recruit['image_url'])
+
+                        if selected_recruit.get('profile_url'):
+                            result_embed.add_field(
+                                name="🔗 Profile",
+                                value=f"[View Full Profile on On3/Rivals]({selected_recruit['profile_url']})",
+                                inline=False
+                            )
+
+                        result_embed.set_footer(text=f"Harry's Recruiting 🏈 | Data from {source_name}")
+                        await select_interaction.response.edit_message(embed=result_embed, view=None)
+
+                    select.callback = select_callback
+                    view = discord.ui.View(timeout=180)  # 3 minute timeout
+                    view.add_item(select)
+
+                    embed.set_footer(text=f"Harry's Recruiting 🏈 | Use the menu below to select")
+                    await interaction.followup.send(embed=embed, view=view)
+                    return
 
             if recruit:
                 embed = discord.Embed(
@@ -207,6 +305,8 @@ class RecruitingCog(commands.Cog):
                     "• Try the full name",
                     "• Specify the year if not current class",
                 ]
+                if not position:
+                    tips.append("• Add `position:WR` (or QB, RB, etc.) if multiple players share this name")
                 if not deep_search and source_name == "247Sports Composite":
                     tips.append("• Try `deep_search:True` to search all ~3000 ranked recruits")
 

@@ -171,7 +171,8 @@ class RecruitingScraper:
         self,
         name: str,
         year: Optional[int] = None,
-        max_pages: int = 20
+        max_pages: int = 20,
+        position: Optional[str] = None
     ) -> Optional[Dict[str, Any]]:
         """
         Search for a recruit by name and scrape their full profile
@@ -182,6 +183,7 @@ class RecruitingScraper:
             max_pages: Maximum ranking pages to search (50 players/page)
                        - 20 = top 1000 (~10 seconds, default)
                        - 65 = all ~3100 ranked recruits (~30 seconds)
+            position: Optional position filter (e.g., 'WR', 'QB') for duplicate names
 
         Returns:
             Recruit info dictionary with full profile data or None
@@ -259,7 +261,7 @@ class RecruitingScraper:
         # If direct search failed, try searching the composite rankings
         if not profile_url:
             logger.info(f"🔍 Direct search failed, trying composite rankings for {name} (max {max_pages} pages)")
-            profile_url, player_name = await self._search_composite_rankings(name, year, max_pages=max_pages)
+            profile_url, player_name = await self._search_composite_rankings(name, year, max_pages=max_pages, position_filter=position)
 
         if not profile_url:
             logger.info(f"❌ No profile found for {name} ({year})")
@@ -268,6 +270,14 @@ class RecruitingScraper:
         # Now fetch the full profile page
         recruit = await self._scrape_player_profile(profile_url, year)
         if recruit:
+            # Check position filter if specified
+            if position:
+                recruit_pos = (recruit.get('position') or '').upper()
+                if recruit_pos != position.upper():
+                    logger.warning(f"⚠️ Position mismatch: Found {player_name or name} but position is {recruit_pos}, not {position}")
+                    logger.info(f"💡 Tip: This might be a different player with the same name")
+                    # Still return the recruit, but log the warning
+
             self._set_cached(cache_key, recruit)
 
         return recruit
@@ -276,13 +286,15 @@ class RecruitingScraper:
         self,
         name: str,
         year: int,
-        max_pages: int = 20
+        max_pages: int = 20,
+        position_filter: Optional[str] = None
     ) -> tuple[Optional[str], Optional[str]]:
         """
         Search composite rankings pages for a player (fallback when direct search fails)
 
         Args:
             name: Player name to search
+            position_filter: Optional position to filter by (e.g., 'WR', 'QB')
             year: Recruiting class year
             max_pages: Maximum pages to search (50 players/page, default 20 = top 1000)
                        Each page takes ~1 second due to rate limiting
