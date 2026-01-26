@@ -162,7 +162,7 @@ class RecruitingCog(commands.Cog):
                         options=[
                             discord.SelectOption(
                                 label=f"{candidate.get('name', query_name)} ({candidate.get('position', '?')})",
-                                description=f"Class {candidate.get('class', '?')} - {candidate.get('committed_to') or candidate.get('high_school', 'Unknown')[:50]}",
+                                description=f"Class {candidate.get('class', '?')} - {(candidate.get('committed_to') or candidate.get('high_school') or 'Unknown')[:50]}",
                                 value=str(i)
                             )
                             for i, candidate in enumerate(candidates[:5])
