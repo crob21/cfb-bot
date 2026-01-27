@@ -264,14 +264,39 @@ class LeagueCog(commands.Cog):
                 urgency = "Time's ticking!"
             elif hours >= 1:
                 color = 0xff4500
-                urgency = "Less than an hour!"
+                urgency = "Under 6 hours!"
             else:
                 color = 0xff0000
-                urgency = "FINAL MINUTES!"
+                urgency = "FINAL HOUR!"
+            
+            # Get end time in different timezones
+            end_time = status.get('end_time')
+            timezone_info = ""
+            if end_time:
+                from datetime import datetime
+                import pytz
+                
+                # Convert to timezone-aware datetime if needed
+                if isinstance(end_time, str):
+                    end_time = datetime.fromisoformat(end_time.replace('Z', '+00:00'))
+                elif not hasattr(end_time, 'tzinfo') or end_time.tzinfo is None:
+                    end_time = pytz.utc.localize(end_time)
+                
+                # Convert to different timezones
+                eastern = end_time.astimezone(pytz.timezone('US/Eastern'))
+                central = end_time.astimezone(pytz.timezone('US/Central'))
+                pacific = end_time.astimezone(pytz.timezone('US/Pacific'))
+                
+                timezone_info = (
+                    f"\n\n**Countdown Ends:**\n"
+                    f"🕐 Eastern: {eastern.strftime('%I:%M %p ET')}\n"
+                    f"🕑 Central: {central.strftime('%I:%M %p CT')}\n"
+                    f"🕒 Pacific: {pacific.strftime('%I:%M %p PT')}"
+                )
 
             embed = discord.Embed(
                 title="⏰ Advance Countdown Active",
-                description=f"**Time Remaining:** {hours}h {minutes}m\n\n{urgency}",
+                description=f"**Time Remaining:** {hours}h {minutes}m\n\n{urgency}{timezone_info}",
                 color=color
             )
 
