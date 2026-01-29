@@ -939,54 +939,79 @@ class On3Scraper:
             if nil_match:
                 recruit['nil_value'] = nil_match.group(0)
 
-            # Commitment status - look for school images/links or status text
-            if 'Signed' in page_text:
-                recruit['status'] = 'Signed'
-            elif 'Committed' in page_text:
-                recruit['status'] = 'Committed'
-            elif 'Enrolled' in page_text:
-                recruit['status'] = 'Enrolled'
+            # Commitment status - look for STRONG commitment indicators (not just the word anywhere)
+            # Check for commitment in status section, not just word "Committed" in predictions
+            status_indicators = soup.select('[class*="status"], [class*="commitment"], [class*="commit-"]')
+            commitment_found = False
+            
+            for indicator in status_indicators:
+                indicator_text = indicator.get_text(strip=True)
+                if 'Signed' in indicator_text:
+                    recruit['status'] = 'Signed'
+                    commitment_found = True
+                    break
+                elif 'Committed' in indicator_text and 'Uncommitted' not in indicator_text:
+                    recruit['status'] = 'Committed'
+                    commitment_found = True
+                    break
+                elif 'Enrolled' in indicator_text:
+                    recruit['status'] = 'Enrolled'
+                    commitment_found = True
+                    break
+            
+            # Fallback: Check for commitment in news headlines
+            if not commitment_found:
+                news_headlines = soup.select('h3, h4, [class*="headline"]')
+                for headline in news_headlines:
+                    h_text = headline.get_text()
+                    # Look for commitment articles (e.g., "picks Washington", "commits to USC")
+                    commit_match = re.search(r'(picks|commits? to|signs with)\s+([A-Za-z\s&]+)', h_text, re.IGNORECASE)
+                    if commit_match:
+                        school_from_news = commit_match.group(2).strip()
+                        recruit['committed_to'] = school_from_news
+                        recruit['status'] = 'Committed'
+                        commitment_found = True
+                        logger.info(f"✅ Found commitment from news: {school_from_news}")
+                        break
 
-            # Try to find committed school from college links
-            # Look for the first college link that's part of status/commitment info
+            # Try to find committed school from college links ONLY if we confirmed commitment
             player_name_lower = recruit.get('name', '').lower()
-            college_links = soup.select('a[href*="/college/"]')
-            for link in college_links:
-                href = link.get('href', '')
-                # Skip generic college links, look for specific team pages
-                if '/football/' in href or href.endswith('/'):
-                    # Get school name from image alt text first (more reliable)
-                    school_name = None
-                    img = link.select_one('img')
-                    if img and img.get('alt'):
-                        alt_text = img.get('alt', '')
-                        # Clean up alt text - remove "Avatar", "logo", etc.
-                        school_name = alt_text.replace(' Avatar', '').replace(' logo', '').replace('Visit ', '').strip()
+            if not recruit.get('committed_to') and commitment_found:
+                college_links = soup.select('a[href*="/college/"]')
+                for link in college_links:
+                    href = link.get('href', '')
+                    # Skip generic college links, look for specific team pages
+                    if '/football/' in href or href.endswith('/'):
+                        # Get school name from image alt text first (more reliable)
+                        school_name = None
+                        img = link.select_one('img')
+                        if img and img.get('alt'):
+                            alt_text = img.get('alt', '')
+                            # Clean up alt text - remove "Avatar", "logo", etc.
+                            school_name = alt_text.replace(' Avatar', '').replace(' logo', '').replace('Visit ', '').strip()
 
-                    # Fallback to link text only if it's short (school names, not headlines)
-                    if not school_name:
-                        link_text = link.get_text(strip=True)
-                        # Only use if it looks like a school name (short, no "commits to", etc.)
-                        if link_text and len(link_text) < 30 and 'commit' not in link_text.lower() and 'star' not in link_text.lower():
-                            school_name = link_text
+                        # Fallback to link text only if it's short (school names, not headlines)
+                        if not school_name:
+                            link_text = link.get_text(strip=True)
+                            # Only use if it looks like a school name (short, no "commits to", etc.)
+                            if link_text and len(link_text) < 30 and 'commit' not in link_text.lower() and 'star' not in link_text.lower():
+                                school_name = link_text
 
-                    # Filter out generic names, headlines, and THE PLAYER'S OWN NAME
-                    if school_name and len(school_name) > 2 and len(school_name) < 50:
-                        school_name_lower = school_name.lower()
-                        # Skip if it's the player's name or contains their name
-                        if player_name_lower and (player_name_lower in school_name_lower or school_name_lower in player_name_lower):
-                            continue
-                        # Skip common player name patterns (first last format)
-                        if len(school_name.split()) == 2 and school_name.split()[0][0].isupper() and school_name.split()[1][0].isupper():
-                            # Could be a person's name - check if it looks like a school
-                            known_school_words = ['state', 'university', 'college', 'tech', 'a&m', 'ole miss', 'notre dame', 'usc', 'ucla', 'ohio', 'michigan', 'alabama', 'georgia', 'texas', 'florida', 'oregon', 'washington', 'clemson', 'oklahoma', 'lsu', 'auburn', 'tennessee', 'penn', 'iowa', 'wisconsin', 'minnesota', 'indiana', 'purdue', 'illinois', 'nebraska', 'colorado', 'arizona', 'utah', 'stanford', 'cal', 'berkeley', 'baylor', 'tcu', 'kansas', 'missouri', 'arkansas', 'kentucky', 'vanderbilt', 'south carolina', 'mississippi', 'carolina']
-                            if not any(word in school_name_lower for word in known_school_words):
+                        # Filter out generic names, headlines, and THE PLAYER'S OWN NAME
+                        if school_name and len(school_name) > 2 and len(school_name) < 50:
+                            school_name_lower = school_name.lower()
+                            # Skip if it's the player's name or contains their name
+                            if player_name_lower and (player_name_lower in school_name_lower or school_name_lower in player_name_lower):
                                 continue
-                        if school_name not in ['College', 'NCAA', 'Avatar', 'Teams', 'All Teams']:
-                            recruit['committed_to'] = school_name
-                            if recruit['status'] == 'Uncommitted':
-                                recruit['status'] = 'Committed'
-                            break
+                            # Skip common player name patterns (first last format)
+                            if len(school_name.split()) == 2 and school_name.split()[0][0].isupper() and school_name.split()[1][0].isupper():
+                                # Could be a person's name - check if it looks like a school
+                                known_school_words = ['state', 'university', 'college', 'tech', 'a&m', 'ole miss', 'notre dame', 'usc', 'ucla', 'ohio', 'michigan', 'alabama', 'georgia', 'texas', 'florida', 'oregon', 'washington', 'clemson', 'oklahoma', 'lsu', 'auburn', 'tennessee', 'penn', 'iowa', 'wisconsin', 'minnesota', 'indiana', 'purdue', 'illinois', 'nebraska', 'colorado', 'arizona', 'utah', 'stanford', 'cal', 'berkeley', 'baylor', 'tcu', 'kansas', 'missouri', 'arkansas', 'kentucky', 'vanderbilt', 'south carolina', 'mississippi', 'carolina']
+                                if not any(word in school_name_lower for word in known_school_words):
+                                    continue
+                            if school_name not in ['College', 'NCAA', 'Avatar', 'Teams', 'All Teams']:
+                                recruit['committed_to'] = school_name
+                                break
 
             # Parse commitment date
             commit_date_match = re.search(r'Commitment Date\s*(\d{1,2}/\d{1,2}/\d{2,4})', page_text)
