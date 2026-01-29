@@ -231,6 +231,30 @@ Type `/` in Discord to see all available command groups:
 
 **Usage:** `/cfb transfers team:Alabama`
 
+### `/cfb ratings`
+**Description:** View advanced analytics ratings (SP+, SRS, Elo)  
+**Options:**
+- `team`: Team name (required)
+- `year`: Season year (optional, defaults to current)
+
+**Usage:** `/cfb ratings team:Ohio State`
+
+### `/cfb teamstats`
+**Description:** View full season statistics for a team (offense & defense)  
+**Options:**
+- `team`: Team name (required)
+- `year`: Season year (optional, defaults to current)
+
+**Usage:**
+```
+/cfb teamstats team:Washington year:2025
+/cfb teamstats team:Georgia
+```
+
+**Stats Included:**
+- **Offense:** Total yards, passing, rushing, first downs, 3rd/4th down conversions, turnovers
+- **Defense:** Yards allowed, sacks, TFLs, interceptions, passes defended, turnovers gained
+
 ---
 
 ## ⭐ **RECRUITING COMMANDS** (`/recruiting`)

@@ -1815,6 +1815,64 @@ class CFBDataLookup:
             }
         return None
 
+    async def get_team_season_stats(self, team: str, year: int = None) -> Optional[Dict[str, Any]]:
+        """Get team's season statistics (offense and defense)"""
+        if not self.is_available:
+            return None
+
+        if year is None:
+            year = get_current_cfb_season()
+
+        try:
+            logger.info(f"🔍 Fetching season stats for {team} ({year})")
+            
+            stats_results = await asyncio.to_thread(
+                self._stats_api.get_team_season_stats,
+                year=year,
+                team=team
+            )
+            
+            if not stats_results:
+                logger.warning(f"No stats found for {team} ({year})")
+                return None
+            
+            # Parse stats into organized structure
+            parsed_stats = {
+                'team': team,
+                'year': year,
+                'offense': {},
+                'defense': {}
+            }
+            
+            for stat in stats_results:
+                stat_name = getattr(stat, 'stat_name', None)
+                stat_value = getattr(stat, 'stat_value', None)
+                
+                if not stat_name or stat_value is None:
+                    continue
+                
+                # Categorize stats
+                if any(x in stat_name.lower() for x in ['rushing', 'passing', 'total offense', 'yards per play', 'yards per game', 'first downs', 'third down', 'fourth down', 'possession time', 'turnovers lost']):
+                    parsed_stats['offense'][stat_name] = stat_value
+                elif any(x in stat_name.lower() for x in ['tackles', 'sacks', 'interceptions', 'passes defended', 'total defense', 'rushing defense', 'passing defense', 'yards per play allowed', 'yards per game allowed', 'turnovers gained']):
+                    parsed_stats['defense'][stat_name] = stat_value
+            
+            if parsed_stats['offense'] or parsed_stats['defense']:
+                logger.info(f"✅ Found {len(parsed_stats['offense'])} offense stats, {len(parsed_stats['defense'])} defense stats for {team}")
+                return parsed_stats
+            
+            return None
+            
+        except ApiException as e:
+            if e.status == 404:
+                logger.warning(f"Team '{team}' not found in {year}")
+            else:
+                logger.error(f"API error fetching stats for {team}: {e}")
+            return None
+        except Exception as e:
+            logger.error(f"Error fetching stats for {team}: {e}", exc_info=True)
+            return None
+
     # ==================== FORMATTERS ====================
 
     def format_rankings(self, rankings: List[Dict], poll_filter: Optional[str] = None, top_n: int = 25) -> tuple[List[Dict], Optional[int]]:
@@ -2082,6 +2140,167 @@ class CFBDataLookup:
         if 'elo' in data:
             elo = data['elo']
             parts.append(f"**Elo:** {elo.get('rating', 'N/A'):.0f}" if elo.get('rating') else "")
+
+        return "\n".join(parts)
+
+    def format_team_stats(self, stats_data: Dict) -> str:
+        """Format team season statistics for Discord"""
+        if not stats_data:
+            return "No statistics available"
+
+        team = stats_data.get('team', 'Unknown')
+        year = stats_data.get('year', 2025)
+        offense = stats_data.get('offense', {})
+        defense = stats_data.get('defense', {})
+
+        parts = [f"📊 **{team}** Season Statistics ({year})", ""]
+
+        # Helper to format stat value
+        def fmt_stat(val):
+            try:
+                f = float(val)
+                # Check if it's a whole number or needs decimals
+                if f == int(f):
+                    return str(int(f))
+                return f"{f:.1f}"
+            except (ValueError, TypeError):
+                return str(val)
+
+        # === OFFENSE ===
+        if offense:
+            parts.append("**🏈 OFFENSE**")
+            
+            # Total Offense
+            if 'totalYards' in offense:
+                parts.append(f"• Total Yards: **{fmt_stat(offense['totalYards'])}**")
+            if 'yardsPerGame' in offense:
+                parts.append(f"• Yards/Game: **{fmt_stat(offense['yardsPerGame'])}**")
+            if 'yardsPerPlay' in offense:
+                parts.append(f"• Yards/Play: **{fmt_stat(offense['yardsPerPlay'])}**")
+            
+            # Passing
+            if 'passYards' in offense or 'passCompletions' in offense:
+                parts.append("")
+                parts.append("_Passing_")
+            if 'passYards' in offense:
+                parts.append(f"• Pass Yards: {fmt_stat(offense['passYards'])}")
+            if 'passCompletions' in offense and 'passAttempts' in offense:
+                comp = fmt_stat(offense['passCompletions'])
+                att = fmt_stat(offense['passAttempts'])
+                try:
+                    pct = (float(offense['passCompletions']) / float(offense['passAttempts'])) * 100
+                    parts.append(f"• Completions: {comp}/{att} ({pct:.1f}%)")
+                except (ValueError, ZeroDivisionError):
+                    parts.append(f"• Completions: {comp}/{att}")
+            if 'passTDs' in offense:
+                parts.append(f"• Pass TDs: {fmt_stat(offense['passTDs'])}")
+            if 'interceptions' in offense:
+                parts.append(f"• INTs: {fmt_stat(offense['interceptions'])}")
+            
+            # Rushing
+            if 'rushYards' in offense or 'rushAttempts' in offense:
+                parts.append("")
+                parts.append("_Rushing_")
+            if 'rushYards' in offense:
+                parts.append(f"• Rush Yards: {fmt_stat(offense['rushYards'])}")
+            if 'rushAttempts' in offense and 'rushYards' in offense:
+                try:
+                    ypc = float(offense['rushYards']) / float(offense['rushAttempts'])
+                    parts.append(f"• Rush Attempts: {fmt_stat(offense['rushAttempts'])} ({ypc:.1f} YPC)")
+                except (ValueError, ZeroDivisionError):
+                    parts.append(f"• Rush Attempts: {fmt_stat(offense['rushAttempts'])}")
+            if 'rushTDs' in offense:
+                parts.append(f"• Rush TDs: {fmt_stat(offense['rushTDs'])}")
+            
+            # Other
+            if 'firstDowns' in offense:
+                parts.append("")
+                parts.append(f"• First Downs: {fmt_stat(offense['firstDowns'])}")
+            if 'thirdDownConversions' in offense and 'thirdDownAttempts' in offense:
+                conv = fmt_stat(offense['thirdDownConversions'])
+                att = fmt_stat(offense['thirdDownAttempts'])
+                try:
+                    pct = (float(offense['thirdDownConversions']) / float(offense['thirdDownAttempts'])) * 100
+                    parts.append(f"• 3rd Down: {conv}/{att} ({pct:.1f}%)")
+                except (ValueError, ZeroDivisionError):
+                    parts.append(f"• 3rd Down: {conv}/{att}")
+            if 'fourthDownConversions' in offense and 'fourthDownAttempts' in offense:
+                conv = fmt_stat(offense['fourthDownConversions'])
+                att = fmt_stat(offense['fourthDownAttempts'])
+                try:
+                    pct = (float(offense['fourthDownConversions']) / float(offense['fourthDownAttempts'])) * 100
+                    parts.append(f"• 4th Down: {conv}/{att} ({pct:.1f}%)")
+                except (ValueError, ZeroDivisionError):
+                    parts.append(f"• 4th Down: {conv}/{att}")
+            if 'turnovers' in offense:
+                parts.append(f"• Turnovers: {fmt_stat(offense['turnovers'])}")
+
+        # === DEFENSE ===
+        if defense:
+            parts.append("")
+            parts.append("**🛡️ DEFENSE**")
+            
+            # Total Defense
+            if 'totalYardsAllowed' in defense:
+                parts.append(f"• Total Yards Allowed: **{fmt_stat(defense['totalYardsAllowed'])}**")
+            if 'yardsPerGameAllowed' in defense:
+                parts.append(f"• Yards/Game Allowed: **{fmt_stat(defense['yardsPerGameAllowed'])}**")
+            if 'yardsPerPlayAllowed' in defense:
+                parts.append(f"• Yards/Play Allowed: **{fmt_stat(defense['yardsPerPlayAllowed'])}**")
+            
+            # Pass Defense
+            if 'passYardsAllowed' in defense:
+                parts.append("")
+                parts.append("_Pass Defense_")
+                parts.append(f"• Pass Yards Allowed: {fmt_stat(defense['passYardsAllowed'])}")
+            if 'passCompletionsAllowed' in defense and 'passAttemptsAllowed' in defense:
+                comp = fmt_stat(defense['passCompletionsAllowed'])
+                att = fmt_stat(defense['passAttemptsAllowed'])
+                try:
+                    pct = (float(defense['passCompletionsAllowed']) / float(defense['passAttemptsAllowed'])) * 100
+                    parts.append(f"• Completions Allowed: {comp}/{att} ({pct:.1f}%)")
+                except (ValueError, ZeroDivisionError):
+                    parts.append(f"• Completions Allowed: {comp}/{att}")
+            
+            # Rush Defense
+            if 'rushYardsAllowed' in defense:
+                parts.append("")
+                parts.append("_Rush Defense_")
+                parts.append(f"• Rush Yards Allowed: {fmt_stat(defense['rushYardsAllowed'])}")
+            if 'rushAttemptsAllowed' in defense and 'rushYardsAllowed' in defense:
+                try:
+                    ypc = float(defense['rushYardsAllowed']) / float(defense['rushAttemptsAllowed'])
+                    parts.append(f"• Rush Attempts Allowed: {fmt_stat(defense['rushAttemptsAllowed'])} ({ypc:.1f} YPC)")
+                except (ValueError, ZeroDivisionError):
+                    parts.append(f"• Rush Attempts Allowed: {fmt_stat(defense['rushAttemptsAllowed'])}")
+            
+            # Defensive Stats
+            if 'sacks' in defense:
+                parts.append("")
+                parts.append(f"• Sacks: {fmt_stat(defense['sacks'])}")
+            if 'tacklesForLoss' in defense:
+                parts.append(f"• Tackles for Loss: {fmt_stat(defense['tacklesForLoss'])}")
+            if 'interceptions' in defense:
+                parts.append(f"• Interceptions: {fmt_stat(defense['interceptions'])}")
+            if 'passesDeflected' in defense:
+                parts.append(f"• Passes Defended: {fmt_stat(defense['passesDeflected'])}")
+            if 'fumblesRecovered' in defense:
+                parts.append(f"• Fumbles Recovered: {fmt_stat(defense['fumblesRecovered'])}")
+            if 'turnoversGained' in defense:
+                parts.append(f"• Turnovers Gained: {fmt_stat(defense['turnoversGained'])}")
+            
+            # 3rd Down Defense
+            if 'thirdDownConversionsAllowed' in defense and 'thirdDownAttemptsAllowed' in defense:
+                conv = fmt_stat(defense['thirdDownConversionsAllowed'])
+                att = fmt_stat(defense['thirdDownAttemptsAllowed'])
+                try:
+                    pct = (float(defense['thirdDownConversionsAllowed']) / float(defense['thirdDownAttemptsAllowed'])) * 100
+                    parts.append(f"• 3rd Down: {conv}/{att} ({pct:.1f}%)")
+                except (ValueError, ZeroDivisionError):
+                    parts.append(f"• 3rd Down: {conv}/{att}")
+
+        if not offense and not defense:
+            return f"No statistics available for {team} ({year})"
 
         return "\n".join(parts)
 

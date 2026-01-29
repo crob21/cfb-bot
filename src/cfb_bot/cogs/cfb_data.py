@@ -500,6 +500,92 @@ class CFBDataCog(commands.Cog):
             logger.error(f"❌ Error in /cfb ratings: {e}", exc_info=True)
             await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
 
+    @cfb_group.command(name="teamstats", description="Get full season statistics for a team (offense & defense)")
+    @app_commands.describe(
+        team="Team name (e.g., 'Washington')",
+        year="Season year (default: current)"
+    )
+    async def teamstats(
+        self,
+        interaction: discord.Interaction,
+        team: str,
+        year: Optional[int] = None
+    ):
+        """Get comprehensive team statistics for a season"""
+        await interaction.response.defer()
+
+        if not await check_module_enabled_deferred(interaction, FeatureModule.CFB_DATA, server_config):
+            return
+
+        if not await self._check_cfb_available(interaction):
+            return
+
+        try:
+            result = await cfb_data.get_team_season_stats(team, year)
+            
+            if not result:
+                await interaction.followup.send(
+                    f"❌ No statistics found for **{team}** ({year or 'current season'}).\n\n"
+                    "**Tips:**\n"
+                    "• Check the team name spelling\n"
+                    "• Some teams may not have complete data for recent seasons\n"
+                    "• FCS teams may have limited stats",
+                    ephemeral=True
+                )
+                return
+            
+            response = cfb_data.format_team_stats(result)
+
+            # Split into multiple embeds if too long
+            if len(response) > 4000:
+                # Split by offense/defense sections
+                lines = response.split('\n')
+                offense_section = []
+                defense_section = []
+                header = []
+                current_section = header
+                
+                for line in lines:
+                    if '**🏈 OFFENSE**' in line:
+                        current_section = offense_section
+                    elif '**🛡️ DEFENSE**' in line:
+                        current_section = defense_section
+                    current_section.append(line)
+                
+                # Send offense first
+                if offense_section:
+                    offense_text = '\n'.join(header + offense_section)
+                    embed = discord.Embed(
+                        title=f"📊 {team} Season Statistics ({year}) - Offense",
+                        description=offense_text,
+                        color=Colors.PRIMARY
+                    )
+                    embed.set_footer(text="Harry's CFB Stats 🏈 | Part 1 of 2")
+                    await interaction.followup.send(embed=embed)
+                
+                # Then defense
+                if defense_section:
+                    defense_text = '\n'.join([''] + defense_section)
+                    embed = discord.Embed(
+                        title=f"📊 {team} Season Statistics ({year}) - Defense",
+                        description=defense_text,
+                        color=Colors.PRIMARY
+                    )
+                    embed.set_footer(text=Footers.CFB_DATA + " | Part 2 of 2")
+                    await interaction.followup.send(embed=embed)
+            else:
+                embed = discord.Embed(
+                    title=f"📊 {team} Season Statistics ({year})",
+                    description=response,
+                    color=Colors.PRIMARY
+                )
+                embed.set_footer(text=Footers.CFB_DATA)
+                await interaction.followup.send(embed=embed)
+
+        except Exception as e:
+            logger.error(f"❌ Error in /cfb teamstats: {e}", exc_info=True)
+            await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
+
 
 async def setup(bot: commands.Bot):
     """Required setup function for loading cog"""
