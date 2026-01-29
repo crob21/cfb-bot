@@ -268,25 +268,25 @@ class LeagueCog(commands.Cog):
             else:
                 color = 0xff0000
                 urgency = "FINAL HOUR!"
-            
+
             # Get end time in different timezones
             end_time = status.get('end_time')
             timezone_info = ""
             if end_time:
                 from datetime import datetime
                 import pytz
-                
+
                 # Convert to timezone-aware datetime if needed
                 if isinstance(end_time, str):
                     end_time = datetime.fromisoformat(end_time.replace('Z', '+00:00'))
                 elif not hasattr(end_time, 'tzinfo') or end_time.tzinfo is None:
                     end_time = pytz.utc.localize(end_time)
-                
+
                 # Convert to different timezones
                 eastern = end_time.astimezone(pytz.timezone('US/Eastern'))
                 central = end_time.astimezone(pytz.timezone('US/Central'))
                 pacific = end_time.astimezone(pytz.timezone('US/Pacific'))
-                
+
                 timezone_info = (
                     f"\n\n**Countdown Ends:**\n"
                     f"🕐 Eastern: {eastern.strftime('%I:%M %p ET')}\n"
@@ -429,13 +429,13 @@ class LeagueCog(commands.Cog):
         else:
             # Build description with bye teams and games
             description_lines = []
-            
+
             # Bye teams (with user teams bolded)
             bye_teams = week_data.get('bye_teams', [])
             if bye_teams:
                 bye_formatted = self.schedule_manager.format_bye_teams(bye_teams)
                 description_lines.append(f"😴 **Bye Week:** {bye_formatted}\n")
-            
+
             # Games (with user teams bolded)
             games = week_data.get('games', [])
             if games:
@@ -444,13 +444,13 @@ class LeagueCog(commands.Cog):
                     description_lines.append(self.schedule_manager.format_game(game))
             else:
                 description_lines.append("No games scheduled for this week.")
-            
+
             embed = discord.Embed(
                 title=f"📅 {week_info['name']} Schedule",
                 description="\n".join(description_lines),
                 color=Colors.SUCCESS
             )
-            
+
             # Add user teams list in footer
             if self.schedule_manager.teams:
                 embed.set_footer(text=f"User Teams: {', '.join(self.schedule_manager.teams)} | Harry's Schedule 🏈")

@@ -732,9 +732,8 @@ class On3Scraper:
                 candidate_url = href if href.startswith('http') else self.BASE_URL + href
                 recruit = await self._scrape_player_profile(candidate_url, year)
                 if recruit:
-                    if is_transfer_flag:
-                        recruit['is_transfer'] = True
-                        recruit['status'] = recruit.get('status') or 'Transfer'
+                    # Don't override is_transfer - let the profile scraper determine it properly
+                    # The "all players" search includes BOTH transfers AND HS recruits from other years
                     candidates.append(recruit)
 
             # Filter by position if specified
@@ -765,11 +764,9 @@ class On3Scraper:
         recruit = await self._scrape_player_profile(profile_url, year)
 
         if recruit:
-            # Mark if this is a transfer portal player
-            if is_transfer:
-                recruit['is_transfer'] = True
-                recruit['status'] = recruit.get('status') or 'Transfer'
-
+            # Don't mark based on search type - the profile scraper properly detects transfers
+            # by checking for transfer portal indicators (RS/SO/JR/SR, previous school, etc.)
+            
             # Check position filter if specified
             if position:
                 recruit_pos = (recruit.get('position') or '').upper()
