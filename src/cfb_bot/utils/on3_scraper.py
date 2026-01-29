@@ -186,14 +186,22 @@ class On3Scraper:
         return now.year
 
     def _rating_to_stars(self, rating: float) -> int:
-        """Convert On3 rating to star value (consistent thresholds)"""
+        """Convert On3/Rivals rating to star value
+        
+        On3/Rivals Scale:
+        - 5-star: 98-100 (Elite of the Elite)
+        - 4-star: 80-97.99 (Elite)
+        - 3-star: 70-79.99 (Good)
+        - 2-star: 60-69.99
+        - 1-star: < 60
+        """
         if rating >= 98:
             return 5
-        elif rating >= 90:
+        elif rating >= 80:  # Fixed: 4-star starts at 80, not 90
             return 4
-        elif rating >= 80:
-            return 3
         elif rating >= 70:
+            return 3
+        elif rating >= 60:
             return 2
         else:
             return 1
