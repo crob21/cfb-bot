@@ -283,6 +283,15 @@ class AdvanceTimer:
             logger.warning("⚠️ Countdown already active")
             return False
 
+        # Cancel any existing monitoring task before starting a new one
+        if self.task and not self.task.done():
+            logger.info("🔄 Cancelling old monitoring task before starting new countdown")
+            self.task.cancel()
+            try:
+                await self.task
+            except asyncio.CancelledError:
+                pass  # Expected
+
         self.start_time = datetime.now()
         self.duration_hours = hours
         self.end_time = self.start_time + timedelta(hours=hours)
