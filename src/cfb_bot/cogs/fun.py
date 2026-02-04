@@ -195,25 +195,25 @@ class FunCog(commands.Cog):
                 description=f"Currently trolling **{len(self.targets)}** user(s):",
                 color=0xff6b6b
             )
-            
+
             for user_id, info in self.targets.items():
                 # Calculate time since last message
                 time_since = int((time.time() - info['last_triggered']) / 60)
                 time_until = max(0, info['timeout'] - time_since)
-                
+
                 status_text = (
                     f"⏱️ **Timeout:** {info['timeout']} minutes\n"
                     f"🕐 **Last triggered:** {time_since}m ago\n"
                     f"⏳ **Next available:** {time_until}m\n"
                     f"👤 **Enabled by:** {info.get('enabled_by_name', 'Unknown')}"
                 )
-                
+
                 embed.add_field(
                     name=f"🎯 {info['target_name']}",
                     value=status_text,
                     inline=False
                 )
-        
+
         embed.set_footer(text="This is completely hidden from targets | Harry's Secret Trolling System")
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
@@ -246,7 +246,7 @@ class FunCog(commands.Cog):
         import re
         mention_pattern = r'<@!?(\d+)>'
         user_ids = re.findall(mention_pattern, users)
-        
+
         if not user_ids:
             await interaction.response.send_message(
                 "❌ No valid user mentions found!\n\n"
@@ -263,22 +263,22 @@ class FunCog(commands.Cog):
         # Add all mentioned users
         added = []
         skipped = []
-        
+
         for user_id_str in user_ids:
             user_id = int(user_id_str)
-            
+
             # Try to get member
             try:
                 member = await interaction.guild.fetch_member(user_id)
             except:
                 skipped.append(f"<@{user_id}> (not found)")
                 continue
-            
+
             # Skip bots
             if member.bot:
                 skipped.append(f"{member.display_name} (bot)")
                 continue
-            
+
             # Add to targets
             self.targets[user_id] = {
                 'timeout': timeout,
@@ -288,18 +288,18 @@ class FunCog(commands.Cog):
                 'enabled_by_name': interaction.user.display_name
             }
             added.append(member.display_name)
-        
+
         # Build response
         if not added:
             await interaction.response.send_message(
-                "❌ No users were added!\n\n" + 
+                "❌ No users were added!\n\n" +
                 (f"**Skipped:** {', '.join(skipped)}" if skipped else ""),
                 ephemeral=True
             )
             return
-        
+
         logger.info(f"🎯 {interaction.user.display_name} enabled trolling for {len(added)} users (timeout: {timeout}m)")
-        
+
         embed = discord.Embed(
             title="🎯 Multiple Targets Acquired",
             description=f"**{len(added)} users** are now being trolled!\n\n"
@@ -307,20 +307,20 @@ class FunCog(commands.Cog):
                        f"🤫 **Silent mode:** They won't know it's intentional",
             color=0xff6b6b
         )
-        
+
         embed.add_field(
             name="✅ Added",
             value="\n".join([f"• {name}" for name in added]),
             inline=False
         )
-        
+
         if skipped:
             embed.add_field(
                 name="⏭️ Skipped",
                 value="\n".join([f"• {name}" for name in skipped]),
                 inline=False
             )
-        
+
         embed.set_footer(text="Use /fun untarget to stop | /fun status to check")
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
@@ -339,23 +339,23 @@ class FunCog(commands.Cog):
         count = len(self.targets)
         target_names = [info['target_name'] for info in self.targets.values()]
         self.targets.clear()
-        
+
         logger.info(f"🛑 {interaction.user.display_name} disabled trolling for all {count} users")
-        
+
         embed = discord.Embed(
             title="🛑 All Targets Released",
             description=f"Removed **{count} users** from trolling list.\n\n"
                        f"They can all live in peace... for now.",
             color=0x00ff00
         )
-        
+
         if len(target_names) <= 10:
             embed.add_field(
                 name="Released Users",
                 value="\n".join([f"• {name}" for name in target_names]),
                 inline=False
             )
-        
+
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @commands.Cog.listener()

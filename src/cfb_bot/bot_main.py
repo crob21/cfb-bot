@@ -100,7 +100,8 @@ async def setup_dependencies():
     schedule_manager = None
 
     try:
-        from .ai import ai_assistant as _ai, AI_AVAILABLE as _ai_avail
+        from .ai import AI_AVAILABLE as _ai_avail
+        from .ai import ai_assistant as _ai
         ai_assistant = _ai
         AI_AVAILABLE = _ai_avail
         if AI_AVAILABLE:
@@ -250,8 +251,9 @@ async def before_digest_check():
 
 async def send_startup_notification():
     """Send detailed startup status to development channel only"""
-    from .utils.server_config import FeatureModule
     from datetime import datetime
+
+    from .utils.server_config import FeatureModule
 
     # ONLY send to dev channel
     DEV_SERVER_ID = 780882032867803168
@@ -429,7 +431,8 @@ async def on_message(message):
                         season_info = timekeeper_manager.get_season_week()
                     if season_info['season'] and season_info['week'] is not None:
                         week_name = season_info.get('week_name', f"Week {season_info['week']}")
-                        from .utils.timekeeper import get_week_name as get_week_name_util
+                        from .utils.timekeeper import \
+                            get_week_name as get_week_name_util
                         next_week_name = get_week_name_util(season_info['week'] + 1)
                         phase = season_info.get('phase', 'Regular Season')
                         season_text = f"**Season {season_info['season']}**\n📍 {week_name} → **{next_week_name}**\n🏈 Phase: {phase}\n\n"

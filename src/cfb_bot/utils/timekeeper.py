@@ -794,12 +794,12 @@ class TimekeeperManager:
                         message_count += 1
                         if message.author != self.bot.user:
                             continue
-                        
+
                         content = message.content.strip()
-                        
+
                         # Try to extract JSON - handle both code block and raw JSON formats
                         json_content = None
-                        
+
                         # Format 1: ```json ... ```
                         if content.startswith("```json"):
                             json_content = content[7:]  # Remove ```json
@@ -809,10 +809,10 @@ class TimekeeperManager:
                         # Format 2: Raw JSON starting with {
                         elif content.startswith("{") and "channel_id" in content and "end_time" in content:
                             json_content = content
-                        
+
                         if not json_content:
                             continue
-                            
+
                         try:
                             state = json.loads(json_content)
                             # Validate it's a timer state (has channel_id and end_time)
@@ -1161,13 +1161,13 @@ class TimekeeperManager:
                     async for message in dm_channel.history(limit=100):
                         if message.author != self.bot.user:
                             continue
-                        
+
                         # Check if message contains season_week marker
                         if '"type": "season_week"' not in message.content and '"season"' not in message.content:
                             continue
-                        
+
                         content = message.content.strip()
-                        
+
                         # Handle both code block and raw JSON formats
                         if content.startswith("```json"):
                             content = content[7:]
@@ -1412,13 +1412,13 @@ class TimekeeperManager:
                     async for message in dm_channel.history(limit=100):
                         if message.author != self.bot.user:
                             continue
-                        
+
                         # Check if message contains league_staff marker
                         if '"type": "league_staff"' not in message.content and '"league_owner_id"' not in message.content:
                             continue
-                        
+
                         content = message.content.strip()
-                        
+
                         # Handle both code block and raw JSON formats
                         if content.startswith("```json"):
                             content = content[7:]
