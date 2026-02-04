@@ -61,6 +61,7 @@ COG_EXTENSIONS = [
     'cfb_bot.cogs.league',
     'cfb_bot.cogs.charter',
     'cfb_bot.cogs.admin',
+    'cfb_bot.cogs.fun',
 ]
 
 
@@ -179,6 +180,8 @@ async def setup_dependencies():
                 cog.set_dependencies(timekeeper_manager=timekeeper_manager, admin_manager=admin_manager, schedule_manager=schedule_manager, channel_summarizer=channel_summarizer, ai_assistant=ai_assistant, AI_AVAILABLE=AI_AVAILABLE)
             elif cog_name == 'AdminCog':
                 cog.set_dependencies(admin_manager=admin_manager, channel_manager=channel_manager, timekeeper_manager=timekeeper_manager, ai_assistant=ai_assistant, schedule_manager=schedule_manager)
+            elif cog_name == 'FunCog':
+                cog.set_dependencies(admin_manager=admin_manager)
             elif cog_name == 'RecruitingCog':
                 if hasattr(cog, 'admin_manager'):
                     cog.admin_manager = admin_manager
