@@ -38,12 +38,39 @@ class FunCog(commands.Cog):
         # Track Harry's troll messages for reply detection: {message_id: user_id}
         self.troll_messages: Dict[int, int] = {}
 
+        # Track processed interactions to prevent duplicates: {interaction_id: timestamp}
+        self._processed_interactions: Dict[int, float] = {}
+
         logger.info("🎭 FunCog initialized")
 
     def set_dependencies(self, admin_manager=None, ai_assistant=None):
         """Set dependencies after bot is ready"""
         self.admin_manager = admin_manager
         self.ai_assistant = ai_assistant
+
+    def _is_duplicate_interaction(self, interaction: discord.Interaction) -> bool:
+        """Check if we've already processed this interaction (prevents duplicate commands)"""
+        interaction_id = interaction.id
+        current_time = time.time()
+
+        # Check if we've seen this interaction in the last 5 seconds
+        if interaction_id in self._processed_interactions:
+            time_since = current_time - self._processed_interactions[interaction_id]
+            if time_since < 5:
+                logger.warning(f"⚠️ Duplicate interaction detected (ID: {interaction_id}, {time_since:.2f}s ago)")
+                return True
+
+        # Mark this interaction as processed
+        self._processed_interactions[interaction_id] = current_time
+
+        # Cleanup old entries (keep last 100)
+        if len(self._processed_interactions) > 100:
+            oldest_keys = sorted(self._processed_interactions.keys(), 
+                               key=lambda k: self._processed_interactions[k])[:50]
+            for key in oldest_keys:
+                del self._processed_interactions[key]
+
+        return False
 
     # Command group
     fun_group = app_commands.Group(
@@ -65,6 +92,10 @@ class FunCog(commands.Cog):
         engage: bool = True
     ):
         """Enable trolling for a specific user"""
+        # Check for duplicate interactions
+        if self._is_duplicate_interaction(interaction):
+            return
+
         # Admin check
         if not self.admin_manager or not self.admin_manager.is_admin(interaction.user, interaction):
             await interaction.response.send_message("❌ Nice try, but no.", ephemeral=True)
@@ -115,6 +146,10 @@ class FunCog(commands.Cog):
     @app_commands.describe(user="The user to stop trolling")
     async def untarget(self, interaction: discord.Interaction, user: discord.Member):
         """Disable trolling for a specific user"""
+        # Check for duplicate interactions
+        if self._is_duplicate_interaction(interaction):
+            return
+
         # Admin check
         if not self.admin_manager or not self.admin_manager.is_admin(interaction.user, interaction):
             await interaction.response.send_message("❌ Nice try, but no.", ephemeral=True)
@@ -150,6 +185,10 @@ class FunCog(commands.Cog):
         timeout: int
     ):
         """Adjust the timeout for a targeted user"""
+        # Check for duplicate interactions
+        if self._is_duplicate_interaction(interaction):
+            return
+
         # Admin check
         if not self.admin_manager or not self.admin_manager.is_admin(interaction.user, interaction):
             await interaction.response.send_message("❌ Nice try, but no.", ephemeral=True)
@@ -187,6 +226,10 @@ class FunCog(commands.Cog):
     @app_commands.describe(user="The targeted user")
     async def toggle_engage(self, interaction: discord.Interaction, user: discord.Member):
         """Toggle whether Harry will argue back if they respond"""
+        # Check for duplicate interactions
+        if self._is_duplicate_interaction(interaction):
+            return
+
         # Admin check
         if not self.admin_manager or not self.admin_manager.is_admin(interaction.user, interaction):
             await interaction.response.send_message("❌ Nice try, but no.", ephemeral=True)
@@ -224,6 +267,10 @@ class FunCog(commands.Cog):
     @fun_group.command(name="status", description="📋 Check trolling status (Admin only)")
     async def status(self, interaction: discord.Interaction):
         """View all currently targeted users"""
+        # Check for duplicate interactions
+        if self._is_duplicate_interaction(interaction):
+            return
+
         # Admin check
         if not self.admin_manager or not self.admin_manager.is_admin(interaction.user, interaction):
             await interaction.response.send_message("❌ Nice try, but no.", ephemeral=True)
@@ -282,6 +329,10 @@ class FunCog(commands.Cog):
         engage: bool = True
     ):
         """Enable trolling for multiple users at once"""
+        # Check for duplicate interactions
+        if self._is_duplicate_interaction(interaction):
+            return
+
         # Admin check
         if not self.admin_manager or not self.admin_manager.is_admin(interaction.user, interaction):
             await interaction.response.send_message("❌ Nice try, but no.", ephemeral=True)
@@ -384,6 +435,10 @@ class FunCog(commands.Cog):
     @fun_group.command(name="untarget_all", description="🛑 Stop trolling ALL users (Admin only)")
     async def untarget_all(self, interaction: discord.Interaction):
         """Disable trolling for all users at once"""
+        # Check for duplicate interactions
+        if self._is_duplicate_interaction(interaction):
+            return
+
         # Admin check
         if not self.admin_manager or not self.admin_manager.is_admin(interaction.user, interaction):
             await interaction.response.send_message("❌ Nice try, but no.", ephemeral=True)
