@@ -11,6 +11,8 @@ Commands:
 """
 
 import logging
+import random
+import re
 import time
 from typing import Dict, Optional
 
@@ -294,7 +296,6 @@ class FunCog(commands.Cog):
             return
 
         # Parse mentions from the string
-        import re
         mention_pattern = r'<@!?(\d+)>'
         user_ids = re.findall(mention_pattern, users)
 
@@ -416,12 +417,17 @@ class FunCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        """Listen for messages from targeted users"""
+        """Listen for messages from targeted users and handle both trolling and arguments"""
         # Ignore bots
         if message.author.bot:
             return
-
-        # Check if user is targeted
+        
+        # PRIORITY 1: Check if this is a reply to Harry's troll message (argument mode)
+        if message.reference and message.reference.message_id:
+            await self._handle_argument_reply(message)
+            return  # Don't process as regular message if it's a reply
+        
+        # PRIORITY 2: Check if user is targeted for trolling
         if message.author.id not in self.targets:
             return
 
@@ -451,10 +457,7 @@ class FunCog(commands.Cog):
                 f"Oh look, it's {message.author.mention}. Fuck you! 🖕",
             ]
 
-            # Pick a random message
-            import random
             troll_message = random.choice(troll_messages)
-
             sent_message = await message.channel.send(troll_message)
             
             # Track this troll message for reply detection (if engage mode is on)
@@ -463,21 +466,20 @@ class FunCog(commands.Cog):
                 logger.info(f"🎭 Trolled {message.author.display_name} (engage mode ON) in #{message.channel.name}")
             else:
                 logger.info(f"🎭 Trolled {message.author.display_name} in #{message.channel.name}")
+            
+            # Cleanup old troll messages to prevent memory leak (keep last 100)
+            if len(self.troll_messages) > 100:
+                # Remove oldest 50 entries
+                oldest_keys = list(self.troll_messages.keys())[:50]
+                for key in oldest_keys:
+                    del self.troll_messages[key]
+                logger.debug(f"🧹 Cleaned up {len(oldest_keys)} old troll message IDs")
 
         except Exception as e:
             logger.error(f"❌ Failed to send troll message: {e}")
     
-    @commands.Cog.listener()
-    async def on_message_reply(self, message: discord.Message):
-        """Listen for replies to Harry's troll messages and engage in arguments"""
-        # Ignore bot messages
-        if message.author.bot:
-            return
-        
-        # Check if this is a reply to one of Harry's troll messages
-        if not message.reference or not message.reference.message_id:
-            return
-        
+    async def _handle_argument_reply(self, message: discord.Message):
+        """Handle replies to Harry's troll messages (argument mode)"""
         replied_to_id = message.reference.message_id
         
         # Check if they replied to a troll message
@@ -561,8 +563,6 @@ Your BRUTAL comeback (max 200 chars):"""
     
     def _get_fallback_comeback(self, user_message: str) -> str:
         """Get a fallback comeback if AI isn't available"""
-        import random
-        
         fallbacks = [
             "Oh fuck off, you whiny little bitch. 🖕",
             "Cry more, you absolute bellend! 😂",
