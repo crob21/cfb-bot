@@ -527,21 +527,24 @@ class FunCog(commands.Cog):
     async def _generate_ai_comeback(self, user_message: str, user_name: str) -> str:
         """Generate contextual AI comeback"""
         try:
-            prompt = f"""You are Harry, a sarcastic British football bot who just told {user_name} "Fuck you" and they responded with: "{user_message}"
+            prompt = f"""You are Harry, an extremely vulgar and rude British football bot who just told {user_name} "Fuck you" and they responded with: "{user_message}"
 
-Generate a short, hilarious comeback that:
-- Is cheeky and British (uses "mate", "ya muppet", "bollocks", etc.)
-- References what they said
-- Stays playful (not actually mean)
+Generate a SHORT, BRUTAL comeback that:
+- Is EXTREMELY rude and vulgar (use fuck, shit, cunt, wanker, bellend, twat, etc. liberally)
+- Is British slang-heavy (mate, ya muppet, bollocks, piss off, sod off, etc.)
+- References what they said and roasts them for it
+- Is deliberately offensive and insulting
 - Is 1-2 sentences max
 - Ends with an emoji
 
 Example comebacks:
-- "Oh, you got feelings now? Adorable, mate. 🙄"
-- "Cry more, ya muppet! 😂"
-- "Big talk from someone who can't even spell properly! 💀"
+- "Oh fuck off, you whiny little bitch. Nobody gives a shit about your feelings, mate. 🖕"
+- "Cry harder, you absolute bellend! 😂"
+- "Listen here you fucking muppet, your opinion is worth less than dog shit. 💩"
+- "What a load of bollocks! Shut your fucking mouth, wanker. 🤐"
+- "You're dumber than a bag of fucking rocks, mate. 💀"
 
-Your comeback (max 200 chars):"""
+Your BRUTAL comeback (max 200 chars):"""
             
             # Use AI to generate response
             response = await self.ai_assistant.ask_question(prompt, include_charter=False)
@@ -561,16 +564,21 @@ Your comeback (max 200 chars):"""
         import random
         
         fallbacks = [
-            "Oh, you got feelings now? Adorable, mate. 🙄",
-            "Cry more, ya muppet! 😂",
-            "That's cute. Now fuck off! 🖕",
-            "Big words from someone so easily rattled! 💀",
-            "Aww, did I hurt your feelings? Good! 😈",
-            "Keep talking, I've got all day to roast ya! 🔥",
-            "Is that the best comeback you've got? Pathetic! 😴",
-            "Mate, you're making this too easy! 🎯",
-            "Oh no, are you gonna cry now? 😭",
-            "Try harder, that was embarrassing! 💩",
+            "Oh fuck off, you whiny little bitch. 🖕",
+            "Cry more, you absolute bellend! 😂",
+            "Listen here you fucking muppet, shut your mouth. 🤐",
+            "What a load of bollocks! Piss off, wanker! 💩",
+            "You're dumber than a bag of fucking rocks, mate. 💀",
+            "Aww, did I hurt your feelings? Fucking good! 😈",
+            "You're a proper twat, aren't ya? 🎯",
+            "Is that the best you've got, you useless cunt? 😴",
+            "Mate, you're an embarrassment. Sod off! 🔥",
+            "Oh no, are you gonna cry now? Fucking pathetic! 😭",
+            "Try harder, that was shit! 💩",
+            "You're about as useful as a chocolate teapot, ya muppet! 🍫",
+            "Shut your fucking gob before I do it for you! 🤬",
+            "You talk a lot of shite for someone so fucking stupid! 🗑️",
+            "Get absolutely fucked, you wanker! 🖕",
         ]
         
         return random.choice(fallbacks)
