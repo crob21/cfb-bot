@@ -55,14 +55,14 @@ class FunCog(commands.Cog):
     @app_commands.describe(
         user="The unfortunate soul to target",
         timeout="Minutes between messages (default: 30)",
-        engage="Should Harry argue back if they respond? (default: False)"
+        engage="Should Harry argue back if they respond? (default: True)"
     )
     async def target(
         self,
         interaction: discord.Interaction,
         user: discord.Member,
         timeout: int = 30,
-        engage: bool = False
+        engage: bool = True
     ):
         """Enable trolling for a specific user"""
         # Admin check
@@ -104,10 +104,10 @@ class FunCog(commands.Cog):
                        f"⏱️ **Timeout:** {timeout} minutes\n"
                        f"{engage_text}\n"
                        f"🤫 **Silent mode:** They won't know it's intentional\n\n"
-                       f"Harry will respond to their messages with creative greetings.",
+                       f"Harry will respond to their messages with creative greetings and argue if they fight back!",
             color=0xff6b6b
         )
-        embed.set_footer(text="Use /fun toggle_engage to change | /fun status to check")
+        embed.set_footer(text="Use /fun toggle_engage to disable | /fun status to check")
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
@@ -272,14 +272,14 @@ class FunCog(commands.Cog):
     @app_commands.describe(
         users="Users to target (space-separated mentions: @user1 @user2 @user3)",
         timeout="Minutes between messages (default: 30)",
-        engage="Should Harry argue back if they respond? (default: False)"
+        engage="Should Harry argue back if they respond? (default: True)"
     )
     async def target_all(
         self,
         interaction: discord.Interaction,
         users: str,
         timeout: int = 30,
-        engage: bool = False
+        engage: bool = True
     ):
         """Enable trolling for multiple users at once"""
         # Admin check
@@ -378,7 +378,7 @@ class FunCog(commands.Cog):
                 inline=False
             )
 
-        embed.set_footer(text="Use /fun untarget to stop | /fun status to check")
+        embed.set_footer(text="Use /fun toggle_engage to disable | /fun untarget to stop")
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @fun_group.command(name="untarget_all", description="🛑 Stop trolling ALL users (Admin only)")
