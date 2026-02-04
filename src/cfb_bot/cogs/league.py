@@ -205,13 +205,19 @@ class LeagueCog(commands.Cog):
 
         await interaction.response.defer()
 
-        # Stop existing timer and increment week
+        # Stop existing timer and increment week ONLY if timer was manually stopped
+        # (If timer expired naturally, week was already incremented in _send_times_up)
         status = self.timekeeper_manager.get_status(interaction.channel)
+        should_increment = False
+        
         if status.get('active'):
+            # Timer is still running - stop it and mark that we should increment
             await self.timekeeper_manager.stop_timer(interaction.channel)
+            should_increment = True
 
+        # Only increment week if we manually stopped an active timer
         season_info = self.timekeeper_manager.get_season_week()
-        if season_info['season'] and season_info['week'] is not None:
+        if should_increment and season_info['season'] and season_info['week'] is not None:
             await self.timekeeper_manager.increment_week()
             season_info = self.timekeeper_manager.get_season_week()
 
