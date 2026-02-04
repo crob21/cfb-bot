@@ -65,7 +65,7 @@ class FunCog(commands.Cog):
 
         # Cleanup old entries (keep last 100)
         if len(self._processed_interactions) > 100:
-            oldest_keys = sorted(self._processed_interactions.keys(), 
+            oldest_keys = sorted(self._processed_interactions.keys(),
                                key=lambda k: self._processed_interactions[k])[:50]
             for key in oldest_keys:
                 del self._processed_interactions[key]
@@ -482,6 +482,22 @@ class FunCog(commands.Cog):
             await self._handle_argument_reply(message)
             return  # Don't process as regular message if it's a reply
 
+        # PRIORITY 1.5: Check if targeted user is arguing with Harry (mentions bot + engage mode)
+        if message.author.id in self.targets:
+            target_info = self.targets[message.author.id]
+            if target_info.get('engage'):
+                # Check if they're insulting/mentioning Harry
+                bot_mentioned = self.bot.user in message.mentions
+                message_lower = message.content.lower()
+                insult_keywords = ['fuck', 'shit', 'harry', 'bot', 'ass', 'damn', 'hell', 'stupid', 'dumb', 'suck']
+                has_insult = any(keyword in message_lower for keyword in insult_keywords)
+                
+                if bot_mentioned or has_insult:
+                    # Limit arguments (max 5 per user across all messages)
+                    if target_info.get('argument_count', 0) < 5:
+                        await self._handle_direct_insult(message, target_info)
+                        return
+
         # PRIORITY 2: Check if user is targeted for trolling
         if message.author.id not in self.targets:
             return
@@ -532,6 +548,28 @@ class FunCog(commands.Cog):
 
         except Exception as e:
             logger.error(f"❌ Failed to send troll message: {e}")
+
+    async def _handle_direct_insult(self, message: discord.Message, target_info: Dict):
+        """Handle when targeted user insults Harry directly (not a reply)"""
+        try:
+            their_message = message.content
+
+            # Use AI if available
+            if self.ai_assistant:
+                comeback = await self._generate_ai_comeback(their_message, message.author.display_name)
+            else:
+                # Fallback: Use predefined comebacks
+                comeback = self._get_fallback_comeback(their_message)
+
+            await message.channel.send(comeback)
+
+            # Increment argument counter
+            target_info['argument_count'] = target_info.get('argument_count', 0) + 1
+
+            logger.info(f"🔥 Harry responded to direct insult from {message.author.display_name} (count: {target_info['argument_count']})")
+
+        except Exception as e:
+            logger.error(f"❌ Failed to respond to insult: {e}")
 
     async def _handle_argument_reply(self, message: discord.Message):
         """Handle replies to Harry's troll messages (argument mode)"""
