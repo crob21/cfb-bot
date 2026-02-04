@@ -29,15 +29,19 @@ class FunCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.admin_manager = None
-
-        # Tracking structure: {user_id: {'timeout': minutes, 'last_triggered': timestamp}}
+        
+        # Tracking structure: {user_id: {'timeout': minutes, 'last_triggered': timestamp, 'engage': bool}}
         self.targets: Dict[int, Dict] = {}
-
+        
+        # Track Harry's troll messages for reply detection: {message_id: user_id}
+        self.troll_messages: Dict[int, int] = {}
+        
         logger.info("🎭 FunCog initialized")
 
-    def set_dependencies(self, admin_manager=None):
+    def set_dependencies(self, admin_manager=None, ai_assistant=None):
         """Set dependencies after bot is ready"""
         self.admin_manager = admin_manager
+        self.ai_assistant = ai_assistant
 
     # Command group
     fun_group = app_commands.Group(
@@ -48,13 +52,15 @@ class FunCog(commands.Cog):
     @fun_group.command(name="target", description="🎯 Start trolling a user (Admin only)")
     @app_commands.describe(
         user="The unfortunate soul to target",
-        timeout="Minutes between messages (default: 30)"
+        timeout="Minutes between messages (default: 30)",
+        engage="Should Harry argue back if they respond? (default: False)"
     )
     async def target(
         self,
         interaction: discord.Interaction,
         user: discord.Member,
-        timeout: int = 30
+        timeout: int = 30,
+        engage: bool = False
     ):
         """Enable trolling for a specific user"""
         # Admin check
@@ -75,32 +81,32 @@ class FunCog(commands.Cog):
             await interaction.response.send_message("❌ Can't target bots, mate!", ephemeral=True)
             return
 
-        # Don't target yourself (but allow it for testing)
-        # if user.id == interaction.user.id:
-        #     await interaction.response.send_message("❌ Don't target yourself, ya muppet!", ephemeral=True)
-        #     return
-
         # Add to targets
         self.targets[user.id] = {
             'timeout': timeout,
             'last_triggered': 0,  # Allow immediate first message
             'target_name': user.display_name,
             'enabled_by': interaction.user.id,
-            'enabled_by_name': interaction.user.display_name
+            'enabled_by_name': interaction.user.display_name,
+            'engage': engage,
+            'argument_count': 0  # Track how many times Harry has argued back
         }
 
-        logger.info(f"🎯 {interaction.user.display_name} enabled trolling for {user.display_name} (timeout: {timeout}m)")
+        logger.info(f"🎯 {interaction.user.display_name} enabled trolling for {user.display_name} (timeout: {timeout}m, engage: {engage})")
+
+        engage_text = "🔥 **Engage mode: ON** - Harry will argue if they respond!" if engage else "💤 **Engage mode: OFF**"
 
         embed = discord.Embed(
             title="🎯 Target Acquired",
             description=f"**{user.display_name}** is now being trolled!\n\n"
                        f"⏱️ **Timeout:** {timeout} minutes\n"
+                       f"{engage_text}\n"
                        f"🤫 **Silent mode:** They won't know it's intentional\n\n"
                        f"Harry will respond to their messages with creative greetings.",
             color=0xff6b6b
         )
-        embed.set_footer(text="Use /fun untarget to stop | /fun status to check")
-
+        embed.set_footer(text="Use /fun toggle_engage to change | /fun status to check")
+        
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @fun_group.command(name="untarget", description="🛑 Stop trolling a user (Admin only)")
@@ -175,6 +181,44 @@ class FunCog(commands.Cog):
                 ephemeral=True
             )
 
+    @fun_group.command(name="toggle_engage", description="🔥 Toggle argument mode for a user (Admin only)")
+    @app_commands.describe(user="The targeted user")
+    async def toggle_engage(self, interaction: discord.Interaction, user: discord.Member):
+        """Toggle whether Harry will argue back if they respond"""
+        # Admin check
+        if not self.admin_manager or not self.admin_manager.is_admin(interaction.user, interaction):
+            await interaction.response.send_message("❌ Nice try, but no.", ephemeral=True)
+            return
+
+        # Check if user is targeted
+        if user.id not in self.targets:
+            await interaction.response.send_message(
+                f"❌ {user.display_name} isn't being targeted! Use `/fun target` first.",
+                ephemeral=True
+            )
+            return
+
+        # Toggle engage mode
+        target_info = self.targets[user.id]
+        old_state = target_info.get('engage', False)
+        new_state = not old_state
+        target_info['engage'] = new_state
+        target_info['argument_count'] = 0  # Reset counter when toggling
+        
+        logger.info(f"🔥 {interaction.user.display_name} toggled engage mode for {user.display_name}: {old_state} → {new_state}")
+        
+        status_emoji = "🔥" if new_state else "💤"
+        status_text = "ON - Harry will argue back!" if new_state else "OFF - No arguments"
+        
+        embed = discord.Embed(
+            title=f"{status_emoji} Engage Mode {'Activated' if new_state else 'Deactivated'}",
+            description=f"**{user.display_name}** engage mode: **{status_text}**\n\n"
+                       f"{'Harry will now use AI to generate contextual comebacks when they reply!' if new_state else 'Harry will ignore their responses.'}",
+            color=0xff0000 if new_state else 0x808080
+        )
+        embed.set_footer(text="Argument counter reset to 0 | Max 5 arguments per user")
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
     @fun_group.command(name="status", description="📋 Check trolling status (Admin only)")
     async def status(self, interaction: discord.Interaction):
         """View all currently targeted users"""
@@ -200,11 +244,16 @@ class FunCog(commands.Cog):
                 # Calculate time since last message
                 time_since = int((time.time() - info['last_triggered']) / 60)
                 time_until = max(0, info['timeout'] - time_since)
+                
+                engage_status = "🔥 ON" if info.get('engage') else "💤 OFF"
+                arg_count = info.get('argument_count', 0)
 
                 status_text = (
                     f"⏱️ **Timeout:** {info['timeout']} minutes\n"
                     f"🕐 **Last triggered:** {time_since}m ago\n"
                     f"⏳ **Next available:** {time_until}m\n"
+                    f"🔥 **Engage mode:** {engage_status}\n"
+                    f"💬 **Arguments:** {arg_count}/5\n"
                     f"👤 **Enabled by:** {info.get('enabled_by_name', 'Unknown')}"
                 )
 
@@ -220,13 +269,15 @@ class FunCog(commands.Cog):
     @fun_group.command(name="target_all", description="🎯 Start trolling multiple users at once (Admin only)")
     @app_commands.describe(
         users="Users to target (space-separated mentions: @user1 @user2 @user3)",
-        timeout="Minutes between messages (default: 30)"
+        timeout="Minutes between messages (default: 30)",
+        engage="Should Harry argue back if they respond? (default: False)"
     )
     async def target_all(
         self,
         interaction: discord.Interaction,
         users: str,
-        timeout: int = 30
+        timeout: int = 30,
+        engage: bool = False
     ):
         """Enable trolling for multiple users at once"""
         # Admin check
@@ -285,7 +336,9 @@ class FunCog(commands.Cog):
                 'last_triggered': 0,
                 'target_name': member.display_name,
                 'enabled_by': interaction.user.id,
-                'enabled_by_name': interaction.user.display_name
+                'enabled_by_name': interaction.user.display_name,
+                'engage': engage,
+                'argument_count': 0
             }
             added.append(member.display_name)
 
@@ -298,12 +351,15 @@ class FunCog(commands.Cog):
             )
             return
 
-        logger.info(f"🎯 {interaction.user.display_name} enabled trolling for {len(added)} users (timeout: {timeout}m)")
+        logger.info(f"🎯 {interaction.user.display_name} enabled trolling for {len(added)} users (timeout: {timeout}m, engage: {engage})")
+
+        engage_text = "🔥 **Engage mode: ON** - Harry will argue if they respond!" if engage else "💤 **Engage mode: OFF**"
 
         embed = discord.Embed(
             title="🎯 Multiple Targets Acquired",
             description=f"**{len(added)} users** are now being trolled!\n\n"
                        f"⏱️ **Timeout:** {timeout} minutes\n"
+                       f"{engage_text}\n"
                        f"🤫 **Silent mode:** They won't know it's intentional",
             color=0xff6b6b
         )
@@ -399,12 +455,125 @@ class FunCog(commands.Cog):
             import random
             troll_message = random.choice(troll_messages)
 
-            await message.channel.send(troll_message)
-
-            logger.info(f"🎭 Trolled {message.author.display_name} in #{message.channel.name}")
+            sent_message = await message.channel.send(troll_message)
+            
+            # Track this troll message for reply detection (if engage mode is on)
+            if target_info.get('engage'):
+                self.troll_messages[sent_message.id] = message.author.id
+                logger.info(f"🎭 Trolled {message.author.display_name} (engage mode ON) in #{message.channel.name}")
+            else:
+                logger.info(f"🎭 Trolled {message.author.display_name} in #{message.channel.name}")
 
         except Exception as e:
             logger.error(f"❌ Failed to send troll message: {e}")
+    
+    @commands.Cog.listener()
+    async def on_message_reply(self, message: discord.Message):
+        """Listen for replies to Harry's troll messages and engage in arguments"""
+        # Ignore bot messages
+        if message.author.bot:
+            return
+        
+        # Check if this is a reply to one of Harry's troll messages
+        if not message.reference or not message.reference.message_id:
+            return
+        
+        replied_to_id = message.reference.message_id
+        
+        # Check if they replied to a troll message
+        if replied_to_id not in self.troll_messages:
+            return
+        
+        target_user_id = self.troll_messages[replied_to_id]
+        
+        # Verify the replier is the targeted user
+        if message.author.id != target_user_id:
+            return
+        
+        # Check if engage mode is on for this user
+        if target_user_id not in self.targets:
+            return
+        
+        target_info = self.targets[target_user_id]
+        if not target_info.get('engage'):
+            return
+        
+        # Limit argument escalation (max 5 back-and-forth)
+        if target_info.get('argument_count', 0) >= 5:
+            logger.info(f"🛑 Argument limit reached for {message.author.display_name}")
+            return
+        
+        # Generate AI comeback if available
+        try:
+            their_message = message.content
+            
+            # Use AI if available
+            if self.ai_assistant:
+                comeback = await self._generate_ai_comeback(their_message, message.author.display_name)
+            else:
+                # Fallback: Use predefined comebacks
+                comeback = self._get_fallback_comeback(their_message)
+            
+            await message.channel.send(comeback)
+            
+            # Increment argument counter
+            target_info['argument_count'] = target_info.get('argument_count', 0) + 1
+            
+            logger.info(f"🔥 Harry argued back with {message.author.display_name} (count: {target_info['argument_count']})")
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to generate comeback: {e}")
+    
+    async def _generate_ai_comeback(self, user_message: str, user_name: str) -> str:
+        """Generate contextual AI comeback"""
+        try:
+            prompt = f"""You are Harry, a sarcastic British football bot who just told {user_name} "Fuck you" and they responded with: "{user_message}"
+
+Generate a short, hilarious comeback that:
+- Is cheeky and British (uses "mate", "ya muppet", "bollocks", etc.)
+- References what they said
+- Stays playful (not actually mean)
+- Is 1-2 sentences max
+- Ends with an emoji
+
+Example comebacks:
+- "Oh, you got feelings now? Adorable, mate. 🙄"
+- "Cry more, ya muppet! 😂"
+- "Big talk from someone who can't even spell properly! 💀"
+
+Your comeback (max 200 chars):"""
+            
+            # Use AI to generate response
+            response = await self.ai_assistant.ask_question(prompt, include_charter=False)
+            
+            # Trim if too long
+            if len(response) > 200:
+                response = response[:197] + "..."
+            
+            return response
+            
+        except Exception as e:
+            logger.error(f"❌ AI comeback failed: {e}")
+            return self._get_fallback_comeback(user_message)
+    
+    def _get_fallback_comeback(self, user_message: str) -> str:
+        """Get a fallback comeback if AI isn't available"""
+        import random
+        
+        fallbacks = [
+            "Oh, you got feelings now? Adorable, mate. 🙄",
+            "Cry more, ya muppet! 😂",
+            "That's cute. Now fuck off! 🖕",
+            "Big words from someone so easily rattled! 💀",
+            "Aww, did I hurt your feelings? Good! 😈",
+            "Keep talking, I've got all day to roast ya! 🔥",
+            "Is that the best comeback you've got? Pathetic! 😴",
+            "Mate, you're making this too easy! 🎯",
+            "Oh no, are you gonna cry now? 😭",
+            "Try harder, that was embarrassing! 💩",
+        ]
+        
+        return random.choice(fallbacks)
 
 
 async def setup(bot: commands.Bot):
