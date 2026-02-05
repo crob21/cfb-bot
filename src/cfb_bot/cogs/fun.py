@@ -14,7 +14,7 @@ import logging
 import random
 import re
 import time
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 
 import discord
 from discord import app_commands
@@ -32,11 +32,11 @@ class FunCog(commands.Cog):
         self.bot = bot
         self.admin_manager = None
 
-        # Tracking structure: {user_id: {'timeout': minutes, 'last_triggered': timestamp, 'engage': bool}}
-        self.targets: Dict[int, Dict] = {}
+        # Guild-scoped: {guild_id: {user_id: {'timeout': ..., 'last_triggered': ..., 'engage': bool}}}
+        self.targets: Dict[int, Dict[int, Dict]] = {}
 
-        # Track Harry's troll messages for reply detection: {message_id: user_id}
-        self.troll_messages: Dict[int, int] = {}
+        # Track Harry's troll messages for reply detection: {message_id: (guild_id, user_id)}
+        self.troll_messages: Dict[int, Tuple[int, int]] = {}
 
         # Track processed interactions to prevent duplicates: {interaction_id: timestamp}
         self._processed_interactions: Dict[int, float] = {}
@@ -47,6 +47,10 @@ class FunCog(commands.Cog):
         """Set dependencies after bot is ready"""
         self.admin_manager = admin_manager
         self.ai_assistant = ai_assistant
+
+    def _targets_for_guild(self, guild_id: int) -> Dict[int, Dict]:
+        """Get the targets dict for a guild (per-server targeting)."""
+        return self.targets.setdefault(guild_id, {})
 
     def _is_duplicate_interaction(self, interaction: discord.Interaction) -> bool:
         """Check if we've already processed this interaction (prevents duplicate commands)"""
@@ -114,8 +118,12 @@ class FunCog(commands.Cog):
             await interaction.response.send_message("❌ Can't target bots, mate!", ephemeral=True)
             return
 
-        # Add to targets
-        self.targets[user.id] = {
+        if not interaction.guild_id:
+            await interaction.response.send_message("❌ This command only works in a server!", ephemeral=True)
+            return
+
+        guild_targets = self._targets_for_guild(interaction.guild_id)
+        guild_targets[user.id] = {
             'timeout': timeout,
             'last_triggered': 0,  # Allow immediate first message
             'target_name': user.display_name,
@@ -155,9 +163,13 @@ class FunCog(commands.Cog):
             await interaction.response.send_message("❌ Nice try, but no.", ephemeral=True)
             return
 
-        # Remove from targets
-        if user.id in self.targets:
-            target_info = self.targets.pop(user.id)
+        if not interaction.guild_id:
+            await interaction.response.send_message("❌ This command only works in a server!", ephemeral=True)
+            return
+
+        guild_targets = self._targets_for_guild(interaction.guild_id)
+        if user.id in guild_targets:
+            guild_targets.pop(user.id)
             logger.info(f"🛑 {interaction.user.display_name} disabled trolling for {user.display_name}")
 
             embed = discord.Embed(
@@ -169,7 +181,7 @@ class FunCog(commands.Cog):
             await interaction.response.send_message(embed=embed, ephemeral=True)
         else:
             await interaction.response.send_message(
-                f"❌ {user.display_name} isn't being targeted!",
+                f"❌ {user.display_name} isn't being targeted in this server!",
                 ephemeral=True
             )
 
@@ -202,10 +214,14 @@ class FunCog(commands.Cog):
             )
             return
 
-        # Update timeout
-        if user.id in self.targets:
-            old_timeout = self.targets[user.id]['timeout']
-            self.targets[user.id]['timeout'] = timeout
+        if not interaction.guild_id:
+            await interaction.response.send_message("❌ This command only works in a server!", ephemeral=True)
+            return
+
+        guild_targets = self._targets_for_guild(interaction.guild_id)
+        if user.id in guild_targets:
+            old_timeout = guild_targets[user.id]['timeout']
+            guild_targets[user.id]['timeout'] = timeout
 
             logger.info(f"⏱️ {interaction.user.display_name} changed timeout for {user.display_name}: {old_timeout}m → {timeout}m")
 
@@ -218,7 +234,7 @@ class FunCog(commands.Cog):
             await interaction.response.send_message(embed=embed, ephemeral=True)
         else:
             await interaction.response.send_message(
-                f"❌ {user.display_name} isn't being targeted! Use `/fun target` first.",
+                f"❌ {user.display_name} isn't being targeted in this server! Use `/fun target` first.",
                 ephemeral=True
             )
 
@@ -235,16 +251,20 @@ class FunCog(commands.Cog):
             await interaction.response.send_message("❌ Nice try, but no.", ephemeral=True)
             return
 
-        # Check if user is targeted
-        if user.id not in self.targets:
+        if not interaction.guild_id:
+            await interaction.response.send_message("❌ This command only works in a server!", ephemeral=True)
+            return
+
+        guild_targets = self._targets_for_guild(interaction.guild_id)
+        if user.id not in guild_targets:
             await interaction.response.send_message(
-                f"❌ {user.display_name} isn't being targeted! Use `/fun target` first.",
+                f"❌ {user.display_name} isn't being targeted in this server! Use `/fun target` first.",
                 ephemeral=True
             )
             return
 
         # Toggle engage mode
-        target_info = self.targets[user.id]
+        target_info = guild_targets[user.id]
         old_state = target_info.get('engage', False)
         new_state = not old_state
         target_info['engage'] = new_state
@@ -276,20 +296,25 @@ class FunCog(commands.Cog):
             await interaction.response.send_message("❌ Nice try, but no.", ephemeral=True)
             return
 
-        if not self.targets:
+        if not interaction.guild_id:
+            await interaction.response.send_message("❌ This command only works in a server!", ephemeral=True)
+            return
+
+        guild_targets = self._targets_for_guild(interaction.guild_id)
+        if not guild_targets:
             embed = discord.Embed(
                 title="📋 Trolling Status",
-                description="No active targets.\n\nUse `/fun target` to start trolling someone!",
+                description="No active targets in **this server**.\n\nUse `/fun target` to start trolling someone!",
                 color=Colors.WARNING
             )
         else:
             embed = discord.Embed(
-                title="📋 Active Targets",
-                description=f"Currently trolling **{len(self.targets)}** user(s):",
+                title="📋 Active Targets (this server)",
+                description=f"Currently trolling **{len(guild_targets)}** user(s) in this server:",
                 color=0xff6b6b
             )
 
-            for user_id, info in self.targets.items():
+            for user_id, info in guild_targets.items():
                 # Calculate time since last message
                 time_since = int((time.time() - info['last_triggered']) / 60)
                 time_until = max(0, info['timeout'] - time_since)
@@ -312,7 +337,7 @@ class FunCog(commands.Cog):
                     inline=False
                 )
 
-        embed.set_footer(text="This is completely hidden from targets | Harry's Secret Trolling System")
+        embed.set_footer(text="Targeting is per-server only | Harry's Secret Trolling System")
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @fun_group.command(name="target_all", description="🎯 Start trolling multiple users at once (Admin only)")
@@ -363,7 +388,9 @@ class FunCog(commands.Cog):
             await interaction.response.send_message("❌ This command only works in servers!", ephemeral=True)
             return
 
-        # Add all mentioned users
+        guild_targets = self._targets_for_guild(interaction.guild_id)
+
+        # Add all mentioned users (this server only)
         added = []
         skipped = []
 
@@ -373,7 +400,7 @@ class FunCog(commands.Cog):
             # Try to get member
             try:
                 member = await interaction.guild.fetch_member(user_id)
-            except:
+            except Exception:
                 skipped.append(f"<@{user_id}> (not found)")
                 continue
 
@@ -382,8 +409,7 @@ class FunCog(commands.Cog):
                 skipped.append(f"{member.display_name} (bot)")
                 continue
 
-            # Add to targets
-            self.targets[user_id] = {
+            guild_targets[user_id] = {
                 'timeout': timeout,
                 'last_triggered': 0,
                 'target_name': member.display_name,
@@ -444,20 +470,25 @@ class FunCog(commands.Cog):
             await interaction.response.send_message("❌ Nice try, but no.", ephemeral=True)
             return
 
-        if not self.targets:
-            await interaction.response.send_message("❌ No active targets to remove!", ephemeral=True)
+        if not interaction.guild_id:
+            await interaction.response.send_message("❌ This command only works in a server!", ephemeral=True)
             return
 
-        count = len(self.targets)
-        target_names = [info['target_name'] for info in self.targets.values()]
-        self.targets.clear()
+        guild_targets = self._targets_for_guild(interaction.guild_id)
+        if not guild_targets:
+            await interaction.response.send_message("❌ No active targets in this server to remove!", ephemeral=True)
+            return
+
+        count = len(guild_targets)
+        target_names = [info['target_name'] for info in guild_targets.values()]
+        guild_targets.clear()
 
         logger.info(f"🛑 {interaction.user.display_name} disabled trolling for all {count} users")
 
         embed = discord.Embed(
-            title="🛑 All Targets Released",
-            description=f"Removed **{count} users** from trolling list.\n\n"
-                       f"They can all live in peace... for now.",
+            title="🛑 All Targets Released (this server)",
+            description=f"Removed **{count} users** from trolling list in this server.\n\n"
+                       f"They can live in peace here... for now.",
             color=0x00ff00
         )
 
@@ -477,21 +508,27 @@ class FunCog(commands.Cog):
         if message.author.bot:
             return
 
+        # Only act in servers (not DMs)
+        if not message.guild:
+            return
+
+        guild_targets = self._targets_for_guild(message.guild.id)
+
         # PRIORITY 1: Check if this is a reply to Harry's troll message (argument mode)
         if message.reference and message.reference.message_id:
-            await self._handle_argument_reply(message)
+            await self._handle_argument_reply(message, guild_targets)
             return  # Don't process as regular message if it's a reply
 
         # PRIORITY 1.5: Check if targeted user is arguing with Harry (mentions bot + engage mode)
-        if message.author.id in self.targets:
-            target_info = self.targets[message.author.id]
+        if message.author.id in guild_targets:
+            target_info = guild_targets[message.author.id]
             if target_info.get('engage'):
                 # Check if they're insulting/mentioning Harry
                 bot_mentioned = self.bot.user in message.mentions
                 message_lower = message.content.lower()
                 insult_keywords = ['fuck', 'shit', 'harry', 'bot', 'ass', 'damn', 'hell', 'stupid', 'dumb', 'suck']
                 has_insult = any(keyword in message_lower for keyword in insult_keywords)
-                
+
                 if bot_mentioned or has_insult:
                     # Limit arguments (max 5 per user across all messages)
                     if target_info.get('argument_count', 0) < 5:
@@ -499,11 +536,11 @@ class FunCog(commands.Cog):
                         return
 
         # PRIORITY 2: Check if user is targeted for trolling
-        if message.author.id not in self.targets:
+        if message.author.id not in guild_targets:
             return
 
         # Get target info
-        target_info = self.targets[message.author.id]
+        target_info = guild_targets[message.author.id]
 
         # Check timeout
         current_time = time.time()
@@ -533,7 +570,7 @@ class FunCog(commands.Cog):
 
             # Track this troll message for reply detection (if engage mode is on)
             if target_info.get('engage'):
-                self.troll_messages[sent_message.id] = message.author.id
+                self.troll_messages[sent_message.id] = (message.guild.id, message.author.id)
                 logger.info(f"🎭 Trolled {message.author.display_name} (engage mode ON) in #{message.channel.name}")
             else:
                 logger.info(f"🎭 Trolled {message.author.display_name} in #{message.channel.name}")
@@ -571,25 +608,29 @@ class FunCog(commands.Cog):
         except Exception as e:
             logger.error(f"❌ Failed to respond to insult: {e}")
 
-    async def _handle_argument_reply(self, message: discord.Message):
-        """Handle replies to Harry's troll messages (argument mode)"""
+    async def _handle_argument_reply(self, message: discord.Message, guild_targets: Dict[int, Dict]):
+        """Handle replies to Harry's troll messages (argument mode). guild_targets is for message.guild."""
         replied_to_id = message.reference.message_id
 
         # Check if they replied to a troll message
         if replied_to_id not in self.troll_messages:
             return
 
-        target_user_id = self.troll_messages[replied_to_id]
+        stored_guild_id, target_user_id = self.troll_messages[replied_to_id]
+
+        # Only count replies in the same server where we sent the troll
+        if message.guild.id != stored_guild_id:
+            return
 
         # Verify the replier is the targeted user
         if message.author.id != target_user_id:
             return
 
-        # Check if engage mode is on for this user
-        if target_user_id not in self.targets:
+        # Check if engage mode is on for this user (in this server)
+        if target_user_id not in guild_targets:
             return
 
-        target_info = self.targets[target_user_id]
+        target_info = guild_targets[target_user_id]
         if not target_info.get('engage'):
             return
 
