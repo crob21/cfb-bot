@@ -3,8 +3,11 @@ services:
     name: cfb-rules-bot
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: python3 main.py
+    # -u = unbuffered stdout/stderr so logs stream to Render immediately
+    startCommand: python3 -u main.py
     envVars:
+      - key: PYTHONUNBUFFERED
+        value: 1
       - key: DISCORD_BOT_TOKEN
         sync: false
       - key: OPENAI_API_KEY
