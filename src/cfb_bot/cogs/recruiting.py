@@ -21,12 +21,14 @@ from discord import app_commands
 from discord.ext import commands
 
 from ..config import Colors, Footers
-from ..services.checks import check_module_enabled, check_module_enabled_deferred
-from ..utils.server_config import server_config, FeatureModule, RecruitingSource
+from ..services.checks import (check_module_enabled,
+                               check_module_enabled_deferred)
+from ..utils.cache import get_cache
+from ..utils.cfb_data import cfb_data
 from ..utils.on3_scraper import on3_scraper
 from ..utils.recruiting_scraper import recruiting_scraper
-from ..utils.cfb_data import cfb_data
-from ..utils.cache import get_cache
+from ..utils.server_config import (FeatureModule, RecruitingSource,
+                                   server_config)
 
 logger = logging.getLogger('CFB26Bot.Recruiting')
 
@@ -579,9 +581,10 @@ class RecruitingCog(commands.Cog):
             actual_year = year or scraper._get_current_recruiting_year()
             logger.info(f"🔍 /recruiting rankings via {source_name}: year={actual_year}, top={top}")
 
-            # Check cache first
+            # Check cache first (same pattern as player lookup)
+            cache = get_cache()
             cache_key = f"rankings_{source_name}_{actual_year}_{top}"
-            cached_teams = self.cache.get(cache_key)
+            cached_teams = cache.get(cache_key, namespace='recruiting')
 
             if cached_teams:
                 logger.info(f"💾 Cache hit for recruiting rankings: {cache_key}")
@@ -592,7 +595,7 @@ class RecruitingCog(commands.Cog):
 
                 # Cache for 24 hours (rankings don't change often)
                 if teams:
-                    self.cache.set(cache_key, teams, ttl=86400)
+                    cache.set(cache_key, teams, ttl_seconds=86400, namespace='recruiting')
 
             if teams:
                 lines = [f"**Top {len(teams)} Recruiting Classes ({actual_year})**", ""]
