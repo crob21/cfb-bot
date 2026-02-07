@@ -519,65 +519,56 @@ class FunCog(commands.Cog):
             await self._handle_argument_reply(message, guild_targets)
             return  # Don't process as regular message if it's a reply
 
-        # PRIORITY 1.5: Check if targeted user is arguing with Harry (mentions bot + engage mode)
+        # PRIORITY 1.5: Targeted user said "Harry" or @mentioned Harry → respond EVERY time (no timeout)
+        bot_mentioned = self.bot.user in message.mentions
+        message_lower = (message.content or "").lower()
+        said_harry = "harry" in message_lower
+
+        if message.author.id in guild_targets and (bot_mentioned or said_harry):
+            target_info = guild_targets[message.author.id]
+            try:
+                insult = self._generate_dynamic_insult(message.author.mention)
+                sent_message = await message.channel.send(insult)
+                if target_info.get('engage'):
+                    self.troll_messages[sent_message.id] = (message.guild.id, message.author.id)
+                logger.info(f"🎭 Harry responded to mention from {message.author.display_name} (no timeout)")
+            except Exception as e:
+                logger.error(f"❌ Failed to send mention response: {e}")
+            return
+
+        # PRIORITY 1.6: Targeted user insulting (other keywords) + engage mode → argument with limit
         if message.author.id in guild_targets:
             target_info = guild_targets[message.author.id]
             if target_info.get('engage'):
-                # Check if they're insulting/mentioning Harry
-                bot_mentioned = self.bot.user in message.mentions
-                message_lower = message.content.lower()
-                insult_keywords = ['fuck', 'shit', 'harry', 'bot', 'ass', 'damn', 'hell', 'stupid', 'dumb', 'suck']
-                has_insult = any(keyword in message_lower for keyword in insult_keywords)
+                insult_keywords = ['fuck', 'shit', 'bot', 'ass', 'damn', 'hell', 'stupid', 'dumb', 'suck']
+                has_insult = any(k in message_lower for k in insult_keywords)
+                if has_insult and target_info.get('argument_count', 0) < 5:
+                    await self._handle_direct_insult(message, target_info)
+                    return
 
-                if bot_mentioned or has_insult:
-                    # Limit arguments (max 5 per user across all messages)
-                    if target_info.get('argument_count', 0) < 5:
-                        await self._handle_direct_insult(message, target_info)
-                        return
-
-        # PRIORITY 2: Check if user is targeted for trolling
+        # PRIORITY 2: Organic troll (they just posted) — timeout applies
         if message.author.id not in guild_targets:
             return
 
-        # Get target info
         target_info = guild_targets[message.author.id]
-
-        # Check timeout
         current_time = time.time()
         time_since_last = current_time - target_info['last_triggered']
         timeout_seconds = target_info['timeout'] * 60
 
         if time_since_last < timeout_seconds:
-            # Still in timeout period
             return
 
-        # Update last triggered time
         target_info['last_triggered'] = current_time
 
-        # Send the troll message
         try:
-            troll_messages = [
-                f"Fuck you {message.author.mention} 🖕",
-                f"Oi {message.author.mention}, fuck you! 🖕",
-                f"Hey {message.author.mention}... fuck you 🖕",
-                f"{message.author.mention} Fuck. You. 🖕",
-                f"Fuck you specifically, {message.author.mention} 🖕",
-                f"Oh look, it's {message.author.mention}. Fuck you! 🖕",
-            ]
-
-            troll_message = random.choice(troll_messages)
+            troll_message = self._generate_dynamic_insult(message.author.mention)
             sent_message = await message.channel.send(troll_message)
 
-            # Track this troll message for reply detection (if engage mode is on)
             if target_info.get('engage'):
                 self.troll_messages[sent_message.id] = (message.guild.id, message.author.id)
-                logger.info(f"🎭 Trolled {message.author.display_name} (engage mode ON) in #{message.channel.name}")
-            else:
-                logger.info(f"🎭 Trolled {message.author.display_name} in #{message.channel.name}")
+            logger.info(f"🎭 Organic troll: {message.author.display_name} in #{message.channel.name}")
 
-            # Cleanup old troll messages to prevent memory leak (keep last 100)
             if len(self.troll_messages) > 100:
-                # Remove oldest 50 entries
                 oldest_keys = list(self.troll_messages.keys())[:50]
                 for key in oldest_keys:
                     del self.troll_messages[key]
@@ -695,8 +686,58 @@ Your BRUTAL comeback (max 200 chars):"""
             logger.error(f"❌ AI comeback failed: {e}")
             return self._get_fallback_comeback(user_message)
 
+    def _generate_dynamic_insult(self, mention: str) -> str:
+        """Generate a random insult from phrases + swear words + objects (new combo each time)."""
+        phrases = [
+            "Fuck you", "Oi", "Look at this", "Absolute", "What a", "You're a",
+            "Shut your face", "Piss off", "Sod off", "Get lost", "Hey", "Oh look",
+            "Listen here", "Cry more", "Try harder", "Fuck off", "Yeah right",
+        ]
+        swears = [
+            "fucking", "shit", "bloody", "sodding", "goddamn", "damn",
+            "wank", "bellend", "twat", "muppet", "pillock", "plonker",
+        ]
+        objects = [
+            "muppet", "donut", "pillock", "waste of space", "chocolate teapot",
+            "bag of rocks", "wet wipe", "absolute weapon", "wanker", "bellend",
+            "twat", "plonker", "numpty", "melon", "div",
+            "knobhead", "dickhead", "tosser", "berk", "prat",
+            "nincompoop", "dipstick", "ninny", "wazzock",
+        ]
+        emojis = ["🖕", "💩", "🤬", "😈", "😂", "🗑️", "🔥"]
+
+        p = random.choice(phrases)
+        s = random.choice(swears)
+        o = random.choice(objects)
+        e = random.choice(emojis)
+
+        # Avoid "Fuck you you" when mention is "you" (used for comebacks)
+        if mention.strip().lower() == "you":
+            templates = [
+                f"{p}, you {s} {o}! {e}",
+                f"You're a {s} {o}. {p}! {e}",
+                f"What a {s} {o}. {p}! {e}",
+                f"Oi! You {s} {o}. {p}! {e}",
+                f"Look at you, the {s} {o}. {e}",
+                f"{p} you {s} {o}! {e}",
+            ]
+        else:
+            templates = [
+                f"{p} {mention}, you {s} {o}! {e}",
+                f"{mention} {p} you {s} {o}! {e}",
+                f"Oi {mention}! You're a {s} {o}. {e}",
+                f"{p} {mention}. What a {s} {o}! {e}",
+                f"Look at {mention}, the {s} {o}. {e}",
+                f"{p} you {s} {o}, {mention}! {e}",
+                f"{mention} — you {s} {o}. {p}! {e}",
+                f"What a {s} {o}. {p} {mention}! {e}",
+            ]
+        return random.choice(templates)
+
     def _get_fallback_comeback(self, user_message: str) -> str:
-        """Get a fallback comeback if AI isn't available"""
+        """Fallback comeback if AI isn't available; 50% dynamic insult, 50% fixed."""
+        if random.random() < 0.5:
+            return self._generate_dynamic_insult("you")
         fallbacks = [
             "Oh fuck off, you whiny little bitch. 🖕",
             "Cry more, you absolute bellend! 😂",
@@ -714,7 +755,6 @@ Your BRUTAL comeback (max 200 chars):"""
             "You talk a lot of shite for someone so fucking stupid! 🗑️",
             "Get absolutely fucked, you wanker! 🖕",
         ]
-
         return random.choice(fallbacks)
 
 

@@ -1,267 +1,203 @@
 # CFB Bot (Harry) 🏈
 
-A comprehensive Discord bot for College Football dynasty leagues. Provides player lookups, recruiting data, high school stats, AI-powered insights, league management, interactive charter editing, and Harry's signature cockney personality.
+A comprehensive Discord bot for College Football dynasty leagues. Player lookups, recruiting data, high school stats, AI-powered insights, league management, interactive charter editing—and Harry's signature cockney personality.
 
-**Current Version:** 3.7.0  
-**Harry** - Your cockney, Oregon-hating assistant
+**Harry** – Your cockney, Oregon-hating assistant.
 
 ## Features
 
-### ⚡ Performance & Monitoring (NEW in 3.6)
-- **3x Faster Player Lookups** - Parallel API calls reduce wait times (15s → 5s)
-- **AI Response Caching** - 40-60% cache hit rate saves $15-20/mo
-- **Optional Sentry Integration** - Real-time error tracking and performance monitoring
-- **Command Metrics** - Track execution times, cache rates, and bottlenecks
-- **Automatic Optimization** - Warns on slow commands, identifies performance issues
+### 🏈 CFB Data (`/cfb`)
+- **Player lookup** – `/cfb player`, bulk `/cfb players`
+- **Rankings** – AP, Coaches, CFP polls
+- **Matchup history** – `/cfb matchup` for rivalry records
+- **Schedules** – `/cfb schedule`, results and upcoming games
+- **Transfer portal** – `/cfb transfers`
+- **Team stats** – `/cfb teamstats` for offense & defense
+- **Ratings** – SP+, SRS, Elo via `/cfb ratings`
+- **Draft** – `/cfb draft_picks` by school
 
-### 🏈 CFB Data Module
-- **Player Lookup** - `/player` or bulk `/players` for recruiting info, stats, transfers
-- **Rankings** - `/rankings` for AP, Coaches, CFP polls
-- **Matchup History** - `/matchup` for all-time records between rivals
-- **Team Schedules** - `/cfb_schedule` for game results and upcoming games
-- **NFL Draft** - `/draft_picks` for draft history by school
-- **Transfer Portal** - `/transfers` for incoming/outgoing transfers
-- **Betting Lines** - `/betting` for spreads and over/unders (auto-detects current week/postseason)
-- **Advanced Stats** - `/team_ratings` for SP+, SRS, Elo ratings
+### ⭐ Recruiting (`/recruiting`)
+- **Player lookup** – On3/Rivals or 247Sports; position filter for duplicate names
+- **Rankings** – Team recruiting classes
+- **Commits** – `/recruiting commits` by team
+- **Portal** – Transfer portal cross-reference
+- **Source** – Switch On3 vs 247 per server
 
-### 🏫 High School Stats Module (NEW)
-- **HS Player Lookup** - `/hs_stats` for MaxPreps high school stats
-- **Bulk HS Lookup** - `/hs_stats_bulk` for recruiting lists
-- **Web Scraping** - Pulls directly from MaxPreps
+### 🏫 High School Stats (`/hs`)
+- **Player lookup** – `/hs stats` from MaxPreps
+- **Bulk lookup** – `/hs bulk` for lists
 
-### ⏰ League Management
-- **Advance Timer** - Server-wide countdown with automatic reminders
-- **Dynasty Week System** - Full 30-week season tracking
-- **Charter Management** - Interactive updates via natural language
-- **League Staff** - Track commissioner and co-commissioner
-- **Schedule Integration** - Matchups, byes, user team highlighting
+### ⏰ League (`/league`)
+- **Advance timer** – Countdown with 24h / 12h / 6h / 1h reminders
+- **Schedule** – `/league games`, `/league find_game`, `/league byes`
+- **Week** – Current season/week, full week list
+- **Staff** – Owner, co-commish; `/league pick_commish` for AI suggestion
+- **Charter** – Link and natural-language updates
 
-### 🤖 AI-Powered Features
-- **Natural Language** - Ask Harry anything conversationally
-- **Channel Summaries** - AI-powered discussion recaps
-- **Co-Commish Picker** - Analyzes chat for recommendations (with asshole detector!)
-- **Rule Scanning** - Scan voting channels for passed rules
+### 🤖 AI (`/harry`, `/ask`, `/summarize`)
+- **Harry** – League-aware Q&A
+- **Summarize** – Channel recaps
+- **Co-commish picker** – Analyzes chat for recommendations
 
-### ⚙️ Configuration & Administration
-- **Per-Server Config** - Enable/disable modules per Discord server
-- **Per-Channel Controls** - Whitelist channels where Harry responds
-- **Web Dashboard** - Visual management at `/dashboard`
-- **Bot Admin System** - Separate admin permissions for bot features
-- **Auto-Response Toggle** - Control Harry's unprompted jump-ins
+### ⚙️ Admin (`/admin`)
+- **Config** – Enable/disable modules per server
+- **Channels** – Set admin channel, block/unblock AI
+- **Admins** – Add/remove bot admins
+- **Usage** – `/admin ai`, `/admin zyte` for API usage and costs
+- **Cache** – Stats and clear recruiting cache
+- **Budget** – Monthly limits and alerts
+- **Sync** – Force slash-command sync
 
 ### 😄 Personality
-- Cockney accent (always on)
-- Snarky asshole attitude (always on)
-- Deep, unhinged hatred of Oregon Ducks 🦆💩 (always on)
+- Cockney accent and snarky attitude
+- Deep, unhinged hatred of Oregon 🦆💩
+- Rivalry auto-responses (configurable per channel)
+
+---
 
 ## Quick Start
 
 ### Prerequisites
-
 - Python 3.11+ (3.13 recommended)
-- Discord Bot Token
-- OpenAI API Key (optional, for AI features)
-- CollegeFootballData.com API Key (optional, for CFB data)
+- [Discord Bot Token](https://discord.com/developers/applications)
+- Optional: OpenAI or Anthropic key (AI), CollegeFootballData.com key (CFB data), Zyte key (recruiting scraping)
 
-### Installation
+### Install & run
 
-   ```bash
-# Clone the repository
-   git clone https://github.com/crob21/cfb-rules-bot.git
-   cd cfb-rules-bot
+```bash
+git clone https://github.com/crob21/cfb-bot.git
+cd cfb-bot
 
-# Install dependencies
-   pip install -r requirements.txt
+pip install -r requirements.txt
 
-# Set up environment variables
-   cp config/env.example .env
-   # Edit .env with your API keys
+cp config/env.example .env
+# Edit .env with DISCORD_BOT_TOKEN and any optional keys
 
-# Run the bot
-   python main.py
-   ```
+python main.py
+```
 
 ## Configuration
 
-### Environment Variables
+### Environment variables
 
-```env
-# Required
-DISCORD_BOT_TOKEN=your_discord_bot_token_here
+| Variable | Required | Description |
+|--------|----------|-------------|
+| `DISCORD_BOT_TOKEN` | Yes | Discord bot token |
+| `OPENAI_API_KEY` | No | AI (Harry); or use `ANTHROPIC_API_KEY` |
+| `CFB_DATA_API_KEY` | No | [CollegeFootballData.com](https://collegefootballdata.com/key) – player/stats/rankings |
+| `ZYTE_API_KEY` | No | [Zyte](https://www.zyte.com/) – recruiting (Cloudflare bypass) |
+| `ZYTE_DASHBOARD_API_KEY` | No | Zyte dashboard API key (for `/admin zyte` official stats) |
+| `ZYTE_ORG_ID` | No | Zyte org ID from dashboard URL (`app.zyte.com/o/123456` → `123456`) |
+| `SENTRY_DSN` | No | Error tracking |
+| `BOT_ADMIN_IDS` | No | Comma-separated Discord user IDs for bot admins |
+| `STORAGE_BACKEND` | No | `discord` (default) or `supabase` |
 
-# Optional (for AI features)
-OPENAI_API_KEY=your_openai_api_key_here
-ANTHROPIC_API_KEY=your_anthropic_api_key_here
+See `config/env.example` for the full list (charter URL, dashboard, budgets, etc.).
 
-# Optional (for monitoring - Sentry error tracking)
-SENTRY_DSN=your_sentry_dsn_here
-ENVIRONMENT=production
-SENTRY_TRACES_SAMPLE_RATE=0.1
+### Per-server and per-channel
+- **Modules** – Use `/admin config` to enable/disable CFB Data, Recruiting, League, HS Stats, etc. per server.
+- **Channels** – Harry is off by default; use `/admin set_channel` and channel enable/block as needed.
 
-# Optional (for CFB data)
-CFB_DATA_API_KEY=your_cfb_data_api_key_here
+---
 
-# Storage Backend (discord or supabase)
-STORAGE_BACKEND=discord
+## Commands overview
 
-# For Supabase (when scaling beyond ~10 servers)
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_KEY=your-supabase-anon-key
-```
+| Group | Description |
+|-------|-------------|
+| `/cfb` | Player, rankings, schedule, matchup, transfers, teamstats, ratings, draft |
+| `/recruiting` | Player, top, class, commits, rankings, portal, source |
+| `/hs` | Stats, bulk |
+| `/league` | Timer, timer_status, games, week, weeks, find_game, byes, staff, set_week, pick_commish, … |
+| `/charter` | View, edit, link |
+| `/harry` | Ask Harry (league context) |
+| `/admin` | Config, set_channel, add/remove admins, ai, zyte, cache, budget, sync, … |
 
-### Per-Server Configuration
+**Full command reference:** [docs/COMMANDS.md](docs/COMMANDS.md)
 
-Harry supports per-server feature toggling:
+---
 
-| Module | Description | Default |
-|--------|-------------|---------|
-| **Core** | Harry's personality, AI chat, bot management | Always On |
-| **CFB Data** | Player lookup, rankings, schedules, etc. | Enabled |
-| **League** | Timer, charter, rules, dynasty features | Disabled |
-| **HS Stats** | High school stats from MaxPreps | Disabled |
-
-Use `/config` to manage modules or the web dashboard at `/dashboard`.
-
-### Per-Channel Configuration
-
-Harry is **disabled by default** in all channels. Use `/channel` to manage:
+## Project structure
 
 ```
-/channel enable        - Enable Harry in current channel
-/channel disable       - Disable Harry in current channel
-/channel view          - See current channel status
-/channel toggle_rivalry - Toggle rivalry auto-responses (jump-ins)
-```
-
-## Commands
-
-### CFB Data
-| Command | Description |
-|---------|-------------|
-| `/player <name> [team]` | Look up any CFB player |
-| `/players <list>` | Bulk lookup (up to 15 players) |
-| `/rankings [poll]` | Get AP, Coaches, or CFP rankings |
-| `/matchup <team1> <team2>` | All-time series history |
-| `/cfb_schedule <team> [year]` | Team schedule and results |
-| `/draft_picks <team> [year]` | NFL draft picks by school |
-| `/transfers <team>` | Transfer portal activity |
-| `/betting <team1> <team2>` | Betting lines and odds |
-| `/team_ratings <team>` | SP+, SRS, Elo ratings |
-
-### League Management
-| Command | Description |
-|---------|-------------|
-| `/advance [hours]` | Start countdown (default 48h) - Admin |
-| `/time_status` | Check countdown progress |
-| `/stop_countdown` | Stop the timer - Admin |
-| `/week` | Show current dynasty week |
-| `/set_season_week <s> <w>` | Set season/week - Admin |
-| `/charter` | Link to league charter |
-| `/scan_rules #channel` | Scan for rule changes - Admin |
-| `/league_staff` | View owner/co-commish |
-| `/pick_commish` | AI recommends new co-commish |
-
-### Configuration
-| Command | Description |
-|---------|-------------|
-| `/config [module]` | View/toggle server modules |
-| `/channel <action>` | Manage per-channel settings |
-| `/add_bot_admin @user` | Add a bot admin |
-| `/list_bot_admins` | List current bot admins |
-| `/set_timer_channel #ch` | Set notification channel |
-
-### General
-| Command | Description |
-|---------|-------------|
-| `/harry <question>` | Ask Harry (league context) |
-| `/ask <question>` | Ask Harry (general) |
-| `/help_cfb` | Show all commands |
-| `/whats_new` | Latest features |
-| `/version` | Current version |
-
-## Storage Architecture
-
-Harry uses a pluggable storage system:
-
-### Discord DM Storage (Default)
-- **Pros**: Free, no setup, survives deploys
-- **Cons**: 2000 char limit (~10-20 servers max)
-- **Best for**: Small deployments
-
-### Supabase Storage (Scaling)
-- **Pros**: Unlimited servers, proper backups, queryable
-- **Cons**: Requires setup (free tier available)
-- **Best for**: 10+ servers
-
-To switch, set `STORAGE_BACKEND=supabase` and configure Supabase credentials.
-
-## Project Structure
-
-```
-cfb-rules-bot/
-├── main.py                     # Entry point
-├── run_dashboard.py            # Dashboard server
-├── src/cfb_bot/               
-│   ├── bot.py                  # Main Discord bot
-│   ├── ai/                     # AI integration
-│   └── utils/
-│       ├── storage.py          # Storage abstraction
-│       ├── server_config.py    # Per-server config
-│       ├── cfb_data.py         # CFB data lookups (CFBD API)
-│       ├── hs_stats_scraper.py # High school stats (MaxPreps)
-│       ├── timekeeper.py       # Timer & weeks
-│       ├── charter_editor.py   # Charter management
-│       └── version_manager.py  # Version tracking
-├── src/dashboard/              # Web dashboard
-│   ├── app.py                  # FastAPI app
-│   ├── routes.py               # API routes
-│   └── templates/              # HTML templates
+cfb-bot/
+├── main.py                 # Entry point (calls cfb_bot.main)
+├── src/cfb_bot/
+│   ├── bot_main.py         # Cog-based bot; loads all cogs
+│   ├── cogs/               # Slash command modules
+│   │   ├── core.py         # /help, /version, /changelog, /whats_new, /tokens
+│   │   ├── ai_chat.py      # /harry, /ask, /summarize
+│   │   ├── cfb_data.py     # /cfb
+│   │   ├── recruiting.py   # /recruiting
+│   │   ├── hs_stats.py     # /hs
+│   │   ├── league.py       # /league
+│   │   ├── charter.py      # /charter
+│   │   ├── admin.py        # /admin
+│   │   └── fun.py          # /fun (admin-only)
+│   ├── ai/                 # AI integration (OpenAI, Anthropic)
+│   ├── utils/              # Storage, config, timekeeper, cache, cfb_data, scrapers
+│   ├── monitoring/         # Sentry, performance metrics
+│   └── services/           # Checks, embeds
+├── src/dashboard/          # Optional web dashboard (FastAPI)
 ├── config/
-│   └── env.example             # Environment template
-├── data/                       # Data files
-└── docs/                       # Documentation
+│   ├── env.example
+│   └── render.yaml         # Render deployment config
+├── data/                   # Charter, schedule, rules (optional local data)
+├── tests/
+└── docs/                   # COMMANDS.md, CHANGELOG, setup guides
 ```
+
+---
 
 ## Deployment
 
-### Render (Recommended)
+### Render
+- Connect the repo and create a **Worker** (or use `config/render.yaml`).
+- **Start command:** `python3 -u main.py` (unbuffered so logs stream; see `config/render.yaml`).
+- Set env vars in the Render dashboard (no secrets in repo).
 
-1. Connect GitHub repository to Render
-2. Create Web Service with:
-   - **Build**: `pip install -r requirements.txt`
-   - **Start**: `python main.py`
-3. Add environment variables
-4. Deploy!
+### Railway / other
+- Start: `python main.py` (or `python3 -u main.py` for unbuffered logs).
+- Set `DISCORD_BOT_TOKEN` and any optional keys.
 
-### Railway
-
-1. Connect GitHub to Railway
-2. Add environment variables
-3. Deploy automatically
+---
 
 ## Development
 
 ```bash
-# Run tests
-python -m pytest tests/
+# Run unit tests
+pytest tests/unit/ -v
 
-# Run locally
+# With coverage
+pytest tests/unit/ -v --cov=src/cfb_bot --cov-report=term-missing
+
+# Run bot locally
 python main.py
 
-# Run dashboard separately
+# Dashboard (optional)
 python run_dashboard.py
 ```
 
-## License
+---
 
-MIT License - see [LICENSE](LICENSE)
+## Storage
 
-## Changelog
-
-See [docs/CHANGELOG.md](docs/CHANGELOG.md) for version history.
+- **Discord (default)** – Config and state in bot owner DMs. Good for small deployments.
+- **Supabase** – Set `STORAGE_BACKEND=supabase` and add Supabase env vars for larger or multi-server setups.
 
 ---
 
-**Made with 🏈 for the CFB 26 League**
+## Docs
 
-*Harry is always here to help - just don't mention those bloody Oregon Ducks! 🦆💩*
+- [Full command reference](docs/COMMANDS.md)
+- [Changelog](docs/CHANGELOG.md)
+- [Setup & contributing](docs/SETUP.md)
+
+---
+
+## License
+
+MIT – see [LICENSE](LICENSE).
+
+---
+
+*Made with 🏈 for dynasty leagues. Don’t mention the bloody Ducks. 🦆💩*

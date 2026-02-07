@@ -121,11 +121,11 @@ async def setup_dependencies():
         logger.warning("⚠️ Charter editor not available")
 
     try:
-        from .utils.channel_summarizer import ChannelSummarizer
+        from .utils.summarizer import ChannelSummarizer
         channel_summarizer = ChannelSummarizer(ai_assistant if AI_AVAILABLE else None)
         logger.info("✅ Channel summarizer initialized")
-    except ImportError:
-        logger.warning("⚠️ Channel summarizer not available")
+    except ImportError as e:
+        logger.warning("⚠️ Channel summarizer not available: %s", e)
 
     try:
         from .utils.admin_check import AdminManager
