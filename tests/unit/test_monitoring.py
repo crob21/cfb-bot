@@ -218,8 +218,19 @@ class TestSentryIntegration:
         import sys
         mock_sentry = MagicMock()
         mock_sentry.init = MagicMock()
+        mock_sentry.integrations = MagicMock()
         mock_sentry.integrations.logging.LoggingIntegration = MagicMock()
         mock_sentry.integrations.aiohttp.AioHttpIntegration = MagicMock()
+
+        # Properly mock the module structure so from ... import works
+        mock_logging_integration = MagicMock()
+        mock_aiohttp_integration = MagicMock()
+        
+        mock_sentry.integrations.logging = MagicMock()
+        mock_sentry.integrations.logging.LoggingIntegration = mock_logging_integration
+        
+        mock_sentry.integrations.aiohttp = MagicMock()
+        mock_sentry.integrations.aiohttp.AioHttpIntegration = mock_aiohttp_integration
 
         mock_getenv.side_effect = lambda key, default=None: {
             'SENTRY_DSN': 'https://test@sentry.io/123',
@@ -227,7 +238,12 @@ class TestSentryIntegration:
             'SENTRY_TRACES_SAMPLE_RATE': '0.1'
         }.get(key, default)
 
-        with patch.dict(sys.modules, {'sentry_sdk': mock_sentry}):
+        # We need to patch the actual import in the function
+        with patch.dict(sys.modules, {
+            'sentry_sdk': mock_sentry,
+            'sentry_sdk.integrations.logging': mock_sentry.integrations.logging,
+            'sentry_sdk.integrations.aiohttp': mock_sentry.integrations.aiohttp,
+        }):
             from src.cfb_bot.monitoring.sentry_integration import init_sentry
             result = init_sentry()
 
