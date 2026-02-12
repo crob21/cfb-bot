@@ -458,6 +458,48 @@ class FunCog(commands.Cog):
         embed.set_footer(text="Use /fun toggle_engage to disable | /fun untarget to stop")
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
+    @fun_group.command(name="roast", description="🔥 Roast a user immediately (Admin only)")
+    @app_commands.describe(user="The user to roast")
+    async def roast(self, interaction: discord.Interaction, user: discord.Member):
+        """Roast a user immediately"""
+        # Check for duplicate interactions
+        if self._is_duplicate_interaction(interaction):
+            return
+
+        # Admin check
+        if not self.admin_manager or not self.admin_manager.is_admin(interaction.user, interaction):
+            await interaction.response.send_message("❌ Nice try, but no.", ephemeral=True)
+            return
+
+        if user.bot:
+            await interaction.response.send_message("❌ I don't roast my own kind, mate!", ephemeral=True)
+            return
+
+        # Defer response as AI might take a second
+        await interaction.response.defer()
+
+        try:
+            if self.ai_assistant:
+                # Use AI for a fresh roast
+                prompt = f"""Generate a short, brutal, British slang-heavy roast for {user.display_name}.
+Make it vulgar, offensive, and funny. Max 2 sentences. End with an emoji.
+Do NOT start with "Oh," or "Look," - start directly with the roast."""
+                
+                insult = await self.ai_assistant.ask_question(prompt, include_charter=False)
+                
+                # Mention them at the start if not included
+                if user.mention not in insult:
+                    insult = f"{user.mention} {insult}"
+            else:
+                insult = self._generate_dynamic_insult(user.mention)
+
+            await interaction.followup.send(insult)
+            logger.info(f"🔥 {interaction.user.display_name} roasted {user.display_name}")
+
+        except Exception as e:
+            logger.error(f"❌ Roast failed: {e}")
+            await interaction.followup.send(self._generate_dynamic_insult(user.mention))
+
     @fun_group.command(name="untarget_all", description="🛑 Stop trolling ALL users (Admin only)")
     async def untarget_all(self, interaction: discord.Interaction):
         """Disable trolling for all users at once"""
@@ -551,6 +593,16 @@ class FunCog(commands.Cog):
             return
 
         target_info = guild_targets[message.author.id]
+
+        # REACTION TROLLING (25% chance to react with an emoji)
+        if random.random() < 0.25:
+            try:
+                annoying_emojis = ["💩", "🤡", "👶", "🤢", "🤏", "🤥", "🖕", "🥱", "🚮", "🤨"]
+                await message.add_reaction(random.choice(annoying_emojis))
+                logger.info(f"🎭 Reacted to targeted user {message.author.display_name}")
+            except Exception as e:
+                logger.error(f"❌ Failed to add reaction: {e}")
+
         current_time = time.time()
         time_since_last = current_time - target_info['last_triggered']
         timeout_seconds = target_info['timeout'] * 60
@@ -692,10 +744,16 @@ Your BRUTAL comeback (max 200 chars):"""
             "Fuck you", "Oi", "Look at this", "Absolute", "What a", "You're a",
             "Shut your face", "Piss off", "Sod off", "Get lost", "Hey", "Oh look",
             "Listen here", "Cry more", "Try harder", "Fuck off", "Yeah right",
+            "You absolute", "Check out this", "State of this", "Imagine being a",
+            "Holy shit it's", "Everybody look at", "Christ alive,", "Do one",
+            "Get stuffed", "Jog on", "Wind your neck in",
         ]
         swears = [
             "fucking", "shit", "bloody", "sodding", "goddamn", "damn",
             "wank", "bellend", "twat", "muppet", "pillock", "plonker",
+            "cockwomble", "thundercunt", "shitgibbon", "spunkbubble",
+            "fudgepacking", "tosspot", "numpty", "minging", "gormless",
+            "clapped", "noncey", "daft", "useless",
         ]
         objects = [
             "muppet", "donut", "pillock", "waste of space", "chocolate teapot",
@@ -703,8 +761,12 @@ Your BRUTAL comeback (max 200 chars):"""
             "twat", "plonker", "numpty", "melon", "div",
             "knobhead", "dickhead", "tosser", "berk", "prat",
             "nincompoop", "dipstick", "ninny", "wazzock",
+            "broken condom", "failed abortion", "inbred cabbage",
+            "sentient wank sock", "moldy cum rag", "village idiot",
+            "oxygen thief", "damp towel", "ham sandwich", "window licker",
+            "mouth breather", "fart in a jar", "stale biscuit",
         ]
-        emojis = ["🖕", "💩", "🤬", "😈", "😂", "🗑️", "🔥"]
+        emojis = ["🖕", "💩", "🤬", "😈", "😂", "🗑️", "🔥", "🤡", "🤢", "🤏", "💀"]
 
         p = random.choice(phrases)
         s = random.choice(swears)
