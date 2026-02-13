@@ -64,6 +64,18 @@
             <span class="toggle-slider"></span>
         </label>
     </div>
+    <div class="toggle-row">
+        <div class="toggle-info">
+            <h4>📅 Week Matchups Announcement</h4>
+            <p>Send the &quot;Week X Matchups&quot; message (bye week + games) when timer starts or advances</p>
+        </div>
+        <label class="toggle">
+            <input type="checkbox" id="setting-schedule_announcement"
+                   {% if config.settings.schedule_announcement is not defined or config.settings.schedule_announcement %}checked{% endif %}
+                   onchange="updateSetting('schedule_announcement', this.checked)">
+            <span class="toggle-slider"></span>
+        </label>
+    </div>
 </div>
 
 <!-- Auto Responses -->

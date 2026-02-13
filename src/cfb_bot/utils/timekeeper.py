@@ -517,8 +517,15 @@ class AdvanceTimer:
             logger.error(f"❌ Failed to send times up message: {e}")
 
     async def _send_upcoming_schedule(self):
-        """Send the upcoming week's schedule after advance"""
+        """Send the upcoming week's schedule after advance (if schedule_announcement setting is enabled)"""
         try:
+            notification_channel = self.get_notification_channel()
+            if notification_channel and notification_channel.guild:
+                from .server_config import server_config
+                if not server_config.get_setting(notification_channel.guild.id, "schedule_announcement", True):
+                    logger.info("📅 Schedule announcement disabled for this server, skipping")
+                    return
+
             # Import here to avoid circular imports
             from .schedule_manager import get_schedule_manager
 

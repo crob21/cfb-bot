@@ -299,6 +299,7 @@ class AdminCog(commands.Cog):
         app_commands.Choice(name="hs_stats - High school stats", value="hs_stats"),
         app_commands.Choice(name="recruiting - On3/247 rankings", value="recruiting"),
         app_commands.Choice(name="fun_games - Rivalry responses (Fuck Oregon!)", value="fun_games"),
+        app_commands.Choice(name="schedule_announcement - Week matchups when timer starts", value="schedule_announcement"),
     ])
     async def config(
         self,
@@ -360,6 +361,14 @@ class AdminCog(commands.Cog):
                 inline=True
             )
 
+            # Schedule announcement (week matchups when timer starts/advances)
+            sched_on = server_config.get_setting(guild_id, "schedule_announcement", True)
+            embed.add_field(
+                name="📅 Schedule Announcement",
+                value=f"**Week matchups:** {'✅ On' if sched_on else '❌ Off'}\n(Toggle with enable/disable this module)",
+                inline=True
+            )
+
             # Season/Week info (if timekeeper available)
             if self.timekeeper_manager:
                 season_info = self.timekeeper_manager.get_season_week()
@@ -407,6 +416,17 @@ class AdminCog(commands.Cog):
                 await interaction.response.send_message("❌ Specify a module to enable!", ephemeral=True)
                 return
 
+            if module == "schedule_announcement":
+                server_config.set_setting(guild_id, "schedule_announcement", True)
+                await server_config.save_to_discord()
+                embed = discord.Embed(
+                    title="✅ Schedule Announcement On",
+                    description="Week matchups (bye week + games) will be sent when the timer starts or advances.",
+                    color=Colors.SUCCESS
+                )
+                await interaction.response.send_message(embed=embed, ephemeral=True)
+                return
+
             try:
                 mod = FeatureModule(module)
             except ValueError:
@@ -430,6 +450,17 @@ class AdminCog(commands.Cog):
         elif action == "disable":
             if not module:
                 await interaction.response.send_message("❌ Specify a module to disable!", ephemeral=True)
+                return
+
+            if module == "schedule_announcement":
+                server_config.set_setting(guild_id, "schedule_announcement", False)
+                await server_config.save_to_discord()
+                embed = discord.Embed(
+                    title="❌ Schedule Announcement Off",
+                    description="Week matchups will no longer be sent when the timer starts or advances.",
+                    color=Colors.WARNING
+                )
+                await interaction.response.send_message(embed=embed, ephemeral=True)
                 return
 
             try:

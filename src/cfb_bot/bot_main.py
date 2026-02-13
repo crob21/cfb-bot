@@ -458,8 +458,12 @@ async def on_message(message):
                     await message.channel.send(content="@everyone", embed=embed)
                     logger.info(f"⏰ Timer restarted by {message.author} via @everyone + 'advanced'")
 
-                    # Send schedule for the new week
-                    if schedule_manager and season_info.get('week'):
+                    # Send schedule for the new week (if schedule_announcement enabled)
+                    if (
+                        server_config.get_setting(message.guild.id, "schedule_announcement", True)
+                        and schedule_manager
+                        and season_info.get('week')
+                    ):
                         week_num = season_info['week']
                         if week_num <= 13:  # Only for regular season
                             week_data = schedule_manager.get_week_schedule(week_num)

@@ -50,6 +50,7 @@ DEFAULT_CONFIG = {
         "admin_channel_id": None,
         "auto_responses": True,   # Enable automatic jump-in responses (team banter, "Fuck Oregon!", etc.)
         "recruiting_source": RecruitingSource.ON3,  # Default to On3/Rivals
+        "schedule_announcement": True,  # Week matchups message when timer starts/advances (optional module)
     },
     # Channel controls - empty means ALL channels allowed
     "enabled_channels": [],  # Whitelist: [channel_id1, channel_id2] - empty = all allowed

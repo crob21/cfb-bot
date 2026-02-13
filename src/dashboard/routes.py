@@ -71,6 +71,7 @@ def get_server_config(guild_id: str) -> dict:
                 "timer_channel_id": None,
                 "admin_channel_id": None,
                 "auto_responses": True,  # Enable automatic jump-in responses (team banter)
+                "schedule_announcement": True,  # Week matchups message when timer starts/advances
             },
             "admins": []
         }

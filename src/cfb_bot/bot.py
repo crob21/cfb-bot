@@ -235,9 +235,13 @@ async def send_startup_notification(version: str):
         logger.info(f"📢 Startup complete (no admin channels configured)")
 
 
-async def send_week_schedule(channel, week_num):
-    """Send the schedule for a given week to a channel"""
+async def send_week_schedule(channel, week_num, guild_id=None):
+    """Send the schedule for a given week to a channel (if schedule_announcement setting is enabled)."""
     if week_num is None:
+        return
+
+    if guild_id is not None and not server_config.get_setting(guild_id, "schedule_announcement", True):
+        logger.info("📅 Schedule announcement disabled for this server, skipping")
         return
 
     # Only show schedule for regular season weeks (0-13)
@@ -912,8 +916,11 @@ async def on_message(message):
                         await notification_channel.send(content="@everyone", embed=embed)
                         logger.info(f"⏰ Timer restarted by {message.author} via @everyone + 'advanced' - announced in #{notification_channel.name}")
 
-                        # Send schedule for the new week
-                        await send_week_schedule(notification_channel, season_info.get('week') if season_info else None)
+                        # Send schedule for the new week (if schedule_announcement enabled)
+                        if message.guild:
+                            await send_week_schedule(notification_channel, season_info.get('week') if season_info else None, message.guild.id)
+                        else:
+                            await send_week_schedule(notification_channel, season_info.get('week') if season_info else None)
                     else:
                         await message.channel.send(content="@everyone", embed=embed)
                         logger.warning(f"⚠️ #general not found, announced in {message.channel}")
@@ -4987,9 +4994,9 @@ async def league_timer(interaction: discord.Interaction, hours: int = 48):
             await notification_channel.send(content="@everyone", embed=embed)
             logger.info(f"⏰ Advance countdown started by {interaction.user} - {hours} hours - announced in #{notification_channel.name}")
 
-            # Send schedule for the current week
+            # Send schedule for the current week (if schedule_announcement enabled)
             if season_info and season_info.get('week') is not None:
-                await send_week_schedule(notification_channel, season_info['week'])
+                await send_week_schedule(notification_channel, season_info['week'], interaction.guild.id)
         else:
             # Fallback to current channel if #general not found
             await interaction.channel.send(content="@everyone", embed=embed)
@@ -6750,6 +6757,7 @@ async def admin_blocked(interaction: discord.Interaction):
     app_commands.Choice(name="league - Timer, charter, rules, dynasty features", value="league"),
     app_commands.Choice(name="hs_stats - High school stats from MaxPreps (scraping)", value="hs_stats"),
     app_commands.Choice(name="recruiting - On3/Rivals or 247Sports rankings", value="recruiting"),
+    app_commands.Choice(name="schedule_announcement - Week matchups when timer starts", value="schedule_announcement"),
 ])
 async def config_command(
     interaction: discord.Interaction,
@@ -6864,7 +6872,8 @@ async def config_command(
             else:
                 timer_text = "#general (default)"
 
-            league_status = f"**Timer Channel:** {timer_text}"
+            sched_ann = server_config.get_setting(guild_id, "schedule_announcement", True)
+            league_status = f"**Timer Channel:** {timer_text}\n**Schedule announcement:** {'✅ On' if sched_ann else '❌ Off'} (Week matchups when timer starts)"
 
             # Get league staff if timekeeper is available
             if timekeeper_manager:
@@ -6898,6 +6907,18 @@ async def config_command(
     elif action == "enable":
         if not module:
             await interaction.response.send_message("❌ Please specify a module to enable!", ephemeral=True)
+            return
+
+        if module == "schedule_announcement":
+            server_config.set_setting(guild_id, "schedule_announcement", True)
+            await server_config.save_to_discord()
+            embed = discord.Embed(
+                title="✅ Schedule Announcement On",
+                description="Week matchups (bye week + games) will be sent when the timer starts or advances.",
+                color=Colors.SUCCESS
+            )
+            embed.set_footer(text=Footers.CONFIG)
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             return
 
         try:
@@ -6939,6 +6960,18 @@ async def config_command(
     elif action == "disable":
         if not module:
             await interaction.response.send_message("❌ Please specify a module to disable!", ephemeral=True)
+            return
+
+        if module == "schedule_announcement":
+            server_config.set_setting(guild_id, "schedule_announcement", False)
+            await server_config.save_to_discord()
+            embed = discord.Embed(
+                title="❌ Schedule Announcement Off",
+                description="Week matchups will no longer be sent when the timer starts or advances.",
+                color=Colors.WARNING
+            )
+            embed.set_footer(text=Footers.CONFIG)
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             return
 
         try:
