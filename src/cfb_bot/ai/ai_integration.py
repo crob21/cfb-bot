@@ -14,7 +14,7 @@ import aiohttp
 from dotenv import load_dotenv
 
 from ..utils.storage import get_storage
-from ..security import HTTP_TIMEOUT
+from ..security import HTTP_TIMEOUT, sanitize_ai_response
 
 # Load environment variables
 load_dotenv()
@@ -81,6 +81,17 @@ class AICharterAssistant:
             logger.debug(f"💾 Saved AI usage stats")
         except Exception as e:
             logger.error(f"❌ Failed to save AI usage stats: {e}")
+
+    async def _record_ai_cost(self, amount: float):
+        """Record AI cost with the cost tracker for /admin budget and alerts."""
+        if amount <= 0:
+            return
+        try:
+            from ..utils.cost_tracker import get_cost_tracker
+            await get_cost_tracker().record_cost('ai', amount)
+            logger.info(f"💰 Recorded ${amount:.4f} AI cost for /admin budget")
+        except Exception as e:
+            logger.warning(f"Failed to record AI cost for budget (/admin budget will not update): {e}")
 
     async def get_charter_content(self) -> Optional[str]:
         """Get charter content for AI context"""
@@ -187,8 +198,8 @@ class AICharterAssistant:
         cache_key = self._get_cache_key(question, include_league_context)
         cached = self._get_cached_response(cache_key)
         if cached:
-            return cached
-        
+            return sanitize_ai_response(cached)
+
         if not self.openai_api_key:
             logger.warning("⚠️ OpenAI API key not found")
             return None
@@ -318,10 +329,17 @@ class AICharterAssistant:
                         # Save updated stats
                         await self._save_usage_stats()
 
+                        # Record cost for /admin budget and alerts
+                        request_cost = (total_tokens / 1000) * self.openai_cost_per_1k
+                        await self._record_ai_cost(request_cost)
+
                         logger.info(f"📊 Total OpenAI tokens used: {self.total_openai_tokens} (across {self.total_requests} requests)")
 
                         response_text = result['choices'][0]['message']['content'].strip()
                         logger.info(f"📝 Response length: {len(response_text)} characters")
+
+                        # Never send keys/secrets to users (sneaky prompts)
+                        response_text = sanitize_ai_response(response_text)
 
                         # Cache the response
                         self._cache_response(cache_key, response_text)
@@ -329,7 +347,8 @@ class AICharterAssistant:
                         return response_text
                     else:
                         error_text = await response.text()
-                        logger.error(f"OpenAI API error: {response.status} - {error_text}")
+                        from ..utils.log_utils import sanitize_for_log
+                        logger.error(f"OpenAI API error: {response.status} - {sanitize_for_log(error_text)}")
                         return None
         except Exception as e:
             logger.error(f"Error calling OpenAI: {e}")
@@ -349,8 +368,8 @@ class AICharterAssistant:
         cache_key = self._get_cache_key(question, include_league_context)
         cached = self._get_cached_response(cache_key)
         if cached:
-            return cached
-        
+            return sanitize_ai_response(cached)
+
         if not self.anthropic_api_key:
             logger.warning("⚠️ Anthropic API key not found")
             return None
@@ -456,6 +475,10 @@ class AICharterAssistant:
                         # Save updated stats
                         await self._save_usage_stats()
 
+                        # Record cost for /admin budget and alerts
+                        request_cost = (total_tokens / 1000) * self.anthropic_cost_per_1k
+                        await self._record_ai_cost(request_cost)
+
                         logger.info(f"✅ Anthropic response received")
                         logger.info(f"🔢 Token usage - Input: {input_tokens}, Output: {output_tokens}")
                         logger.info(f"📊 Total Anthropic tokens used: {self.total_anthropic_tokens} (across {self.total_requests} requests)")
@@ -463,13 +486,17 @@ class AICharterAssistant:
                         response_text = result['content'][0]['text'].strip()
                         logger.info(f"📝 Response length: {len(response_text)} characters")
 
+                        # Never send keys/secrets to users (sneaky prompts)
+                        response_text = sanitize_ai_response(response_text)
+
                         # Cache the response
                         self._cache_response(cache_key, response_text)
 
                         return response_text
                     else:
                         error_text = await response.text()
-                        logger.error(f"Anthropic API error: {response.status} - {error_text}")
+                        from ..utils.log_utils import sanitize_for_log
+                        logger.error(f"Anthropic API error: {response.status} - {sanitize_for_log(error_text)}")
                         return None
         except Exception as e:
             logger.error(f"Error calling Anthropic: {e}")
@@ -578,7 +605,8 @@ class AICharterAssistant:
                         return data
                     else:
                         error_text = await response.text()
-                        logger.warning(f"⚠️ OpenAI Usage API error: {response.status} - {error_text}")
+                        from ..utils.log_utils import sanitize_for_log
+                        logger.warning(f"⚠️ OpenAI Usage API error: {response.status} - {sanitize_for_log(error_text)}")
                         return None
         except asyncio.TimeoutError:
             logger.warning("⚠️ OpenAI Usage API timeout")
@@ -586,6 +614,29 @@ class AICharterAssistant:
         except Exception as e:
             logger.error(f"❌ Error querying OpenAI Usage API: {e}")
             return None
+
+    async def get_openai_cost_for_current_month(self) -> Optional[float]:
+        """Fetch OpenAI usage for each day in the current month and return estimated cost (USD).
+
+        Uses the OpenAI Usage API (one request per day). Cost is estimated from token counts
+        using openai_cost_per_1k. Returns None if API key missing or API errors.
+        """
+        if not self.openai_api_key:
+            return None
+        from datetime import date, timedelta
+        today = date.today()
+        first = today.replace(day=1)
+        total_tokens = 0
+        day = first
+        while day <= today:
+            data = await self.get_openai_usage_from_api(date=day.strftime('%Y-%m-%d'))
+            if data and data.get('data'):
+                for entry in data['data']:
+                    total_tokens += entry.get('n_context_tokens_total', 0) + entry.get('n_generated_tokens_total', 0)
+            day += timedelta(days=1)
+        if total_tokens == 0:
+            return 0.0
+        return (total_tokens / 1000) * self.openai_cost_per_1k
 
     def log_token_summary(self):
         """Log a summary of token usage with cost estimates"""

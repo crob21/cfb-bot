@@ -6,7 +6,7 @@ Cost tracking and alert system
 import logging
 import os
 from datetime import datetime
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 from .storage import get_storage
 
@@ -26,6 +26,9 @@ class CostTracker:
             'zyte': float(os.getenv('ZYTE_MONTHLY_BUDGET', 5.0)),
             'total': float(os.getenv('TOTAL_MONTHLY_BUDGET', 15.0))
         }
+
+        # Hard cap: disable Zyte API calls when monthly spend reaches this (0 = no cap)
+        self.zyte_spend_limit = float(os.getenv('ZYTE_SPEND_LIMIT', 0))
 
         # Alert thresholds (percentage of budget)
         self.alert_thresholds = [0.5, 0.8, 0.9, 1.0]  # 50%, 80%, 90%, 100%
@@ -47,6 +50,16 @@ class CostTracker:
             }
 
         return {'ai': 0.0, 'zyte': 0.0, 'total': 0.0}
+
+    async def is_zyte_over_limit(self) -> bool:
+        """True if ZYTE_SPEND_LIMIT is set and current month Zyte spend >= limit (disables Zyte API calls)."""
+        if self.zyte_spend_limit <= 0:
+            return False
+        costs = await self.get_monthly_costs()
+        if costs['zyte'] >= self.zyte_spend_limit:
+            logger.info(f"🛑 Zyte spend limit reached: ${costs['zyte']:.2f} >= ${self.zyte_spend_limit:.2f} (calls disabled)")
+            return True
+        return False
 
     async def record_cost(self, service: str, amount: float):
         """Record a cost and check if alerts should be sent
@@ -81,6 +94,33 @@ class CostTracker:
 
         # Check if alerts should be sent
         await self._check_alerts(current_ai, current_zyte, current_ai + current_zyte)
+
+    async def set_monthly_costs(self, ai_cost: Optional[float] = None, zyte_cost: Optional[float] = None) -> Dict[str, Any]:
+        """Overwrite current month's recorded costs (e.g. after reconciling from provider APIs).
+
+        Args:
+            ai_cost: If set, overwrite AI cost for current month (USD).
+            zyte_cost: If set, overwrite Zyte cost for current month (USD).
+
+        Returns:
+            The updated costs dict for the current month.
+        """
+        current_month = datetime.now().strftime('%Y-%m')
+        data = await self._storage.load("cost_tracker", current_month) or {}
+        if ai_cost is not None:
+            data['ai_cost'] = float(ai_cost)
+        if zyte_cost is not None:
+            data['zyte_cost'] = float(zyte_cost)
+        data['total_cost'] = data.get('ai_cost', 0.0) + data.get('zyte_cost', 0.0)
+        data['last_updated'] = datetime.now().isoformat()
+        data['last_reconciled'] = datetime.now().isoformat()
+        await self._storage.save("cost_tracker", current_month, data)
+        logger.info(f"💰 Set monthly costs: AI=${data.get('ai_cost', 0):.4f}, Zyte=${data.get('zyte_cost', 0):.4f}")
+        return {
+            'ai': data.get('ai_cost', 0.0),
+            'zyte': data.get('zyte_cost', 0.0),
+            'total': data['total_cost']
+        }
 
     async def _check_alerts(self, ai_cost: float, zyte_cost: float, total_cost: float):
         """Check if any cost thresholds have been crossed"""

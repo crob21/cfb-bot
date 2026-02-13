@@ -1233,8 +1233,13 @@ class AdminCog(commands.Cog):
             await interaction.followup.send(embed=embed, ephemeral=True)
 
     @admin_group.command(name="budget", description="View monthly API cost budget and spending")
-    async def budget_status(self, interaction: discord.Interaction):
-        """View monthly budget status"""
+    @app_commands.describe(action="View current status or reconcile from Zyte/OpenAI APIs")
+    @app_commands.choices(action=[
+        app_commands.Choice(name="View (current)", value="view"),
+        app_commands.Choice(name="Reconcile from Zyte & OpenAI", value="reconcile"),
+    ])
+    async def budget_status(self, interaction: discord.Interaction, action: str = "view"):
+        """View monthly budget status, or reconcile from provider APIs."""
         if not interaction.guild:
             await interaction.response.send_message("❌ This only works in servers!", ephemeral=True)
             return
@@ -1251,12 +1256,60 @@ class AdminCog(commands.Cog):
         await interaction.response.defer(ephemeral=True)
 
         from ..utils.cost_tracker import get_cost_tracker
+        from datetime import datetime as dt, date, time
+
         tracker = get_cost_tracker()
+
+        if action == "reconcile":
+            # Fetch current month costs from Zyte and OpenAI, then overwrite stored values
+            ai_cost = None
+            zyte_cost = None
+            first_day = date.today().replace(day=1)
+            start_dt = dt.combine(first_day, time.min)
+            end_dt = dt.now()
+
+            # Zyte: official cost from Stats API (current month to date)
+            try:
+                from .recruiting import get_recruiting_scraper
+                scraper, source_name = get_recruiting_scraper(interaction.guild.id)
+                if source_name == "On3/Rivals" and hasattr(scraper, 'get_zyte_usage_from_api'):
+                    api_data = await scraper.get_zyte_usage_from_api(start_time=start_dt, end_time=end_dt)
+                    if api_data and api_data.get('results'):
+                        result = api_data['results'][0]
+                        zyte_cost = float(result.get('cost_microusd_total', 0)) / 1_000_000
+            except Exception as e:
+                logger.warning(f"Zyte reconcile failed: {e}")
+
+            # OpenAI: official usage API (sum tokens for each day this month, then estimate cost)
+            try:
+                if getattr(self.bot, 'ai_assistant', None) and hasattr(self.bot.ai_assistant, 'get_openai_cost_for_current_month'):
+                    ai_cost = await self.bot.ai_assistant.get_openai_cost_for_current_month()
+            except Exception as e:
+                logger.warning(f"OpenAI reconcile failed: {e}")
+
+            if ai_cost is not None or zyte_cost is not None:
+                await tracker.set_monthly_costs(ai_cost=ai_cost, zyte_cost=zyte_cost)
+                # Brief note for user (embed will show updated numbers)
+                reconciled_note = []
+                if ai_cost is not None:
+                    reconciled_note.append(f"OpenAI: ${ai_cost:.4f}")
+                if zyte_cost is not None:
+                    reconciled_note.append(f"Zyte: ${zyte_cost:.4f}")
+                logger.info(f"Budget reconciled: {', '.join(reconciled_note)}")
+            else:
+                await interaction.followup.send(
+                    "⚠️ Could not reconcile: Zyte needs On3 source + ZYTE_DASHBOARD_API_KEY + ZYTE_ORG_ID; "
+                    "OpenAI needs OPENAI_API_KEY. Showing stored values.",
+                    ephemeral=True
+                )
+
         status = await tracker.get_budget_status()
+        reconciled_this_turn = (action == "reconcile")
 
         embed = discord.Embed(
             title="💰 Monthly Budget Status",
-            description=f"API costs for {datetime.now().strftime('%B %Y')}",
+            description=f"API costs for {datetime.now().strftime('%B %Y')}"
+                        + ("\n*Reconciled from Zyte & OpenAI APIs just now.*" if reconciled_this_turn else ""),
             color=Colors.PRIMARY
         )
 
@@ -1270,13 +1323,17 @@ class AdminCog(commands.Cog):
             inline=True
         )
 
-        # Zyte costs
+        # Zyte costs (include spend cap if set)
         zyte_percent = status['percentages']['zyte']
         zyte_emoji = "🟢" if zyte_percent < 50 else "🟡" if zyte_percent < 80 else "🔴"
+        zyte_value = (f"**${status['costs']['zyte']:.4f}** / ${status['budgets']['zyte']:.2f}\n"
+                      f"**{zyte_percent:.1f}%** used • ${status['remaining']['zyte']:.2f} left")
+        if getattr(tracker, 'zyte_spend_limit', 0) > 0:
+            over_limit = await tracker.is_zyte_over_limit()
+            zyte_value += f"\n🛑 Cap: ${tracker.zyte_spend_limit:.0f}" + (" (disabled)" if over_limit else "")
         embed.add_field(
             name=f"{zyte_emoji} Zyte API",
-            value=f"**${status['costs']['zyte']:.4f}** / ${status['budgets']['zyte']:.2f}\n"
-                  f"**{zyte_percent:.1f}%** used • ${status['remaining']['zyte']:.2f} left",
+            value=zyte_value,
             inline=True
         )
 
@@ -1305,15 +1362,20 @@ class AdminCog(commands.Cog):
         )
 
         # Budget info
+        budget_note = ("Budgets are configured in environment variables:\n"
+                       "`AI_MONTHLY_BUDGET`, `ZYTE_MONTHLY_BUDGET`, `TOTAL_MONTHLY_BUDGET`\n"
+                       "Alerts trigger at 50%, 80%, 90%, and 100% of budget.")
+        if getattr(tracker, 'zyte_spend_limit', 0) > 0:
+            budget_note += f"\n**ZYTE_SPEND_LIMIT**=${tracker.zyte_spend_limit:.0f} disables Zyte API when reached."
+        if status['costs']['ai'] == 0 and status['costs']['zyte'] == 0:
+            budget_note += "\n*Costs are recorded when AI and Zyte are used; use the bot to see numbers update.*"
         embed.add_field(
             name="ℹ️ About Budgets",
-            value="Budgets are configured in environment variables:\n"
-                  "`AI_MONTHLY_BUDGET`, `ZYTE_MONTHLY_BUDGET`, `TOTAL_MONTHLY_BUDGET`\n"
-                  "Alerts trigger at 50%, 80%, 90%, and 100% of budget.",
+            value=budget_note,
             inline=False
         )
 
-        embed.set_footer(text="💡 Resets monthly • Configure budgets in Render env vars")
+        embed.set_footer(text="💡 Resets monthly • Same storage as bot config (Discord/Supabase)")
         await interaction.followup.send(embed=embed, ephemeral=True)
 
     @admin_group.command(name="digest", description="View or send weekly summary digest")

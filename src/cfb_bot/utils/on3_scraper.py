@@ -377,10 +377,22 @@ class On3Scraper:
                     # Fall through to Zyte
 
             # PRIORITY 3: Use Zyte API (premium, guaranteed bypass)
-            if self._zyte_client:
+            # Skip Zyte if spend limit is set and we've hit it (pay-as-you-go cap)
+            use_zyte = bool(self._zyte_client)
+            if use_zyte:
+                try:
+                    from .cost_tracker import get_cost_tracker
+                    if await get_cost_tracker().is_zyte_over_limit():
+                        use_zyte = False
+                        logger.warning("🛑 Zyte API disabled for this billing period (spend limit reached)")
+                except Exception as e:
+                    logger.debug(f"Cost tracker check failed: {e}")
+
+            if use_zyte:
                 try:
                     # Increment usage counter
                     self._zyte_request_count += 1
+                    cost_per_request = self._zyte_cost_per_1k / 1000
                     estimated_cost = (self._zyte_request_count * self._zyte_cost_per_1k) / 1000
 
                     logger.info(f"💰 Using Zyte API for: {url}")
@@ -400,6 +412,13 @@ class On3Scraper:
                     if html and '<html' in html.lower():
                         logger.info(f"✅ Zyte API fetch successful (bypassed Cloudflare)")
                         self._is_blocked = False  # Clear blocked status
+                        # Record cost for spend limit and alerts
+                        try:
+                            from .cost_tracker import get_cost_tracker
+                            await get_cost_tracker().record_cost('zyte', cost_per_request)
+                            logger.info(f"💰 Recorded ${cost_per_request:.4f} Zyte cost for /admin budget")
+                        except Exception as e:
+                            logger.warning(f"Failed to record Zyte cost (/admin budget will not update): {e}")
                         return html
                     else:
                         logger.error(f"❌ Zyte returned invalid HTML")
@@ -409,7 +428,7 @@ class On3Scraper:
                     logger.error(f"❌ Zyte API error: {e}")
                     # Fall through to httpx as last resort
 
-            # PRIORITY 4: Fallback to httpx (will likely be blocked)
+            # PRIORITY 4: Fallback to httpx (will likely be blocked; runs when Zyte skipped or unavailable)
             else:
                 async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
                     response = await client.get(url, headers=self._headers)
@@ -484,11 +503,18 @@ class On3Scraper:
             'is_available': self._zyte_client is not None
         }
 
-    async def get_zyte_usage_from_api(self, days: int = 30) -> Optional[Dict[str, Any]]:
+    async def get_zyte_usage_from_api(
+        self,
+        days: int = 30,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
+    ) -> Optional[Dict[str, Any]]:
         """Query Zyte Stats API for official usage statistics
 
         Args:
-            days: Number of days to look back (default 30)
+            days: Number of days to look back (default 30), used if start_time/end_time not set.
+            start_time: Start of range (UTC). If set with end_time, overrides days.
+            end_time: End of range (UTC). If set with start_time, overrides days.
 
         Returns:
             Dictionary with usage data or None if unavailable
@@ -510,11 +536,14 @@ class On3Scraper:
             return None
 
         try:
-            from datetime import datetime, timedelta
+            from datetime import timedelta
 
-            # Calculate date range (ISO 8601 datetime format required)
-            end_time = datetime.now()
-            start_time = end_time - timedelta(days=days)
+            # Date range: explicit or from days
+            if start_time is not None and end_time is not None:
+                pass  # use as-is
+            else:
+                end_time = datetime.now()
+                start_time = end_time - timedelta(days=days)
 
             # Zyte Stats API uses ISO 8601 datetime format
             params = {
@@ -542,16 +571,19 @@ class On3Scraper:
                     logger.info(f"✅ Retrieved Zyte usage data")
                     return data
                 elif response.status_code == 401:
-                    logger.error(f"❌ Zyte Stats API: Authentication failed - check ZYTE_API_KEY")
-                    logger.error(f"   Response: {response.text}")
+                    logger.error("❌ Zyte Stats API: Authentication failed - check ZYTE_DASHBOARD_API_KEY")
+                    from .log_utils import sanitize_for_log
+                    logger.error(f"   Response: {sanitize_for_log(response.text)}")
                     return None
                 elif response.status_code == 404:
                     logger.error(f"❌ Zyte Stats API: Organization not found - check ZYTE_ORG_ID ({org_id})")
-                    logger.error(f"   Response: {response.text}")
+                    from .log_utils import sanitize_for_log
+                    logger.error(f"   Response: {sanitize_for_log(response.text)}")
                     return None
                 else:
                     logger.warning(f"⚠️ Zyte Stats API error: {response.status_code}")
-                    logger.warning(f"   Response: {response.text}")
+                    from .log_utils import sanitize_for_log
+                    logger.warning(f"   Response: {sanitize_for_log(response.text)}")
                     return None
 
         except httpx.TimeoutException:

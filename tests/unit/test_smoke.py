@@ -50,6 +50,14 @@ class TestImports:
         assert check_module_enabled is not None
         assert check_module_enabled_deferred is not None
 
+    def test_import_security_and_cost_tracker(self):
+        """Test that security and cost_tracker import (sanitize_ai_response, budget)."""
+        from cfb_bot.security import sanitize_ai_response
+        from cfb_bot.utils.cost_tracker import get_cost_tracker
+
+        assert sanitize_ai_response is not None
+        assert get_cost_tracker is not None
+
 
 class TestBasicSyntax:
     """Test basic Python syntax and structure"""

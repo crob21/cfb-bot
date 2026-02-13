@@ -88,6 +88,7 @@ python main.py
 | `ZYTE_API_KEY` | No | [Zyte](https://www.zyte.com/) – recruiting (Cloudflare bypass) |
 | `ZYTE_DASHBOARD_API_KEY` | No | Zyte dashboard API key (for `/admin zyte` official stats) |
 | `ZYTE_ORG_ID` | No | Zyte org ID from dashboard URL (`app.zyte.com/o/123456` → `123456`) |
+| `ZYTE_SPEND_LIMIT` | No | Cap in USD (e.g. `20`); Zyte API calls stop when monthly spend reaches this (0 = no cap) |
 | `SENTRY_DSN` | No | Error tracking |
 | `BOT_ADMIN_IDS` | No | Comma-separated Discord user IDs for bot admins |
 | `STORAGE_BACKEND` | No | `discord` (default) or `supabase` |

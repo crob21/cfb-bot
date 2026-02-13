@@ -8,6 +8,8 @@ Centralized security settings to prevent issues like:
 - Denial of service
 """
 
+import re
+
 # HTTP Request Timeouts (seconds)
 HTTP_TIMEOUT = 30  # Default timeout for all HTTP requests
 HTTP_CONNECT_TIMEOUT = 10  # Connection timeout
@@ -40,6 +42,21 @@ DISCORD_COMMAND_COOLDOWN = 3  # Seconds between commands
 # AI Safety
 MAX_AI_CONTEXT_LENGTH = 8000  # Max tokens for AI context
 MAX_AI_RESPONSE_LENGTH = 1000  # Max tokens for AI response
+
+def sanitize_ai_response(text: str) -> str:
+    """Redact any key/token-like content from AI response before sending to users. Call on every AI reply."""
+    if not text or not isinstance(text, str):
+        return text
+    out = text
+    # OpenAI / generic API key patterns
+    out = re.sub(r'sk-[a-zA-Z0-9_-]{20,}', '[REDACTED]', out)
+    out = re.sub(r'sk-proj-[a-zA-Z0-9_-]{20,}', '[REDACTED]', out)
+    # Long token-looking strings (50+ alphanumeric/underscore/dash only - likely keys/tokens)
+    def replace_long(m):
+        s = m.group(0)
+        return '[REDACTED]' if len(s) >= 50 and re.match(r'^[A-Za-z0-9_-]+$', s) else s
+    out = re.sub(r'[A-Za-z0-9_-]{50,}', replace_long, out)
+    return out
 
 # Web Scraping Limits
 MAX_SCRAPE_RETRIES = 2  # Max retries for web scraping

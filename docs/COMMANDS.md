@@ -135,7 +135,10 @@ Type `/` in Discord to see all available command groups:
 
 ### `/admin budget`
 **Description:** View monthly API cost budget and spending  
-**Usage:** `/admin budget`
+**Options:** `action`: **View** (current) or **Reconcile from Zyte & OpenAI**  
+**Usage:** `/admin budget` · `/admin budget action:Reconcile from Zyte & OpenAI`
+
+Costs are recorded automatically when the bot uses AI or Zyte. Use **Reconcile** to overwrite stored costs with official numbers: Zyte (Stats API, current month) and OpenAI (Usage API, token sum for the month → estimated cost). Requires `ZYTE_DASHBOARD_API_KEY` + `ZYTE_ORG_ID` for Zyte and `OPENAI_API_KEY` for OpenAI. Set `AI_MONTHLY_BUDGET`, `ZYTE_MONTHLY_BUDGET`, `TOTAL_MONTHLY_BUDGET`; optional `ZYTE_SPEND_LIMIT` (e.g. `20`) stops Zyte API calls when reached. Data resets each calendar month.
 
 ### `/admin digest`
 **Description:** View or send weekly summary digest  

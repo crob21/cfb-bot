@@ -89,6 +89,12 @@
    - **Features**: Configurable via `CORS_ORIGINS` env var
    - **Location**: `src/dashboard/app.py`
 
+9. **✅ External API calls (Zyte Stats, OpenAI Usage, reconcile)**
+   - **Status**: ✅ Addressed
+   - **Practice**: All keys from env vars; no keys in URLs or query params (Bearer/Basic in headers only).
+   - **Logging**: API error response bodies are sanitized before logging (`log_utils.sanitize_for_log`) to avoid leaking tokens or keys.
+   - **Reconcile**: Admin-only; no user-controlled input sent to providers. Date ranges are server-derived (current month).
+
 ---
 
 ## ⚡ **OPTIMIZATION OPPORTUNITIES**
