@@ -4,6 +4,7 @@ aiohttp==3.9.1
 python-dotenv==1.0.0
 requests==2.31.0
 pytz>=2024.1
+PyNaCl>=1.5.0
 
 # College Football Data API
 cfbd>=5.0.0
