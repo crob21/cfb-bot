@@ -981,7 +981,7 @@ class AdminCog(commands.Cog):
             # Anthropic breakdown
             if local_usage['anthropic_tokens'] > 0:
                 embed.add_field(
-                    name="🔵 Anthropic (Claude 3 Haiku)",
+                    name="🔵 Anthropic (Claude Haiku 4.5)",
                     value=f"**{local_usage['anthropic_tokens']:,}** tokens\n${local_usage['anthropic_cost']:.4f}",
                     inline=True
                 )

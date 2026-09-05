@@ -27,11 +27,12 @@ except ImportError:
 logger = logging.getLogger('CFB26Bot.Timekeeper')
 
 # CFB 26 Dynasty Season Week Structure
-# A Dynasty season consists of Regular Season (Weeks 0-14), Post-Season, and Offseason
-# Dynasties can last up to 30 seasons
+# A full online-dynasty season is exactly 26 sequential advances (indices 0-25):
+#   Regular Season + Conference Championship (0-14), Postseason/Bowls (15-19),
+#   Offseason (20-25). Advancing past index 25 rolls over to index 0 of the next year.
 CFB_DYNASTY_WEEKS = {
-    # Regular Season (Weeks 0-14)
-    0: {"name": "Week 0 - Season Kickoff", "short": "Week 0", "phase": "Regular Season", "actions": "Season begins"},
+    # Regular Season & Conference Championship (0-14)
+    0: {"name": "Preseason (Week 0)", "short": "Preseason", "phase": "Regular Season", "actions": "Season begins"},
     1: {"name": "Week 1", "short": "Week 1", "phase": "Regular Season", "actions": ""},
     2: {"name": "Week 2", "short": "Week 2", "phase": "Regular Season", "actions": ""},
     3: {"name": "Week 3", "short": "Week 3", "phase": "Regular Season", "actions": ""},
@@ -45,29 +46,24 @@ CFB_DYNASTY_WEEKS = {
     11: {"name": "Week 11", "short": "Week 11", "phase": "Regular Season", "actions": ""},
     12: {"name": "Week 12", "short": "Week 12", "phase": "Regular Season", "actions": ""},
     13: {"name": "Week 13", "short": "Week 13", "phase": "Regular Season", "actions": ""},
-    14: {"name": "Week 14", "short": "Week 14", "phase": "Regular Season", "actions": ""},
-    # Note: Week 15 may be removed in later seasons, going directly to Conference Championships
-    15: {"name": "Week 15", "short": "Week 15", "phase": "Regular Season", "actions": ""},
-    # Post-Season / Bowl Season
-    16: {"name": "Conference Championships", "short": "Conf Champs", "phase": "Post-Season", "actions": "Manage Staff (fire only)", "notes": "Only chance to fire staff"},
-    17: {"name": "Bowl Week 1", "short": "Bowl Wk 1", "phase": "Post-Season", "actions": "View Job Offers, Manage Staff (Hire only), Early National Signing Day", "notes": ""},
-    18: {"name": "Bowl Week 2", "short": "Bowl Wk 2", "phase": "Post-Season", "actions": "View Job Offers, Manage Staff (Hire only)", "notes": "Last week of HC job offers"},
-    19: {"name": "Bowl Week 3", "short": "Bowl Wk 3", "phase": "Post-Season", "actions": "Manage Staff (Hire only)", "notes": "Last chance to user-hire staff"},
-    20: {"name": "Bowl Week 4", "short": "Bowl Wk 4", "phase": "Post-Season", "actions": "View Staff Moves", "notes": ""},
-    21: {"name": "End of Season Recap", "short": "Season Recap", "phase": "Post-Season", "actions": "Players Leaving", "notes": ""},
-    # Offseason (Portal + Recruiting)
-    22: {"name": "Offseason Portal Week 1", "short": "Portal Wk 1", "phase": "Offseason", "actions": "Draft Results", "notes": ""},
-    23: {"name": "Offseason Portal Week 2", "short": "Portal Wk 2", "phase": "Offseason", "actions": "", "notes": ""},
-    24: {"name": "Offseason Portal Week 3", "short": "Portal Wk 3", "phase": "Offseason", "actions": "", "notes": ""},
-    25: {"name": "Offseason Portal Week 4", "short": "Portal Wk 4", "phase": "Offseason", "actions": "", "notes": ""},
-    26: {"name": "National Signing Day", "short": "Signing Day", "phase": "Offseason", "actions": "Position Changes", "notes": ""},
-    27: {"name": "Training Results", "short": "Training", "phase": "Offseason", "actions": "", "notes": "Last chance to view players before roster cuts"},
-    28: {"name": "Encourage Transfers", "short": "Transfers", "phase": "Offseason", "actions": "Custom Conferences", "notes": ""},
-    29: {"name": "Preseason", "short": "Preseason", "phase": "Offseason", "actions": "Set-up Recruiting Board, Custom Schedules", "notes": ""},
+    14: {"name": "Week 14 (Conference Championships)", "short": "Conf Champs", "phase": "Regular Season", "actions": "Play Championship Games"},
+    # Postseason - Bowl & Playoff Stages (15-19)
+    15: {"name": "Bowl Week 1 (CFP First Round)", "short": "Bowl Wk 1", "phase": "Post-Season", "actions": "CFP First Round", "notes": ""},
+    16: {"name": "Bowl Week 2 (CFP Quarterfinals)", "short": "Bowl Wk 2", "phase": "Post-Season", "actions": "CFP Quarterfinals", "notes": ""},
+    17: {"name": "Bowl Week 3 (CFP Semifinals)", "short": "Bowl Wk 3", "phase": "Post-Season", "actions": "CFP Semifinals", "notes": ""},
+    18: {"name": "Bowl Week 4 (National Championship)", "short": "Natl Champ", "phase": "Post-Season", "actions": "National Championship", "notes": ""},
+    19: {"name": "End of Bowl Season / Coaching Carousel", "short": "Season Wrap", "phase": "Post-Season", "actions": "Coaching Carousel Wrap-up", "notes": ""},
+    # Offseason & Preseason Loops (20-25)
+    20: {"name": "Offseason: Players Leaving", "short": "Players Leaving", "phase": "Offseason", "actions": "Players Leaving", "notes": ""},
+    21: {"name": "Offseason: Transfer Portal / Recruiting Week 1", "short": "Portal Wk 1", "phase": "Offseason", "actions": "Transfer Portal / Recruiting", "notes": ""},
+    22: {"name": "Offseason: Transfer Portal / Recruiting Week 2", "short": "Portal Wk 2", "phase": "Offseason", "actions": "Transfer Portal / Recruiting", "notes": ""},
+    23: {"name": "Offseason: Transfer Portal / Recruiting Week 3", "short": "Portal Wk 3", "phase": "Offseason", "actions": "Transfer Portal / Recruiting", "notes": ""},
+    24: {"name": "Offseason: Transfer Portal / Recruiting Week 4", "short": "Portal Wk 4", "phase": "Offseason", "actions": "Transfer Portal / Recruiting", "notes": ""},
+    25: {"name": "Offseason: Training Results & Position Changes", "short": "Training", "phase": "Offseason", "actions": "Training Results, Position Changes", "notes": "Advancing resets to Preseason (Week 0) of the next season"},
 }
 
-# Total weeks in a CFB 26 Dynasty season
-TOTAL_WEEKS_PER_SEASON = 30  # Week 0-29
+# Total advances in a CFB dynasty season (indices 0-25)
+TOTAL_WEEKS_PER_SEASON = 26  # Week 0-25
 
 
 def get_week_name(week: int, short: bool = False) -> str:
@@ -100,9 +96,9 @@ def get_week_phase(week: int) -> str:
     if week in CFB_DYNASTY_WEEKS:
         return CFB_DYNASTY_WEEKS[week]["phase"]
     # Fallback
-    if week <= 15:
+    if week <= 14:
         return "Regular Season"
-    elif week <= 21:
+    elif week <= 19:
         return "Post-Season"
     return "Offseason"
 

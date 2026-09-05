@@ -40,7 +40,7 @@ class AICharterAssistant:
 
         # Cost tracking (per 1k tokens - averaged input/output)
         self.openai_cost_per_1k = 0.001  # GPT-3.5-turbo average
-        self.anthropic_cost_per_1k = 0.0007  # Claude 3 Haiku average
+        self.anthropic_cost_per_1k = 0.002  # Claude Haiku 4.5 blended ($1/$5 per 1M in/out)
 
         # Storage
         self._storage = get_storage()
@@ -126,10 +126,11 @@ class AICharterAssistant:
         """Get schedule context for AI queries, including current week info"""
         context_parts = []
 
-        # Try to get current week/season from the bot's timekeeper_manager
+        # Try to get current week/season from the bot's timekeeper_manager.
+        # NOTE: read from bot_main (the live cog-based entry point) — the legacy
+        # monolith bot.py is never run, so its timekeeper_manager stays None.
         try:
-            # Import bot module to access timekeeper_manager
-            from .. import bot as bot_module
+            from .. import bot_main as bot_module
             if hasattr(bot_module, 'timekeeper_manager') and bot_module.timekeeper_manager:
                 season_info = bot_module.timekeeper_manager.get_season_week()
                 if season_info.get('season') and season_info.get('week') is not None:
@@ -435,7 +436,7 @@ class AICharterAssistant:
             """
 
         data = {
-            'model': 'claude-3-haiku-20240307',
+            'model': 'claude-haiku-4-5',
             'max_tokens': max_tokens,
             'messages': [
                 {'role': 'user', 'content': prompt}
