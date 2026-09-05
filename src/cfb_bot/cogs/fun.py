@@ -24,6 +24,62 @@ from ..config import Colors
 
 logger = logging.getLogger('CFB26Bot.Fun')
 
+# Ready-made cockney insults hurled at a targeted user.
+# Each entry MUST contain a single "{mention}" placeholder (filled with the user's @mention).
+# Kept deliberately crude and over-the-top — this only ever fires at an admin-chosen target.
+TARGETED_INSULTS = [
+    "Oi {mention}, you absolute syphilitic tea-bag, nobody wants ya here. 🖕",
+    "Bloody hell {mention}, your face looks like a bulldog chewing a wasp, ya melt. 🐶",
+    "{mention} you're a soggy fag-end floating in a pub urinal, mate. 🚬",
+    "Christ almighty {mention}, you've got the charisma of a damp flannel and half the brains. 🧽",
+    "Listen 'ere {mention}, you gormless sack of spanners, do us all a favour and jog on. 🔧",
+    "{mention} you thick-as-mince, knock-kneed little bellend, shut yer cakehole. 🍰",
+    "Oi oi {mention}, you look like somethin' the cat sicked up after a night on the lash. 🐈",
+    "{mention} you're about as useful as a chocolate teapot with a hole in it, ya wazzock. 🍫",
+    "Blimey {mention}, your mum should've swallowed, you dribbling wet-wipe. 💦",
+    "{mention} you snaggle-toothed, pigeon-chested waste of good oxygen, piss off. 🕊️",
+    "Do one {mention}, you clapped-out shopping trolley of a human, wheels all wonky. 🛒",
+    "{mention} you've got a head like a smacked arse and a personality to match, ya plum. 🍑",
+    "Oi {mention}, you're the human equivalent of stepping in dog muck in yer socks. 🧦",
+    "{mention} you great steaming turd in a wig, wind yer neck in before I do it for ya. 💩",
+    "Bloody nora {mention}, you couldn't organise a piss-up in a brewery, ya donut. 🍩",
+    "{mention} you look like you were dragged through a hedge backwards then set on fire. 🔥",
+    "Get stuffed {mention}, you mardy little bag of wet cement, nobody rates ya. 🧱",
+    "{mention} you're thicker than a whale omelette and twice as minging, mate. 🐋",
+    "Oi {mention}, you spanner-faced, knock-off Del Boy, do us all a solid and vanish. 🚐",
+    "{mention} you've got a gob like a torn pocket and the wit of a house brick. 🧱",
+    "Cor {mention}, you're so ugly the tide wouldn't take ya out, ya beached wally. 🌊",
+    "{mention} you dribbling, cross-eyed pillock, go boil yer stupid head. 🫖",
+    "Oi {mention}, you're the reason cousins shouldn't marry, ya inbred cabbage. 🥬",
+    "{mention} you flaccid, room-temperature bellwhiff, shut it before I lose me rag. 🌡️",
+    "Bugger off {mention}, you tuppenny-ha'penny fraud, all mouth and no trousers. 👖",
+    "{mention} you're a walking advert for the morning-after pill, ya gormless git. 💊",
+    "Oi {mention}, your breath could strip paint off a Transit van, ya honking oaf. 🚚",
+    "{mention} you couldn't punch yer way out of a wet paper bag, ya soft southern nonce. 🥊",
+    "Sod off {mention}, you scabby-kneed, bin-juice-drinking little toe-rag. 🗑️",
+    "{mention} you've got a face for radio and a voice for silent films, ya berk. 📻",
+    "Oi {mention}, you're proper mingin', like a kebab found down the back of a settee. 🥙",
+    "{mention} you sniveling, bandy-legged clip-round-the-ear merchant, do one. 👂",
+    "Bloody hell {mention}, you're dumber than a box of frogs on the sauce, ya numpty. 🐸",
+    "{mention} you great wobbling blancmange of disappointment, shut yer trap. 🍮",
+    "Oi {mention}, you look like your dad won ya in a raffle and asked for a refund. 🎟️",
+    "{mention} you weapons-grade plonker, get in the bin where ya belong. 🚮",
+    "Do one {mention}, you festering pork pie of a man, nobody's laughin' with ya. 🥧",
+    "{mention} you're as sharp as a bag of wet mice, ya dribbling div. 🐭",
+    "Oi {mention}, you soggy Weetabix of a human being, crack on and disappear. 🥣",
+    "{mention} you couldn't lie straight in bed, ya bent-as-a-nine-bob-note wanker. 💷",
+    "Piss off {mention}, you nappy-filling, dummy-sucking overgrown toddler. 🍼",
+    "{mention} you look like a thumb with a haircut, ya charmless little goblin. 👍",
+    "Oi {mention}, you're the gravy stain on the tablecloth of life, ya melt. 🍖",
+    "{mention} you gurning, spanner-brained muppet, away and boil yer head. 🎭",
+    "Bloody hell {mention}, you've got fewer redeeming features than a rusty spanner. 🔩",
+    "{mention} you clapped, honking, bottom-of-the-barrel bellend, get in the sea. 🌊",
+    "Oi {mention}, you're a fart in a lift — unwanted, unpleasant, and everyone knows it's you. 🛗",
+    "{mention} you sad little Pot Noodle of a person, all mush and no substance. 🍜",
+    "Do one {mention}, you knock-kneed, snot-nosed embarrassment to yer postcode. 📮",
+    "{mention} you absolute walloper, if brains were gunpowder you couldn't blow yer nose. 🧨",
+]
+
 
 class FunCog(commands.Cog):
     """Fun & trolling commands (admin only)"""
@@ -491,14 +547,14 @@ Do NOT start with "Oh," or "Look," - start directly with the roast."""
                 if user.mention not in insult:
                     insult = f"{user.mention} {insult}"
             else:
-                insult = self._generate_dynamic_insult(user.mention)
+                insult = self._get_targeted_insult(user.mention)
 
             await interaction.followup.send(insult)
             logger.info(f"🔥 {interaction.user.display_name} roasted {user.display_name}")
 
         except Exception as e:
             logger.error(f"❌ Roast failed: {e}")
-            await interaction.followup.send(self._generate_dynamic_insult(user.mention))
+            await interaction.followup.send(self._get_targeted_insult(user.mention))
 
     @fun_group.command(name="untarget_all", description="🛑 Stop trolling ALL users (Admin only)")
     async def untarget_all(self, interaction: discord.Interaction):
@@ -569,7 +625,7 @@ Do NOT start with "Oh," or "Look," - start directly with the roast."""
         if message.author.id in guild_targets and (bot_mentioned or said_harry):
             target_info = guild_targets[message.author.id]
             try:
-                insult = self._generate_dynamic_insult(message.author.mention)
+                insult = self._get_targeted_insult(message.author.mention)
                 sent_message = await message.channel.send(insult)
                 if target_info.get('engage'):
                     self.troll_messages[sent_message.id] = (message.guild.id, message.author.id)
@@ -613,7 +669,7 @@ Do NOT start with "Oh," or "Look," - start directly with the roast."""
         target_info['last_triggered'] = current_time
 
         try:
-            troll_message = self._generate_dynamic_insult(message.author.mention)
+            troll_message = self._get_targeted_insult(message.author.mention)
             sent_message = await message.channel.send(troll_message)
 
             if target_info.get('engage'):
@@ -737,6 +793,17 @@ Your BRUTAL comeback (max 200 chars):"""
         except Exception as e:
             logger.error(f"❌ AI comeback failed: {e}")
             return self._get_fallback_comeback(user_message)
+
+    def _get_targeted_insult(self, mention: str) -> str:
+        """Pick an insult to hurl at a targeted user.
+
+        Mixes the 50-strong hand-written TARGETED_INSULTS pool with the combinatorial
+        generator so targets get both punchy set-pieces and endless random variety.
+        """
+        # 60% hand-written zinger, 40% procedurally generated combo.
+        if random.random() < 0.6:
+            return random.choice(TARGETED_INSULTS).format(mention=mention)
+        return self._generate_dynamic_insult(mention)
 
     def _generate_dynamic_insult(self, mention: str) -> str:
         """Generate a random insult from phrases + swear words + objects (new combo each time)."""

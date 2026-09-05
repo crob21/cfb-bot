@@ -11,10 +11,55 @@ from typing import Dict, List, Optional
 logger = logging.getLogger('CFB26Bot.Version')
 
 # Current version
-CURRENT_VERSION = "3.8.0"
+CURRENT_VERSION = "3.9.0"
 
 # Changelog - organized by version
 CHANGELOG: Dict[str, Dict] = {
+    "3.9.0": {
+        "date": "2026-09-05",
+        "title": "Week Fixes, Timer Guard & Bot Audit 🛠️",
+        "emoji": "🛠️",
+        "features": [
+            {
+                "category": "Season/Week Fixes",
+                "emoji": "📅",
+                "changes": [
+                    "FIX: /league week/weeks/set_week now use one canonical week table",
+                    "Corrected to the real 26-stage dynasty schedule (Weeks 0-25)",
+                    "Regular Season 0-14, Postseason/Bowls 15-19, Offseason 20-25",
+                    "Season rolls over from stage 25 back to Preseason (Week 0)",
+                    "set_week now validates the 0-25 range"
+                ]
+            },
+            {
+                "category": "Advance Timer",
+                "emoji": "⏰",
+                "changes": [
+                    "FIX: '@everyone advanced' only restarts the timer in the configured channel",
+                    "No longer hijacks the timer from other channels/servers"
+                ]
+            },
+            {
+                "category": "Harry's Personality",
+                "emoji": "🎭",
+                "changes": [
+                    "NEW: 50 hand-written cockney insults for targeted users",
+                    "Mixed with the existing generator across all targeting paths and /fun roast"
+                ]
+            },
+            {
+                "category": "Bot Audit & Hardening",
+                "emoji": "🔒",
+                "changes": [
+                    "FIX: AI now reads the live current week (was pointing at dead legacy module)",
+                    "Removed the unused 333KB legacy bot.py monolith",
+                    "Upgraded AI model to Claude Haiku 4.5",
+                    "Bumped aiohttp off a version with known CVEs",
+                    "Hardened .gitignore (token.pickle, .venv)"
+                ]
+            }
+        ]
+    },
     "3.8.0": {
         "date": "2026-01-26",
         "title": "Smart Duplicate Name Handling 🎯",

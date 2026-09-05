@@ -400,7 +400,16 @@ async def on_message(message):
 
     # PRIORITY: Check for @everyone/@here + "advanced" to restart timer
     # This advances the week and restarts the countdown (available to everyone)
-    if message.mention_everyone or (message.role_mentions and len(message.role_mentions) > 0):
+    # Only react to "advanced" in the designated advance/notification channel.
+    # Without this guard, an @everyone "advanced" post in any other channel or
+    # server the bot can read would hijack the timer and advance the week.
+    advance_channel_id = (
+        timekeeper_manager.get_notification_channel_id()
+        if timekeeper_manager else None
+    )
+    in_advance_channel = (advance_channel_id is None) or (message.channel.id == advance_channel_id)
+
+    if in_advance_channel and (message.mention_everyone or (message.role_mentions and len(message.role_mentions) > 0)):
         message_lower = message.content.lower()
         if 'advanced' in message_lower:
             logger.info(f"🔄 @everyone/@channel + 'advanced' detected from {message.author} - advancing week")
@@ -554,10 +563,8 @@ async def on_message(message):
                     logger.info(f"🏈 Rivalry response triggered: '{keyword}' → {response}")
                     break  # Only respond once per message
 
-    # Let cogs handle their own message processing
+    # Let cogs handle their own message processing (FunCog targeting, command parsing, etc.)
     await bot.process_commands(message)
-
-    # @mention handling is done in AIChatCog
 
 
 # ==================== MAIN ====================
