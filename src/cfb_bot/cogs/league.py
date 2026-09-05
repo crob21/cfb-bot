@@ -17,6 +17,9 @@ Commands:
 - /league find_game - Find team's game
 - /league byes - Teams on bye
 - /league set_week - Set season/week (admin)
+- /league upload_schedule - Upload a full schedule JSON file (admin)
+- /league set_week_games - Set one week's games/byes by typing them (admin)
+- /league schedule_template - Show the schedule JSON format
 - /league timer_channel - Set notification channel (admin)
 - /league staff - View league staff
 - /league set_owner - Set league owner (admin)
@@ -632,6 +635,141 @@ class LeagueCog(commands.Cog):
             await interaction.response.send_message(embed=embed, ephemeral=True)
         else:
             await interaction.response.send_message("❌ Failed to set season/week!", ephemeral=True)
+
+    @league_group.command(name="upload_schedule", description="Upload a full schedule JSON file (Admin only)")
+    @app_commands.describe(file="A .json schedule file (see /league schedule_template for the format)")
+    async def upload_schedule(self, interaction: discord.Interaction, file: discord.Attachment):
+        """Replace the league schedule from an uploaded JSON file — no git needed."""
+        if not self.admin_manager or not self.admin_manager.is_admin(interaction.user, interaction):
+            await interaction.response.send_message("❌ Only admins can upload schedules!", ephemeral=True)
+            return
+        if not self.schedule_manager:
+            await interaction.response.send_message("❌ Schedule manager not available", ephemeral=True)
+            return
+
+        await interaction.response.defer(ephemeral=True)
+
+        if not file.filename.lower().endswith('.json'):
+            await interaction.followup.send("❌ Please upload a `.json` file.", ephemeral=True)
+            return
+        if file.size > 1_000_000:  # 1 MB sanity cap
+            await interaction.followup.send("❌ That file is too large (max 1 MB).", ephemeral=True)
+            return
+
+        import json as _json
+        try:
+            raw = await file.read()
+            data = _json.loads(raw.decode('utf-8'))
+        except Exception as e:
+            await interaction.followup.send(f"❌ Couldn't parse JSON: {e}", ephemeral=True)
+            return
+
+        ok, err = self.schedule_manager.validate_schedule(data)
+        if not ok:
+            await interaction.followup.send(f"❌ Invalid schedule: {err}", ephemeral=True)
+            return
+
+        self.schedule_manager.load_from_dict(data)
+        saved = await self.schedule_manager.save_to_discord()
+
+        weeks = len(data.get('schedule', {}))
+        teams = len(data.get('teams', []))
+        note = "✅ Backed up to Discord (survives redeploys)." if saved else "⚠️ Loaded, but Discord backup failed — it may not survive a redeploy."
+        embed = discord.Embed(
+            title="📅 Schedule Uploaded!",
+            description=f"Season **{self.schedule_manager.season}** · **{weeks}** weeks · **{teams}** user teams\n\n{note}",
+            color=Colors.SUCCESS,
+        )
+        embed.set_footer(text="Harry's Schedule Tracker 🏈")
+        await interaction.followup.send(embed=embed, ephemeral=True)
+
+    @league_group.command(name="set_week_games", description="Set one week's games/byes by typing them (Admin only)")
+    @app_commands.describe(
+        week="Week number (0-25)",
+        games="Comma-separated matchups as away@home, e.g. 'Stanford@Texas, LSU@FSU'",
+        byes="Comma-separated teams on bye (optional), e.g. 'Nebraska, USF'",
+    )
+    async def set_week_games(self, interaction: discord.Interaction, week: int, games: str, byes: Optional[str] = None):
+        """Edit a single week's schedule from Discord without a file."""
+        if not self.admin_manager or not self.admin_manager.is_admin(interaction.user, interaction):
+            await interaction.response.send_message("❌ Only admins can edit the schedule!", ephemeral=True)
+            return
+        if not self.schedule_manager:
+            await interaction.response.send_message("❌ Schedule manager not available", ephemeral=True)
+            return
+        if week < 0 or week >= len(CFB_DYNASTY_WEEKS):
+            await interaction.response.send_message(
+                f"❌ Week must be 0-{len(CFB_DYNASTY_WEEKS) - 1}.", ephemeral=True
+            )
+            return
+
+        # Parse "away@home, away@home" (also accept 'vs' / ' at ' as separators)
+        parsed_games = []
+        for token in games.split(','):
+            token = token.strip()
+            if not token:
+                continue
+            sep = '@' if '@' in token else (' vs ' if ' vs ' in token else (' at ' if ' at ' in token else None))
+            if not sep:
+                await interaction.response.send_message(
+                    f"❌ Couldn't read matchup `{token}` — use `away@home` (e.g. `Stanford@Texas`).",
+                    ephemeral=True,
+                )
+                return
+            away, home = [p.strip() for p in token.split(sep, 1)]
+            if not away or not home:
+                await interaction.response.send_message(
+                    f"❌ Matchup `{token}` is missing a team.", ephemeral=True
+                )
+                return
+            parsed_games.append({'away': away, 'home': home})
+
+        bye_teams = [b.strip() for b in byes.split(',')] if byes else []
+        bye_teams = [b for b in bye_teams if b]
+
+        self.schedule_manager.set_week_games(week, parsed_games, bye_teams)
+        saved = await self.schedule_manager.save_to_discord()
+
+        week_info = get_week_info(week)
+        lines = [self.schedule_manager.format_game(g) for g in parsed_games] or ["_No games_"]
+        if bye_teams:
+            lines.append(f"🛋️ Bye: {self.schedule_manager.format_bye_teams(bye_teams)}")
+        note = "✅ Saved & backed up." if saved else "⚠️ Saved locally, but Discord backup failed."
+        embed = discord.Embed(
+            title=f"📅 {week_info['name']} Updated",
+            description="\n".join(lines) + f"\n\n{note}",
+            color=Colors.SUCCESS,
+        )
+        embed.set_footer(text="Harry's Schedule Tracker 🏈")
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @league_group.command(name="schedule_template", description="Show the schedule JSON format for uploads")
+    async def schedule_template(self, interaction: discord.Interaction):
+        """Post the expected JSON shape for /league upload_schedule."""
+        example = (
+            '{\n'
+            '  "season": 1,\n'
+            '  "teams": ["Texas", "LSU"],          // your user-controlled teams (bolded)\n'
+            '  "schedule": {\n'
+            '    "0": {"bye_teams": ["LSU"], "games": [{"away": "Stanford", "home": "Texas"}]},\n'
+            '    "1": {"bye_teams": [], "games": [{"away": "LSU", "home": "FSU"}]}\n'
+            '  }\n'
+            '}'
+        )
+        embed = discord.Embed(
+            title="📅 Schedule Upload Format",
+            description=(
+                "Upload a `.json` file with `/league upload_schedule`, shaped like this:\n"
+                f"```json\n{example}\n```\n"
+                "• Week keys are strings (`\"0\"`–`\"25\"`).\n"
+                "• Each game needs `away` and `home`.\n"
+                "• `teams` (optional) are your user-controlled teams — Harry bolds them.\n\n"
+                "To edit just one week without a file, use `/league set_week_games`."
+            ),
+            color=Colors.SUCCESS,
+        )
+        embed.set_footer(text="Harry's Schedule Tracker 🏈")
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @league_group.command(name="timer_channel", description="Set the channel for timer notifications (Admin only)")
     @app_commands.describe(channel="Channel for timer notifications")

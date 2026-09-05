@@ -157,6 +157,12 @@ async def setup_dependencies():
     try:
         from .utils.schedule_manager import ScheduleManager
         schedule_manager = ScheduleManager()
+        schedule_manager.set_bot(bot)
+        # Restore any schedule uploaded via Discord (survives redeploys)
+        try:
+            await schedule_manager.load_from_discord()
+        except Exception as e:
+            logger.error(f"❌ Failed to restore schedule from Discord: {e}")
         logger.info(f"✅ Schedule manager initialized ({len(schedule_manager.teams)} teams)")
     except ImportError:
         logger.warning("⚠️ Schedule manager not available")
