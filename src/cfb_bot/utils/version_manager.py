@@ -11,10 +11,35 @@ from typing import Dict, List, Optional
 logger = logging.getLogger('CFB26Bot.Version')
 
 # Current version
-CURRENT_VERSION = "3.10.0"
+CURRENT_VERSION = "3.11.0"
 
 # Changelog - organized by version
 CHANGELOG: Dict[str, Dict] = {
+    "3.11.0": {
+        "date": "2026-09-05",
+        "title": "Upload Schedules from Discord 📤",
+        "emoji": "📤",
+        "features": [
+            {
+                "category": "Schedule Management",
+                "emoji": "📅",
+                "changes": [
+                    "NEW: /league upload_schedule — upload a full schedule JSON file (admin)",
+                    "NEW: /league set_week_games — set one week's games/byes by typing them (admin)",
+                    "NEW: /league schedule_template — shows the expected JSON format",
+                    "No more editing files in git — update the schedule live from Discord",
+                    "Uploads persist as a Discord backup, surviving redeploys"
+                ]
+            },
+            {
+                "category": "Help & Docs",
+                "emoji": "📖",
+                "changes": [
+                    "/help now lists the new schedule + timer management commands"
+                ]
+            }
+        ]
+    },
     "3.10.0": {
         "date": "2026-09-05",
         "title": "Timer Manager 🎛️",

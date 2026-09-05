@@ -7,7 +7,7 @@ and interactive charter editing with Harry's signature cockney personality.
 Architecture: Cog-based modular design (v3.0)
 """
 
-__version__ = "3.10.0"
+__version__ = "3.11.0"
 
 # Import the main bot function
 # v3.0: Now using cog-based architecture (bot_main.py)

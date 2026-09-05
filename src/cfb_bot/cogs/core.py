@@ -107,8 +107,9 @@ class CoreCog(commands.Cog):
             embed.add_field(
                 name="🏆 `/league`",
                 value=(
-                    "**Season:** `week`, `weeks`, `games`, `byes`\n"
-                    "**Timer:** `timer`, `timer_status`, `timer_stop`\n"
+                    "**Season:** `week`, `weeks`, `games`, `byes`, `set_week`\n"
+                    "**Schedule (admin):** `upload_schedule`, `set_week_games`, `schedule_template`\n"
+                    "**Timer:** `timer`, `timer_status`, `timer_stop`, `timers`\n"
                     "**Staff:** `staff`, `set_owner`, `set_commish`"
                 ),
                 inline=True
