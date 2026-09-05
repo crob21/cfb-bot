@@ -11,10 +11,27 @@ from typing import Dict, List, Optional
 logger = logging.getLogger('CFB26Bot.Version')
 
 # Current version
-CURRENT_VERSION = "3.9.0"
+CURRENT_VERSION = "3.10.0"
 
 # Changelog - organized by version
 CHANGELOG: Dict[str, Dict] = {
+    "3.10.0": {
+        "date": "2026-09-05",
+        "title": "Timer Manager 🎛️",
+        "emoji": "🎛️",
+        "features": [
+            {
+                "category": "Advance Timers",
+                "emoji": "⏰",
+                "changes": [
+                    "NEW: /league timers lists every active advance timer (admin only)",
+                    "Shows channel, server, and time remaining for each",
+                    "Interactive menu to stop timers one by one",
+                    "List refreshes after each stop; menu is locked to the invoking admin"
+                ]
+            }
+        ]
+    },
     "3.9.0": {
         "date": "2026-09-05",
         "title": "Week Fixes, Timer Guard & Bot Audit 🛠️",

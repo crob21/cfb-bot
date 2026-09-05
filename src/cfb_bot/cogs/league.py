@@ -9,7 +9,8 @@ Commands:
 - /league dynasty - Dynasty management rules
 - /league timer - Start advance countdown
 - /league timer_status - Check countdown status
-- /league timer_stop - Stop countdown
+- /league timer_stop - Stop countdown (current channel)
+- /league timers - List all active timers and stop them one by one (admin)
 - /league week - Current week
 - /league weeks - Full schedule
 - /league games - Games for a week
@@ -298,6 +299,84 @@ class LeagueCog(commands.Cog):
             color=Colors.WARNING
         )
         await interaction.response.send_message(embed=embed)
+
+    @league_group.command(name="timers", description="List all active advance timers and stop them (Admin only)")
+    async def timers(self, interaction: discord.Interaction):
+        """List every active timer with a menu to stop them one at a time."""
+        if not self.admin_manager or not self.admin_manager.is_admin(interaction.user, interaction):
+            await interaction.response.send_message("❌ Only admins can manage timers!", ephemeral=True)
+            return
+
+        if not self.timekeeper_manager:
+            await interaction.response.send_message("❌ Timekeeper not available", ephemeral=True)
+            return
+
+        invoker_id = interaction.user.id
+
+        def build_embed():
+            active = self.timekeeper_manager.get_all_active_timers()
+            if not active:
+                return discord.Embed(
+                    title="⏰ Active Timers",
+                    description="No active advance timers right now.",
+                    color=0x808080,
+                ), active
+            embed = discord.Embed(
+                title=f"⏰ Active Timers ({len(active)})",
+                description="Pick a timer from the menu below to stop it.",
+                color=Colors.SUCCESS,
+            )
+            for t in active:
+                embed.add_field(
+                    name=f"#{t['channel_name']} — {t['guild_name']}",
+                    value=f"⏳ {t['hours']}h {t['minutes']}m remaining",
+                    inline=False,
+                )
+            embed.set_footer(text="Harry's Advance Timer 🏈 | Menu times out after 3 min")
+            return embed, active
+
+        def make_view(active_list):
+            view = discord.ui.View(timeout=180)
+            select = discord.ui.Select(
+                placeholder="Choose a timer to stop...",
+                options=[
+                    discord.SelectOption(
+                        label=f"#{t['channel_name']}"[:100],
+                        description=f"{t['guild_name']} · {t['hours']}h {t['minutes']}m left"[:100],
+                        value=str(t['channel_id']),
+                    )
+                    for t in active_list[:25]  # Discord select menus cap at 25 options
+                ],
+            )
+
+            async def stop_callback(select_interaction: discord.Interaction):
+                if select_interaction.user.id != invoker_id:
+                    await select_interaction.response.send_message(
+                        "❌ Only the admin who ran this command can use this menu.", ephemeral=True
+                    )
+                    return
+
+                channel_id = int(select.values[0])
+                stopped = await self.timekeeper_manager.stop_timer_by_id(channel_id)
+                note = "✅ Timer stopped." if stopped else "⚠️ That timer was already gone."
+
+                new_embed, remaining = build_embed()
+                if remaining:
+                    new_embed.description = f"{note}\n\nPick another timer to stop."
+                    await select_interaction.response.edit_message(embed=new_embed, view=make_view(remaining))
+                else:
+                    new_embed.description = f"{note}\n\nNo active timers remain."
+                    await select_interaction.response.edit_message(embed=new_embed, view=None)
+
+            select.callback = stop_callback
+            view.add_item(select)
+            return view
+
+        embed, active = build_embed()
+        if not active:
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+        await interaction.response.send_message(embed=embed, view=make_view(active), ephemeral=True)
 
     @league_group.command(name="week", description="Check the current season and week")
     async def week(self, interaction: discord.Interaction):
