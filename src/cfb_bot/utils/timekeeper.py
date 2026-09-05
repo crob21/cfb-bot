@@ -1040,6 +1040,36 @@ class TimekeeperManager:
             return False
         return await self.timers[channel.id].stop_countdown()
 
+    async def stop_timer_by_id(self, channel_id: int) -> bool:
+        """Stop a timer by its channel id (used by the /league timers manager)."""
+        if channel_id not in self.timers:
+            return False
+        return await self.timers[channel_id].stop_countdown()
+
+    def get_all_active_timers(self) -> list:
+        """Return status info for every active timer, one entry per channel.
+
+        Used by /league timers so an admin can see and stop all running timers.
+        """
+        active = []
+        for channel_id, timer in self.timers.items():
+            if not timer.is_active:
+                continue
+            status = timer.get_status()
+            if not status.get('active'):
+                continue
+            channel = self.bot.get_channel(channel_id)
+            guild = getattr(channel, 'guild', None)
+            active.append({
+                'channel_id': channel_id,
+                'channel_name': getattr(channel, 'name', str(channel_id)),
+                'guild_name': getattr(guild, 'name', 'Unknown'),
+                'hours': status['hours'],
+                'minutes': status['minutes'],
+                'end_time': status.get('end_time'),
+            })
+        return active
+
     def get_status(self, channel: discord.TextChannel) -> Dict:
         """Get timer status for a channel"""
         if channel.id not in self.timers:
