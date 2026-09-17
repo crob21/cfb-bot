@@ -11,10 +11,62 @@ from typing import Dict, List, Optional
 logger = logging.getLogger('CFB26Bot.Version')
 
 # Current version
-CURRENT_VERSION = "3.11.0"
+CURRENT_VERSION = "3.12.0"
 
 # Changelog - organized by version
 CHANGELOG: Dict[str, Dict] = {
+    "3.12.0": {
+        "date": "2026-09-16",
+        "title": "Correct Dynasty Week Schedule 📅",
+        "emoji": "📅",
+        "features": [
+            {
+                "category": "Season/Week Fixes",
+                "emoji": "📅",
+                "changes": [
+                    "FIX: Week table now matches the real 27-step CFB 26 dynasty season",
+                    "Preseason (1), Regular Season Weeks 0-14 (2-16), Postseason (17-22), Offseason (23-27)",
+                    "Postseason: Conference Championship, Bowl Weeks 1-4 (CFP QF/SF), National Championship",
+                    "Offseason: Staff Moves, Transfer Portal Open/Close, National Signing Day, Training Results",
+                    "/league set_week now takes the step number (1-27) shown in /league weeks",
+                    "/league games, find_game, byes map the current step to the right schedule week (0-14)",
+                    "Saved week from the old 26-stage table is migrated automatically on startup"
+                ]
+            },
+            {
+                "category": "Advance Timer",
+                "emoji": "⏰",
+                "changes": [
+                    "FIX: Only one advance timer — /league timer always runs it in the advance channel",
+                    "FIX: '@everyone advanced' and /league timer stop stray timers in other channels (no double advances)",
+                    "'advanced' must be a whole word, posted directly in the advance channel (not threads)",
+                    "/league timer_status and timer_stop work from any channel",
+                    "FIX: A Discord reconnect no longer spins up a second timer (duplicate warnings / double advance)",
+                    "FIX: '@everyone advanced' after TIME'S UP no longer advances the week a second time",
+                    "FIX: Two people posting 'advanced' within 3 minutes only advance once",
+                    "FIX: Short or restored timers no longer spam 24h/12h warnings that don't apply"
+                ]
+            },
+            {
+                "category": "Saved Settings",
+                "emoji": "💾",
+                "changes": [
+                    "FIX: Saving the timer no longer deletes the saved timer channel (it was reverting to #general)",
+                    "FIX: A stopped timer can't be resurrected from an older saved message on restart",
+                    "Saved week/staff/channel/schedule data is found even when the owner DM has lots of messages"
+                ]
+            },
+            {
+                "category": "League Permissions",
+                "emoji": "🔒",
+                "changes": [
+                    "FIX: Server Administrators can only run league admin commands in the league's home server",
+                    "Bot admins (BOT_ADMIN_IDS) can still manage the league from anywhere",
+                    "League admin commands now respect the League module being disabled on a server"
+                ]
+            }
+        ]
+    },
     "3.11.0": {
         "date": "2026-09-05",
         "title": "Upload Schedules from Discord 📤",

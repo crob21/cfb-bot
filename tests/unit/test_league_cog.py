@@ -123,6 +123,8 @@ def mock_timekeeper():
     manager.get_status = MagicMock(return_value={'active': False, 'hours': 0, 'minutes': 0})
     manager.start_timer = AsyncMock(return_value=True)
     manager.stop_timer = AsyncMock()
+    manager.stop_all_timers = AsyncMock(return_value=0)
+    manager.get_all_active_timers = MagicMock(return_value=[])
     manager.increment_week = AsyncMock()
     return manager
 
@@ -339,3 +341,56 @@ class TestLeagueTimer:
             assert mock_interaction.response.send_message.called
             call_args = mock_interaction.response.send_message.call_args
             assert "admin" in str(call_args).lower()
+
+
+class TestLeagueGamesOutsideRegularSeason:
+    """/league games during a non-regular-season step"""
+
+    @pytest.mark.asyncio
+    async def test_games_during_postseason(self, mock_interaction, mock_server_config, mock_schedule_manager, mock_timekeeper):
+        from cfb_bot.cogs.league import LeagueCog
+
+        mock_timekeeper.get_season_week.return_value = {'season': 5, 'week': 17}
+        with patch('cfb_bot.cogs.league.server_config', mock_server_config):
+            cog = LeagueCog(MagicMock())
+            cog.schedule_manager = mock_schedule_manager
+            cog.timekeeper_manager = mock_timekeeper
+
+            await cog.games.callback(cog, mock_interaction, week=None)
+
+            msg = mock_interaction.followup.send.call_args[0][0]
+            assert "Conference Championship" in msg
+
+
+class TestLeagueAdminScope:
+    """League state is bot-wide, so server Administrators only count in the league's home server"""
+
+    def _cog(self, home_guild_id=1, bot_admin_ids=()):
+        from cfb_bot.cogs.league import LeagueCog
+        cog = LeagueCog(MagicMock())
+        cog.admin_manager = MagicMock()
+        cog.admin_manager.admin_ids = set(bot_admin_ids)
+        cog.admin_manager.is_admin = MagicMock(return_value=True)  # user is a Discord Administrator
+        cog.timekeeper_manager = MagicMock()
+        cog.timekeeper_manager.get_advance_channel.return_value.guild.id = home_guild_id
+        return cog
+
+    def _interaction(self, user_id=42, guild_id=1):
+        interaction = MagicMock()
+        interaction.user.id = user_id
+        interaction.guild.id = guild_id
+        return interaction
+
+    def test_server_admin_in_home_server(self):
+        assert self._cog()._is_league_admin(self._interaction(guild_id=1))
+
+    def test_server_admin_in_other_server_rejected(self):
+        assert not self._cog()._is_league_admin(self._interaction(guild_id=2))
+
+    def test_bot_admin_allowed_anywhere(self):
+        assert self._cog(bot_admin_ids={42})._is_league_admin(self._interaction(guild_id=2))
+
+    def test_non_admin_rejected(self):
+        cog = self._cog()
+        cog.admin_manager.is_admin.return_value = False
+        assert not cog._is_league_admin(self._interaction(guild_id=1))

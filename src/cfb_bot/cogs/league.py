@@ -9,7 +9,7 @@ Commands:
 - /league dynasty - Dynasty management rules
 - /league timer - Start advance countdown
 - /league timer_status - Check countdown status
-- /league timer_stop - Stop countdown (current channel)
+- /league timer_stop - Stop the advance countdown
 - /league timers - List all active timers and stop them one by one (admin)
 - /league week - Current week
 - /league weeks - Full schedule
@@ -30,20 +30,24 @@ Commands:
 """
 
 import logging
-from typing import Optional
+from typing import Optional, Tuple
 
 import discord
 from discord import app_commands
 from discord.ext import commands
 
 from ..config import Colors, Footers
-from ..services.checks import check_module_enabled
+from ..services.checks import check_module_enabled, check_module_enabled_deferred
 from ..utils.server_config import server_config, FeatureModule
 # Week schedule constants and helpers live in one canonical place: utils/timekeeper.py.
 # That module also drives advance/increment and season rollover, so reusing it here
 # guarantees the week names/phases shown by /league match the timer's internal week
-# numbering. (CFB 26 dynasties run Weeks 0-29 across Regular/Post/Offseason.)
-from ..utils.timekeeper import CFB_DYNASTY_WEEKS, get_week_info, get_week_name
+# numbering. (CFB 26 dynasties run 27 steps: Preseason, Weeks 0-14, Postseason, Offseason.)
+from ..utils.timekeeper import (CFB_DYNASTY_WEEKS, FIRST_WEEK, LAST_WEEK,
+                                get_game_week, get_week_info, get_week_name,
+                                is_valid_week)
+
+MAX_GAME_WEEK = 14  # Regular season schedule weeks are 0-14
 
 logger = logging.getLogger('CFB26Bot.League')
 
@@ -163,7 +167,7 @@ class LeagueCog(commands.Cog):
         if not await check_module_enabled(interaction, FeatureModule.LEAGUE, server_config):
             return
 
-        if not self.admin_manager or not self.admin_manager.is_admin(interaction.user, interaction):
+        if not self._is_league_admin(interaction):
             await interaction.response.send_message("❌ Only bot admins can start countdowns!", ephemeral=True)
             return
 
@@ -180,15 +184,16 @@ class LeagueCog(commands.Cog):
 
         await interaction.response.defer()
 
-        # Stop existing timer and increment week ONLY if timer was manually stopped
+        # The league has a single advance countdown, always run in the advance channel
+        # (no matter where this command is used) so a stray timer in another channel
+        # can't expire later and advance the week a second time.
+        advance_channel = self.timekeeper_manager.get_advance_channel(interaction.channel)
+
+        # Stop any running timer(s) and increment week ONLY if a timer was manually stopped
         # (If timer expired naturally, week was already incremented in _send_times_up)
-        status = self.timekeeper_manager.get_status(interaction.channel)
-        should_increment = False
-        
-        if status.get('active'):
-            # Timer is still running - stop it and mark that we should increment
-            await self.timekeeper_manager.stop_timer(interaction.channel)
-            should_increment = True
+        should_increment = bool(self.timekeeper_manager.get_all_active_timers())
+        if should_increment:
+            await self.timekeeper_manager.stop_all_timers()
 
         # Only increment week if we manually stopped an active timer
         season_info = self.timekeeper_manager.get_season_week()
@@ -196,17 +201,19 @@ class LeagueCog(commands.Cog):
             await self.timekeeper_manager.increment_week()
             season_info = self.timekeeper_manager.get_season_week()
 
-        success = await self.timekeeper_manager.start_timer(interaction.channel, hours)
+        success = await self.timekeeper_manager.start_timer(advance_channel, hours)
 
         if success:
-            week_name = get_week_name(season_info.get('week', 0))
+            current_step = season_info.get('week')
+            week_name = get_week_name(current_step) if current_step is not None else "Week not set"
             embed = discord.Embed(
                 title="⏰ Advance Countdown Started!",
                 description=f"🏈 **{hours} HOUR COUNTDOWN STARTED** 🏈\n\n**Season {season_info.get('season', '?')}** - {week_name}\n\nYou have **{hours} hours** to get your games done!",
                 color=Colors.SUCCESS
             )
             embed.set_footer(text="Harry's Advance Timer 🏈 | Use /league timer_status to check")
-            await interaction.followup.send("✅ Timer started!", ephemeral=True)
+            where = f" in <#{advance_channel.id}>" if advance_channel.id != interaction.channel.id else ""
+            await interaction.followup.send(f"✅ Timer started{where}!", ephemeral=True)
         else:
             await interaction.followup.send("❌ Failed to start timer!", ephemeral=True)
 
@@ -222,7 +229,14 @@ class LeagueCog(commands.Cog):
             await interaction.followup.send("❌ Timekeeper not available", ephemeral=True)
             return
 
-        status = self.timekeeper_manager.get_status(interaction.channel)
+        advance_channel = self.timekeeper_manager.get_advance_channel(interaction.channel)
+        status = self.timekeeper_manager.get_status(advance_channel)
+        if not status['active']:
+            # A timer restored from before the single-timer fix may still be in another channel
+            for t in self.timekeeper_manager.get_all_active_timers():
+                status = self.timekeeper_manager.get_status(self.bot.get_channel(t['channel_id']) or advance_channel)
+                if status['active']:
+                    break
 
         if not status['active']:
             embed = discord.Embed(
@@ -287,7 +301,10 @@ class LeagueCog(commands.Cog):
     @league_group.command(name="timer_stop", description="Stop the current advance countdown (Admin only)")
     async def timer_stop(self, interaction: discord.Interaction):
         """Stop the current advance countdown"""
-        if not self.admin_manager or not self.admin_manager.is_admin(interaction.user, interaction):
+        if not await check_module_enabled(interaction, FeatureModule.LEAGUE, server_config):
+            return
+
+        if not self._is_league_admin(interaction):
             await interaction.response.send_message("❌ Only admins can stop timers!", ephemeral=True)
             return
 
@@ -295,10 +312,10 @@ class LeagueCog(commands.Cog):
             await interaction.response.send_message("❌ Timekeeper not available", ephemeral=True)
             return
 
-        await self.timekeeper_manager.stop_timer(interaction.channel)
+        stopped = await self.timekeeper_manager.stop_all_timers()
         embed = discord.Embed(
             title="⏹️ Countdown Stopped",
-            description="The advance countdown has been stopped.",
+            description="The advance countdown has been stopped." if stopped else "No countdown was running.",
             color=Colors.WARNING
         )
         await interaction.response.send_message(embed=embed)
@@ -306,7 +323,10 @@ class LeagueCog(commands.Cog):
     @league_group.command(name="timers", description="List all active advance timers and stop them (Admin only)")
     async def timers(self, interaction: discord.Interaction):
         """List every active timer with a menu to stop them one at a time."""
-        if not self.admin_manager or not self.admin_manager.is_admin(interaction.user, interaction):
+        if not await check_module_enabled(interaction, FeatureModule.LEAGUE, server_config):
+            return
+
+        if not self._is_league_admin(interaction):
             await interaction.response.send_message("❌ Only admins can manage timers!", ephemeral=True)
             return
 
@@ -432,7 +452,7 @@ class LeagueCog(commands.Cog):
             color=Colors.SUCCESS
         )
 
-        # Build week lists
+        # Build week lists (Preseason shares the first column with the regular season)
         regular = []
         post = []
         off = []
@@ -440,21 +460,69 @@ class LeagueCog(commands.Cog):
         for wn in sorted(CFB_DYNASTY_WEEKS.keys()):
             wd = CFB_DYNASTY_WEEKS[wn]
             line = f"**► `{wn:2d}` {wd['short']}** ◄" if current_week == wn else f"`{wn:2d}` {wd['short']}"
-            if wd['phase'] == "Regular Season":
+            if wd['phase'] in ("Preseason", "Regular Season"):
                 regular.append(line)
-            elif wd['phase'] == "Post-Season":
+            elif wd['phase'] == "Postseason":
                 post.append(line)
             else:
                 off.append(line)
 
-        embed.add_field(name="🏈 Regular Season", value="\n".join(regular), inline=True)
-        embed.add_field(name="🏆 Post-Season", value="\n".join(post), inline=True)
+        embed.add_field(name="🏈 Preseason & Regular Season", value="\n".join(regular), inline=True)
+        embed.add_field(name="🏆 Postseason", value="\n".join(post), inline=True)
         embed.add_field(name="📝 Offseason", value="\n".join(off), inline=True)
         embed.set_footer(text="Harry's Week Tracker 🏈")
         await interaction.response.send_message(embed=embed)
 
+    def _is_league_admin(self, interaction: discord.Interaction) -> bool:
+        """
+        Admin check for league commands.
+
+        The league's week, timer, advance channel and schedule are shared bot-wide, so a
+        Discord Administrator only counts in the league's home server (the one that owns
+        the advance channel). Bot admins (BOT_ADMIN_IDS) are allowed from anywhere.
+        """
+        if not self.admin_manager:
+            return False
+        if interaction.user.id in self.admin_manager.admin_ids:
+            return True
+        if not self.admin_manager.is_admin(interaction.user, interaction):
+            return False
+
+        home_channel = self.timekeeper_manager.get_advance_channel() if self.timekeeper_manager else None
+        home_guild = getattr(home_channel, 'guild', None)
+        if home_guild is None:
+            return True  # Advance channel not resolvable yet — fall back to the server-admin check
+        return interaction.guild is not None and interaction.guild.id == home_guild.id
+
+    def _resolve_game_week(self, week: Optional[int]) -> Tuple[Optional[int], Optional[str]]:
+        """
+        Resolve which schedule week (0-14) to show.
+
+        An explicit week is used as-is; otherwise the current dynasty step is mapped to its
+        game week. Returns (game_week, error_message).
+        """
+        if week is not None:
+            if week < 0 or week > MAX_GAME_WEEK:
+                return None, f"❌ Week must be 0-{MAX_GAME_WEEK}."
+            return week, None
+
+        if not self.timekeeper_manager:
+            return None, "❌ Week not specified and current week not set!"
+        season_info = self.timekeeper_manager.get_season_week()
+        current_step = season_info.get('week')
+        if current_step is None:
+            return None, "❌ Week not specified and current week not set!"
+
+        game_week = get_game_week(current_step)
+        if game_week is None:
+            return None, (
+                f"📅 It's currently **{get_week_name(current_step)}** — no regular-season schedule this step. "
+                f"Pass a week (0-{MAX_GAME_WEEK}) to look one up."
+            )
+        return game_week, None
+
     @league_group.command(name="games", description="View the games for a specific week")
-    @app_commands.describe(week="Week number (0-14, leave empty for current)")
+    @app_commands.describe(week="Game week number (0-14, leave empty for current)")
     async def games(self, interaction: discord.Interaction, week: Optional[int] = None):
         """View the schedule for a specific week"""
         if not await check_module_enabled(interaction, FeatureModule.LEAGUE, server_config):
@@ -462,13 +530,9 @@ class LeagueCog(commands.Cog):
 
         await interaction.response.defer()
 
-        target_week = week
-        if target_week is None and self.timekeeper_manager:
-            season_info = self.timekeeper_manager.get_season_week()
-            target_week = season_info.get('week', 0)
-
-        if target_week is None:
-            await interaction.followup.send("❌ Week not specified and current week not set!", ephemeral=True)
+        target_week, error = self._resolve_game_week(week)
+        if error:
+            await interaction.followup.send(error, ephemeral=True)
             return
 
         if not self.schedule_manager:
@@ -477,7 +541,7 @@ class LeagueCog(commands.Cog):
 
         # Get week data
         week_data = self.schedule_manager.get_week_schedule(target_week)
-        week_info = get_week_info(target_week)
+        week_info = {'name': f"Week {target_week}"}
 
         if not week_data:
             embed = discord.Embed(
@@ -519,7 +583,7 @@ class LeagueCog(commands.Cog):
         await interaction.followup.send(embed=embed)
 
     @league_group.command(name="find_game", description="Find a team's game for a specific week")
-    @app_commands.describe(team="Team name", week="Week number (0-14)")
+    @app_commands.describe(team="Team name", week="Game week number (0-14, leave empty for current)")
     async def find_game(self, interaction: discord.Interaction, team: str, week: Optional[int] = None):
         """Find a team's game"""
         if not await check_module_enabled(interaction, FeatureModule.LEAGUE, server_config):
@@ -527,10 +591,10 @@ class LeagueCog(commands.Cog):
 
         await interaction.response.defer()
 
-        target_week = week
-        if target_week is None and self.timekeeper_manager:
-            season_info = self.timekeeper_manager.get_season_week()
-            target_week = season_info.get('week', 0)
+        target_week, error = self._resolve_game_week(week)
+        if error:
+            await interaction.followup.send(error, ephemeral=True)
+            return
 
         if not self.schedule_manager:
             await interaction.followup.send("❌ Schedule manager not available", ephemeral=True)
@@ -538,7 +602,7 @@ class LeagueCog(commands.Cog):
 
         # Use schedule_manager's get_team_game method which handles formatting
         game = self.schedule_manager.get_team_game(team, target_week)
-        week_info = get_week_info(target_week or 0)
+        week_info = {'name': f"Week {target_week}"}
 
         if game and not game.get('bye'):
             # Team has a game
@@ -566,7 +630,7 @@ class LeagueCog(commands.Cog):
         await interaction.followup.send(embed=embed)
 
     @league_group.command(name="byes", description="Show which teams have a bye this week")
-    @app_commands.describe(week="Week number (0-14)")
+    @app_commands.describe(week="Game week number (0-14, leave empty for current)")
     async def byes(self, interaction: discord.Interaction, week: Optional[int] = None):
         """Show teams on bye"""
         if not await check_module_enabled(interaction, FeatureModule.LEAGUE, server_config):
@@ -574,17 +638,17 @@ class LeagueCog(commands.Cog):
 
         await interaction.response.defer()
 
-        target_week = week
-        if target_week is None and self.timekeeper_manager:
-            season_info = self.timekeeper_manager.get_season_week()
-            target_week = season_info.get('week', 0)
+        target_week, error = self._resolve_game_week(week)
+        if error:
+            await interaction.followup.send(error, ephemeral=True)
+            return
 
         if not self.schedule_manager:
             await interaction.followup.send("❌ Schedule manager not available", ephemeral=True)
             return
 
         bye_teams = self.schedule_manager.get_bye_teams(target_week)
-        week_info = get_week_info(target_week or 0)
+        week_info = {'name': f"Week {target_week}"}
 
         if bye_teams:
             # Format bye teams with user teams bolded
@@ -605,10 +669,13 @@ class LeagueCog(commands.Cog):
         await interaction.followup.send(embed=embed)
 
     @league_group.command(name="set_week", description="Set the current season and week (Admin only)")
-    @app_commands.describe(season="Season number", week="Week number (0-29)")
+    @app_commands.describe(season="Season number", week=f"Step number ({FIRST_WEEK}-{LAST_WEEK}, see /league weeks)")
     async def set_week(self, interaction: discord.Interaction, season: int, week: int):
         """Set the current season and week"""
-        if not self.admin_manager or not self.admin_manager.is_admin(interaction.user, interaction):
+        if not await check_module_enabled(interaction, FeatureModule.LEAGUE, server_config):
+            return
+
+        if not self._is_league_admin(interaction):
             await interaction.response.send_message("❌ Only admins can set season/week!", ephemeral=True)
             return
 
@@ -616,9 +683,9 @@ class LeagueCog(commands.Cog):
             await interaction.response.send_message("❌ Timekeeper not available", ephemeral=True)
             return
 
-        if season < 1 or week < 0 or week >= len(CFB_DYNASTY_WEEKS):
+        if season < 1 or not is_valid_week(week):
             await interaction.response.send_message(
-                f"❌ Invalid season/week! Season must be ≥ 1 and week must be 0-{len(CFB_DYNASTY_WEEKS) - 1}.",
+                f"❌ Invalid season/week! Season must be ≥ 1 and week must be a step number {FIRST_WEEK}-{LAST_WEEK} (see `/league weeks`).",
                 ephemeral=True,
             )
             return
@@ -640,7 +707,10 @@ class LeagueCog(commands.Cog):
     @app_commands.describe(file="A .json schedule file (see /league schedule_template for the format)")
     async def upload_schedule(self, interaction: discord.Interaction, file: discord.Attachment):
         """Replace the league schedule from an uploaded JSON file — no git needed."""
-        if not self.admin_manager or not self.admin_manager.is_admin(interaction.user, interaction):
+        if not await check_module_enabled(interaction, FeatureModule.LEAGUE, server_config):
+            return
+
+        if not self._is_league_admin(interaction):
             await interaction.response.send_message("❌ Only admins can upload schedules!", ephemeral=True)
             return
         if not self.schedule_manager:
@@ -685,21 +755,24 @@ class LeagueCog(commands.Cog):
 
     @league_group.command(name="set_week_games", description="Set one week's games/byes by typing them (Admin only)")
     @app_commands.describe(
-        week="Week number (0-25)",
+        week=f"Game week number (0-{MAX_GAME_WEEK})",
         games="Comma-separated matchups as away@home, e.g. 'Stanford@Texas, LSU@FSU'",
         byes="Comma-separated teams on bye (optional), e.g. 'Nebraska, USF'",
     )
     async def set_week_games(self, interaction: discord.Interaction, week: int, games: str, byes: Optional[str] = None):
         """Edit a single week's schedule from Discord without a file."""
-        if not self.admin_manager or not self.admin_manager.is_admin(interaction.user, interaction):
+        if not await check_module_enabled(interaction, FeatureModule.LEAGUE, server_config):
+            return
+
+        if not self._is_league_admin(interaction):
             await interaction.response.send_message("❌ Only admins can edit the schedule!", ephemeral=True)
             return
         if not self.schedule_manager:
             await interaction.response.send_message("❌ Schedule manager not available", ephemeral=True)
             return
-        if week < 0 or week >= len(CFB_DYNASTY_WEEKS):
+        if week < 0 or week > MAX_GAME_WEEK:
             await interaction.response.send_message(
-                f"❌ Week must be 0-{len(CFB_DYNASTY_WEEKS) - 1}.", ephemeral=True
+                f"❌ Week must be 0-{MAX_GAME_WEEK}.", ephemeral=True
             )
             return
 
@@ -730,7 +803,7 @@ class LeagueCog(commands.Cog):
         self.schedule_manager.set_week_games(week, parsed_games, bye_teams)
         saved = await self.schedule_manager.save_to_discord()
 
-        week_info = get_week_info(week)
+        week_info = {'name': f"Week {week}"}
         lines = [self.schedule_manager.format_game(g) for g in parsed_games] or ["_No games_"]
         if bye_teams:
             lines.append(f"🛋️ Bye: {self.schedule_manager.format_bye_teams(bye_teams)}")
@@ -761,7 +834,7 @@ class LeagueCog(commands.Cog):
             description=(
                 "Upload a `.json` file with `/league upload_schedule`, shaped like this:\n"
                 f"```json\n{example}\n```\n"
-                "• Week keys are strings (`\"0\"`–`\"25\"`).\n"
+                f"• Week keys are strings (`\"0\"`–`\"{MAX_GAME_WEEK}\"`).\n"
                 "• Each game needs `away` and `home`.\n"
                 "• `teams` (optional) are your user-controlled teams — Harry bolds them.\n\n"
                 "To edit just one week without a file, use `/league set_week_games`."
@@ -775,7 +848,10 @@ class LeagueCog(commands.Cog):
     @app_commands.describe(channel="Channel for timer notifications")
     async def timer_channel(self, interaction: discord.Interaction, channel: discord.TextChannel):
         """Set the notification channel"""
-        if not self.admin_manager or not self.admin_manager.is_admin(interaction.user, interaction):
+        if not await check_module_enabled(interaction, FeatureModule.LEAGUE, server_config):
+            return
+
+        if not self._is_league_admin(interaction):
             await interaction.response.send_message("❌ Only admins can set the timer channel!", ephemeral=True)
             return
 
@@ -820,7 +896,10 @@ class LeagueCog(commands.Cog):
     @app_commands.describe(user="User to set as league owner")
     async def set_owner(self, interaction: discord.Interaction, user: discord.User):
         """Set the league owner"""
-        if not self.admin_manager or not self.admin_manager.is_admin(interaction.user, interaction):
+        if not await check_module_enabled(interaction, FeatureModule.LEAGUE, server_config):
+            return
+
+        if not self._is_league_admin(interaction):
             await interaction.response.send_message("❌ Only admins can set the league owner!", ephemeral=True)
             return
 
@@ -848,7 +927,10 @@ class LeagueCog(commands.Cog):
         none: Optional[bool] = False
     ):
         """Set the co-commissioner"""
-        if not self.admin_manager or not self.admin_manager.is_admin(interaction.user, interaction):
+        if not await check_module_enabled(interaction, FeatureModule.LEAGUE, server_config):
+            return
+
+        if not self._is_league_admin(interaction):
             await interaction.response.send_message("❌ Only admins can set the co-commissioner!", ephemeral=True)
             return
 
@@ -890,7 +972,10 @@ class LeagueCog(commands.Cog):
         """Have Harry analyze chat and recommend a co-commissioner"""
         await interaction.response.defer()
 
-        if not self.admin_manager or not self.admin_manager.is_admin(interaction.user, interaction):
+        if not await check_module_enabled_deferred(interaction, FeatureModule.LEAGUE, server_config):
+            return
+
+        if not self._is_league_admin(interaction):
             await interaction.followup.send("❌ Only admins can ask me to pick a commish!", ephemeral=True)
             return
 

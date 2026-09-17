@@ -139,9 +139,14 @@ class AICharterAssistant:
                     week_name = season_info.get('week_name', f"Week {current_week}")
                     phase = season_info.get('phase', 'Unknown')
 
-                    context_parts.append(f"**CURRENT STATUS: Season {current_season}, {week_name} (Week {current_week})**")
+                    game_week = season_info.get('game_week')
+
+                    context_parts.append(f"**CURRENT STATUS: Season {current_season}, {week_name} (step {current_week} of 27)**")
                     context_parts.append(f"Phase: {phase}")
-                    context_parts.append(f"IMPORTANT: When the user says 'this week' or 'current week', they mean Week {current_week}.")
+                    if game_week is not None:
+                        context_parts.append(f"IMPORTANT: When the user says 'this week' or 'current week', they mean Week {game_week} in the schedule below.")
+                    else:
+                        context_parts.append(f"IMPORTANT: It is currently {week_name} ({phase}), so there are no regular-season schedule games this week.")
                     context_parts.append("")
         except Exception as e:
             logger.debug(f"Could not get current week context: {e}")

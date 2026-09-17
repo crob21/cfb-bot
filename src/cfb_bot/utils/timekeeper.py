@@ -9,6 +9,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, Optional
@@ -27,51 +28,108 @@ except ImportError:
 logger = logging.getLogger('CFB26Bot.Timekeeper')
 
 # CFB 26 Dynasty Season Week Structure
-# A full online-dynasty season is exactly 26 sequential advances (indices 0-25):
-#   Regular Season + Conference Championship (0-14), Postseason/Bowls (15-19),
-#   Offseason (20-25). Advancing past index 25 rolls over to index 0 of the next year.
+# A full online-dynasty season is exactly 27 sequential advances, keyed by step number (1-27):
+#   Preseason (1), Regular Season Weeks 0-14 (2-16), Postseason (17-22), Offseason (23-27).
+# Advancing past step 27 rolls over to step 1 (Preseason) of the next season.
+# "game_week" is the in-game week number used as the key in the league schedule JSON
+# (only regular-season steps have one).
 CFB_DYNASTY_WEEKS = {
-    # Regular Season & Conference Championship (0-14)
-    0: {"name": "Preseason (Week 0)", "short": "Preseason", "phase": "Regular Season", "actions": "Season begins"},
-    1: {"name": "Week 1", "short": "Week 1", "phase": "Regular Season", "actions": ""},
-    2: {"name": "Week 2", "short": "Week 2", "phase": "Regular Season", "actions": ""},
-    3: {"name": "Week 3", "short": "Week 3", "phase": "Regular Season", "actions": ""},
-    4: {"name": "Week 4", "short": "Week 4", "phase": "Regular Season", "actions": ""},
-    5: {"name": "Week 5", "short": "Week 5", "phase": "Regular Season", "actions": ""},
-    6: {"name": "Week 6", "short": "Week 6", "phase": "Regular Season", "actions": ""},
-    7: {"name": "Week 7", "short": "Week 7", "phase": "Regular Season", "actions": ""},
-    8: {"name": "Week 8", "short": "Week 8", "phase": "Regular Season", "actions": ""},
-    9: {"name": "Week 9", "short": "Week 9", "phase": "Regular Season", "actions": ""},
-    10: {"name": "Week 10", "short": "Week 10", "phase": "Regular Season", "actions": ""},
-    11: {"name": "Week 11", "short": "Week 11", "phase": "Regular Season", "actions": ""},
-    12: {"name": "Week 12", "short": "Week 12", "phase": "Regular Season", "actions": ""},
-    13: {"name": "Week 13", "short": "Week 13", "phase": "Regular Season", "actions": ""},
-    14: {"name": "Week 14 (Conference Championships)", "short": "Conf Champs", "phase": "Regular Season", "actions": "Play Championship Games"},
-    # Postseason - Bowl & Playoff Stages (15-19)
-    15: {"name": "Bowl Week 1 (CFP First Round)", "short": "Bowl Wk 1", "phase": "Post-Season", "actions": "CFP First Round", "notes": ""},
-    16: {"name": "Bowl Week 2 (CFP Quarterfinals)", "short": "Bowl Wk 2", "phase": "Post-Season", "actions": "CFP Quarterfinals", "notes": ""},
-    17: {"name": "Bowl Week 3 (CFP Semifinals)", "short": "Bowl Wk 3", "phase": "Post-Season", "actions": "CFP Semifinals", "notes": ""},
-    18: {"name": "Bowl Week 4 (National Championship)", "short": "Natl Champ", "phase": "Post-Season", "actions": "National Championship", "notes": ""},
-    19: {"name": "End of Bowl Season / Coaching Carousel", "short": "Season Wrap", "phase": "Post-Season", "actions": "Coaching Carousel Wrap-up", "notes": ""},
-    # Offseason & Preseason Loops (20-25)
-    20: {"name": "Offseason: Players Leaving", "short": "Players Leaving", "phase": "Offseason", "actions": "Players Leaving", "notes": ""},
-    21: {"name": "Offseason: Transfer Portal / Recruiting Week 1", "short": "Portal Wk 1", "phase": "Offseason", "actions": "Transfer Portal / Recruiting", "notes": ""},
-    22: {"name": "Offseason: Transfer Portal / Recruiting Week 2", "short": "Portal Wk 2", "phase": "Offseason", "actions": "Transfer Portal / Recruiting", "notes": ""},
-    23: {"name": "Offseason: Transfer Portal / Recruiting Week 3", "short": "Portal Wk 3", "phase": "Offseason", "actions": "Transfer Portal / Recruiting", "notes": ""},
-    24: {"name": "Offseason: Transfer Portal / Recruiting Week 4", "short": "Portal Wk 4", "phase": "Offseason", "actions": "Transfer Portal / Recruiting", "notes": ""},
-    25: {"name": "Offseason: Training Results & Position Changes", "short": "Training", "phase": "Offseason", "actions": "Training Results, Position Changes", "notes": "Advancing resets to Preseason (Week 0) of the next season"},
+    # Preseason (1)
+    1: {"name": "Preseason", "short": "Preseason", "phase": "Preseason", "game_week": None, "actions": "Season begins", "notes": ""},
+    # Regular Season (2-16) - Week 0 through Week 14
+    **{
+        step: {"name": f"Week {step - 2}", "short": f"Week {step - 2}", "phase": "Regular Season", "game_week": step - 2, "actions": "", "notes": ""}
+        for step in range(2, 17)
+    },
+    # Postseason (17-22)
+    17: {"name": "Conference Championship", "short": "Conf Champ", "phase": "Postseason", "game_week": None, "actions": "Play Championship Games", "notes": ""},
+    18: {"name": "Bowl Week 1", "short": "Bowl Wk 1", "phase": "Postseason", "game_week": None, "actions": "Bowl Games", "notes": ""},
+    19: {"name": "Bowl Week 2 / CFP Quarterfinals", "short": "Bowl Wk 2 / CFP QF", "phase": "Postseason", "game_week": None, "actions": "CFP Quarterfinals", "notes": ""},
+    20: {"name": "Bowl Week 3 / CFP Semifinals", "short": "Bowl Wk 3 / CFP SF", "phase": "Postseason", "game_week": None, "actions": "CFP Semifinals", "notes": ""},
+    21: {"name": "Bowl Week 4", "short": "Bowl Wk 4", "phase": "Postseason", "game_week": None, "actions": "Bowl Games", "notes": ""},
+    22: {"name": "National Championship", "short": "Natl Champ", "phase": "Postseason", "game_week": None, "actions": "National Championship", "notes": ""},
+    # Offseason (23-27)
+    23: {"name": "Staff Moves", "short": "Staff Moves", "phase": "Offseason", "game_week": None, "actions": "Coaching staff hires/fires", "notes": ""},
+    24: {"name": "Transfer Portal Stage 1 (Open)", "short": "Portal 1 (Open)", "phase": "Offseason", "game_week": None, "actions": "Transfer Portal opens", "notes": ""},
+    25: {"name": "Transfer Portal Stage 2 (Close)", "short": "Portal 2 (Close)", "phase": "Offseason", "game_week": None, "actions": "Transfer Portal closes", "notes": ""},
+    26: {"name": "National Signing Day", "short": "Signing Day", "phase": "Offseason", "game_week": None, "actions": "National Signing Day", "notes": ""},
+    27: {"name": "Training Results", "short": "Training", "phase": "Offseason", "game_week": None, "actions": "Training Results", "notes": "Advancing resets to Preseason of the next season"},
 }
 
-# Total advances in a CFB dynasty season (indices 0-25)
-TOTAL_WEEKS_PER_SEASON = 26  # Week 0-25
+FIRST_WEEK = 1  # Preseason
+TOTAL_WEEKS_PER_SEASON = 27  # Steps 1-27
+LAST_WEEK = TOTAL_WEEKS_PER_SEASON  # Training Results
+
+# Persisted season/week state format. Version 1 used the old 26-stage table (indices 0-25).
+WEEK_SCHEME_VERSION = 2
+
+# Best-effort mapping from the old 0-25 index table to the new 1-27 step numbers
+_LEGACY_WEEK_MAP = {
+    0: 1,                                       # Preseason (Week 0) -> Preseason
+    **{i: i + 2 for i in range(1, 14)},         # Week 1-13 -> Week 1-13
+    14: 17,                                     # Week 14 (Conf Champs) -> Conference Championship
+    15: 18, 16: 19, 17: 20,                     # Bowl Weeks 1-3
+    18: 22,                                     # Bowl Week 4 (Natl Champ) -> National Championship
+    19: 23, 20: 23,                             # Carousel / Players Leaving -> Staff Moves
+    21: 24, 22: 24,                             # Portal Wk 1-2 -> Portal Stage 1
+    23: 25, 24: 25,                             # Portal Wk 3-4 -> Portal Stage 2
+    25: 27,                                     # Training -> Training Results
+}
+
+
+def migrate_legacy_week(week: Optional[int]) -> Optional[int]:
+    """Convert a week index saved under the old 0-25 table to a 1-27 step number."""
+    if week is None:
+        return None
+    return _LEGACY_WEEK_MAP.get(week, FIRST_WEEK)
+
+
+def is_valid_week(week: int) -> bool:
+    """True if week is a valid step number (1-27)."""
+    return week in CFB_DYNASTY_WEEKS
+
+
+def get_next_week(week: int) -> int:
+    """Step number that follows week, wrapping Training Results (27) back to Preseason (1)."""
+    return FIRST_WEEK if week >= LAST_WEEK else week + 1
+
+
+def _is_timer_state_message(content: str) -> bool:
+    """True for an untyped timer-state JSON message (settings/staff/week messages carry a "type")."""
+    body = content.strip()
+    if body.startswith("```json"):
+        body = body[7:]
+    if body.endswith("```"):
+        body = body[:-3]
+    try:
+        state = json.loads(body.strip())
+    except (json.JSONDecodeError, ValueError):
+        return False
+    return isinstance(state, dict) and 'type' not in state and 'channel_id' in state
+
+
+_ADVANCED_WORD = re.compile(r"\badvanced\b", re.IGNORECASE)
+
+
+def is_advance_trigger(message, advance_channel_id: Optional[int]) -> bool:
+    """
+    True if a message should advance the week: posted directly in the advance channel
+    (not a thread or any other channel/server), pinging @everyone/@here or a role,
+    and containing the whole word "advanced".
+    """
+    if not advance_channel_id or message.channel.id != advance_channel_id:
+        return False
+    if not (message.mention_everyone or message.role_mentions):
+        return False
+    return bool(_ADVANCED_WORD.search(message.content or ""))
 
 
 def get_week_name(week: int, short: bool = False) -> str:
     """
-    Get the display name for a given week number.
+    Get the display name for a given step number.
 
     Args:
-        week: The week number (0-29)
+        week: The step number (1-27)
         short: If True, return the short name
 
     Returns:
@@ -79,36 +137,42 @@ def get_week_name(week: int, short: bool = False) -> str:
     """
     if week in CFB_DYNASTY_WEEKS:
         return CFB_DYNASTY_WEEKS[week]["short" if short else "name"]
-    # Fallback for any week number outside the standard structure
-    return f"Week {week}"
+    # Fallback for any number outside the standard structure
+    return f"Step {week}"
 
 
 def get_week_phase(week: int) -> str:
     """
-    Get the season phase for a given week number.
+    Get the season phase for a given step number.
 
     Args:
-        week: The week number (0-29)
+        week: The step number (1-27)
 
     Returns:
-        The phase name (Regular Season, Post-Season, or Offseason)
+        The phase name (Preseason, Regular Season, Postseason, or Offseason)
     """
     if week in CFB_DYNASTY_WEEKS:
         return CFB_DYNASTY_WEEKS[week]["phase"]
-    # Fallback
-    if week <= 14:
-        return "Regular Season"
-    elif week <= 19:
-        return "Post-Season"
-    return "Offseason"
+    return "Unknown"
+
+
+def get_game_week(week: Optional[int]) -> Optional[int]:
+    """
+    Get the in-game schedule week (0-14) for a step number.
+
+    Returns None for steps with no regular-season games (Preseason, Postseason, Offseason).
+    """
+    if week in CFB_DYNASTY_WEEKS:
+        return CFB_DYNASTY_WEEKS[week]["game_week"]
+    return None
 
 
 def get_week_actions(week: int) -> str:
     """
-    Get the available actions for a given week.
+    Get the available actions for a given step.
 
     Args:
-        week: The week number (0-29)
+        week: The step number (1-27)
 
     Returns:
         String describing available actions, or empty string
@@ -120,10 +184,10 @@ def get_week_actions(week: int) -> str:
 
 def get_week_notes(week: int) -> str:
     """
-    Get any important notes for a given week.
+    Get any important notes for a given step.
 
     Args:
-        week: The week number (0-29)
+        week: The step number (1-27)
 
     Returns:
         String with notes, or empty string
@@ -135,20 +199,21 @@ def get_week_notes(week: int) -> str:
 
 def get_week_info(week: int) -> Dict:
     """
-    Get full information about a week.
+    Get full information about a step.
 
     Args:
-        week: The week number (0-29)
+        week: The step number (1-27)
 
     Returns:
-        Dict with name, short name, phase, actions, and notes
+        Dict with name, short name, phase, game_week, actions, and notes
     """
     if week in CFB_DYNASTY_WEEKS:
         return CFB_DYNASTY_WEEKS[week].copy()
     return {
-        "name": f"Week {week}",
-        "short": f"Week {week}",
+        "name": get_week_name(week),
+        "short": get_week_name(week, short=True),
         "phase": get_week_phase(week),
+        "game_week": None,
         "actions": "",
         "notes": ""
     }
@@ -180,6 +245,9 @@ def format_est_time(dt: datetime, format_str: str = '%I:%M %p on %B %d') -> str:
 
 # Timer state file location
 TIMER_STATE_FILE = Path(__file__).parent.parent.parent.parent / "data" / "timer_state.json"
+
+# Hours-remaining warnings sent during a countdown
+NOTIFICATION_THRESHOLDS = (24, 12, 6, 1)
 
 # Channel ID for timer notifications (defaults to #general, can be changed)
 NOTIFICATION_CHANNEL_ID = 1261662233109205146  # #general
@@ -292,7 +360,8 @@ class AdvanceTimer:
         self.duration_hours = hours
         self.end_time = self.start_time + timedelta(hours=hours)
         self.is_active = True
-        self.notifications_sent = {24: False, 12: False, 6: False, 1: False}
+        # Warnings at or above the full duration would be wrong (e.g. "24 hours left" on a 10h timer)
+        self.notifications_sent = {h: h >= hours for h in NOTIFICATION_THRESHOLDS}
 
         # Save state to disk, env var, and Discord
         await self.save_state()
@@ -369,25 +438,14 @@ class AdvanceTimer:
 
                 total_hours = remaining.total_seconds() / 3600
 
-                # Check for notification thresholds
-                if total_hours <= 24 and not self.notifications_sent[24]:
-                    await self._send_notification(24)
-                    self.notifications_sent[24] = True
-                    await self.save_state()  # Save after notification
-
-                elif total_hours <= 12 and not self.notifications_sent[12]:
-                    await self._send_notification(12)
-                    self.notifications_sent[12] = True
-                    await self.save_state()  # Save after notification
-
-                elif total_hours <= 6 and not self.notifications_sent[6]:
-                    await self._send_notification(6)
-                    self.notifications_sent[6] = True
-                    await self.save_state()  # Save after notification
-
-                elif total_hours <= 1 and not self.notifications_sent[1]:
-                    await self._send_notification(1)
-                    self.notifications_sent[1] = True
+                # Check for notification thresholds. If several were crossed at once (bot was
+                # offline, or a restored timer), only send the most urgent one.
+                crossed = [h for h in NOTIFICATION_THRESHOLDS
+                           if total_hours <= h and not self.notifications_sent.get(h)]
+                if crossed and total_hours > 0:
+                    await self._send_notification(min(crossed))
+                    for h in crossed:
+                        self.notifications_sent[h] = True
                     await self.save_state()  # Save after notification
 
                 # Check if time is up
@@ -455,10 +513,12 @@ class AdvanceTimer:
                 old_week = season_info['week']
                 old_week_name = season_info.get('week_name', f"Week {old_week}")
 
-                # Check if this will trigger a new season (advancing from Preseason/Week 29)
-                is_new_season = old_week >= TOTAL_WEEKS_PER_SEASON - 1
+                # Check if this will trigger a new season (advancing from Training Results)
+                is_new_season = old_week >= LAST_WEEK
 
-                # Increment the week
+                # Increment the week. Flag it so the "@everyone advanced" post that follows
+                # doesn't increment a second time.
+                self.manager.advance_pending = True
                 await self.manager.increment_week()
 
                 # Get new week info after increment
@@ -474,7 +534,7 @@ class AdvanceTimer:
             description += "RIGHT THEN, TIME'S UP YA WANKERS!\n\n"
             description += f"**Season {old_season}** is in the books!\n\n"
             description += f"🏈 **WELCOME TO SEASON {new_season_info['season']}!** 🏈\n\n"
-            description += f"📍 {old_week_name} → **{new_season_info.get('week_name', 'Week 0 - Season Kickoff')}**\n\n"
+            description += f"📍 {old_week_name} → **{new_season_info.get('week_name', 'Preseason')}**\n\n"
             description += "Time to start fresh! Good luck to all you muppets! 🏈"
         else:
             description = "RIGHT THEN, TIME'S UP YA WANKERS!\n\n🏈 **LET'S ADVANCE THE BLOODY LEAGUE!** 🏈\n\n"
@@ -484,8 +544,8 @@ class AdvanceTimer:
                     new_week_name = new_season_info.get('week_name', f"Week {new_season_info['week']}")
                     phase = new_season_info.get('phase', get_week_phase(new_season_info['week']))
                 else:
-                    new_week_name = get_week_name(old_week + 1)
-                    phase = get_week_phase(old_week + 1)
+                    new_week_name = get_week_name(get_next_week(old_week))
+                    phase = get_week_phase(get_next_week(old_week))
 
                 description += f"**Season {season_info['season']}**\n"
                 description += f"📍 {old_week_name} → **{new_week_name}**\n"
@@ -532,11 +592,11 @@ class AdvanceTimer:
             if not season_info or season_info['week'] is None:
                 return
 
-            new_week = season_info['week']
+            new_week = get_game_week(season_info['week'])
 
-            # Only send schedule for regular season weeks (0-13)
-            if new_week > 13:
-                logger.info(f"📅 Week {new_week} is not regular season, skipping schedule announcement")
+            # Only send schedule for regular season weeks (Week 0-14)
+            if new_week is None:
+                logger.info(f"📅 {season_info.get('week_name')} is not regular season, skipping schedule announcement")
                 return
 
             schedule_mgr = get_schedule_manager()
@@ -630,6 +690,11 @@ class TimekeeperManager:
         self.notification_channel_id: Optional[int] = NOTIFICATION_CHANNEL_ID
         # Restored timer info (for combined startup notification)
         self._restored_timer_info: Optional[Dict] = None
+        # True when a timer expired and already advanced the week, until the next timer starts
+        self.advance_pending: bool = False
+        # Serializes "@everyone advanced" handling so simultaneous posts can't double-advance
+        self.advance_lock = asyncio.Lock()
+        self.last_manual_advance_at: Optional[datetime] = None
 
     def get_restored_timer_info(self) -> Optional[Dict]:
         """Get info about restored timer (for startup notification) and clear it"""
@@ -674,10 +739,10 @@ class TimekeeperManager:
 
                     # Clean up old state messages
                     try:
-                        async for message in dm_channel.history(limit=10):
+                        async for message in dm_channel.history(limit=100):
                             if (message.author == self.bot.user and
                                 message.content.startswith("```json") and
-                                "channel_id" in message.content):
+                                _is_timer_state_message(message.content)):
                                 if message.id != self.state_message_id:
                                     try:
                                         await message.delete()
@@ -818,11 +883,16 @@ class TimekeeperManager:
 
                         try:
                             state = json.loads(json_content)
-                            # Validate it's a timer state (has channel_id and end_time)
-                            if 'channel_id' in state and 'end_time' in state:
-                                self.state_message_id = message.id
-                                logger.info(f"✅ Found timer state in bot owner DM (message #{message_count})")
-                                return state
+                            if not isinstance(state, dict) or 'type' in state or 'channel_id' not in state:
+                                continue
+                            # The newest timer state message is authoritative. If it says the
+                            # timer is inactive, stop — don't resurrect an older, stopped timer.
+                            self.state_message_id = message.id
+                            if 'end_time' not in state or not state.get('is_active', True):
+                                logger.info(f"📧 Newest timer state in DM is inactive (message #{message_count})")
+                                return None
+                            logger.info(f"✅ Found timer state in bot owner DM (message #{message_count})")
+                            return state
                         except json.JSONDecodeError as e:
                             logger.debug(f"Failed to parse JSON from DM message: {e}")
                             continue
@@ -952,7 +1022,7 @@ class TimekeeperManager:
             channel = self.bot.get_channel(channel_id)
             if not channel:
                 logger.warning(f"⚠️ Could not find channel {channel_id}, clearing saved state")
-                TIMER_STATE_FILE.unlink()
+                TIMER_STATE_FILE.unlink(missing_ok=True)
                 return
 
             # Parse timestamps
@@ -1032,13 +1102,42 @@ class TimekeeperManager:
     async def start_timer(self, channel: discord.TextChannel, hours: int = 48) -> bool:
         """Start a timer for a channel with custom duration"""
         timer = self.get_timer(channel)
-        return await timer.start_countdown(hours)
+        started = await timer.start_countdown(hours)
+        if started and self.advance_pending:
+            self.advance_pending = False
+            await self._save_season_week_state()
+        return started
+
+    def is_duplicate_advance(self, window_minutes: int = 3) -> bool:
+        """True if a manual advance was already handled moments ago (e.g. two people posting it)."""
+        return (
+            self.last_manual_advance_at is not None
+            and datetime.now() - self.last_manual_advance_at < timedelta(minutes=window_minutes)
+        )
 
     async def stop_timer(self, channel: discord.TextChannel) -> bool:
         """Stop a timer for a channel"""
         if channel.id not in self.timers:
             return False
         return await self.timers[channel.id].stop_countdown()
+
+    def get_advance_channel(self, fallback: Optional[discord.abc.Messageable] = None):
+        """The channel the single league advance timer runs in (the configured notification channel)."""
+        return self.bot.get_channel(self.get_notification_channel_id()) or fallback
+
+    async def stop_all_timers(self) -> int:
+        """
+        Stop every active timer in every channel. Returns how many were stopped.
+
+        The league has one advance countdown; a stray timer left running in another
+        channel would expire later and advance the week a second time.
+        """
+        stopped = 0
+        for channel_id, timer in list(self.timers.items()):
+            if timer.is_active and await timer.stop_countdown():
+                logger.info(f"⏹️ Stopped timer in channel {channel_id}")
+                stopped += 1
+        return stopped
 
     async def stop_timer_by_id(self, channel_id: int) -> bool:
         """Stop a timer by its channel id (used by the /league timers manager)."""
@@ -1087,24 +1186,26 @@ class TimekeeperManager:
             'week': self.week,
             'week_name': week_info["name"] if week_info else None,
             'week_short': week_info["short"] if week_info else None,
-            'phase': week_info["phase"] if week_info else None
+            'phase': week_info["phase"] if week_info else None,
+            'game_week': week_info["game_week"] if week_info else None
         }
 
     async def set_season_week(self, season: int, week: int) -> bool:
         """Set the current season and week"""
-        if season < 1 or week < 0:
+        if season < 1 or not is_valid_week(week):
             return False
         self.season = season
         self.week = week
+        self.advance_pending = False
         # Save season/week to state
         await self._save_season_week_state()
-        logger.info(f"📅 Season/Week set to Season {season}, Week {week}")
+        logger.info(f"📅 Season/Week set to Season {season}, {get_week_name(week)} (step {week})")
         return True
 
     async def increment_week(self) -> bool:
         """
         Increment the week (called when advance happens).
-        Automatically rolls over to new season after Preseason (Week 29).
+        Automatically rolls over to a new season after Training Results (step 27).
         """
         if self.week is None:
             logger.warning("⚠️ Cannot increment week - week not set")
@@ -1113,9 +1214,9 @@ class TimekeeperManager:
         old_week = self.week
         old_week_name = get_week_name(old_week)
 
-        # Check if we're at Preseason (Week 29) - time to start a new season!
-        if self.week >= TOTAL_WEEKS_PER_SEASON - 1:  # Week 29 (Preseason)
-            self.week = 0  # Reset to Week 0 - Season Kickoff
+        # Check if we're at Training Results (step 27) - time to start a new season!
+        if self.week >= LAST_WEEK:
+            self.week = FIRST_WEEK  # Reset to Preseason
             if self.season:
                 self.season += 1  # Increment season
             else:
@@ -1134,6 +1235,8 @@ class TimekeeperManager:
         state = {
             'season': self.season,
             'week': self.week,
+            'scheme': WEEK_SCHEME_VERSION,
+            'advance_pending': self.advance_pending,
             'type': 'season_week'  # Mark as season/week state, not timer state
         }
         try:
@@ -1155,7 +1258,7 @@ class TimekeeperManager:
                     state_json = json.dumps(state)
 
                     # Try to find existing season/week message
-                    async for message in dm_channel.history(limit=10):
+                    async for message in dm_channel.history(limit=100):
                         if (message.author == self.bot.user and
                             message.content.startswith("```json") and
                             '"type": "season_week"' in message.content):
@@ -1216,6 +1319,15 @@ class TimekeeperManager:
                             if state.get('type') == 'season_week' or ('season' in state and 'week' in state and 'channel_id' not in state):
                                 self.season = state.get('season')
                                 self.week = state.get('week')
+                                self.advance_pending = bool(state.get('advance_pending', False))
+                                if state.get('scheme') != WEEK_SCHEME_VERSION:
+                                    legacy_week = self.week
+                                    self.week = migrate_legacy_week(legacy_week)
+                                    logger.warning(
+                                        f"⚠️ Migrated legacy week index {legacy_week} → step {self.week} "
+                                        f"({get_week_name(self.week) if self.week else '?'}). Verify with /league week."
+                                    )
+                                    await self._save_season_week_state()
                                 logger.info(f"✅ Loaded season/week: Season {self.season}, Week {self.week}")
                                 return
                         except json.JSONDecodeError:
@@ -1318,7 +1430,7 @@ class TimekeeperManager:
                     state_json = json.dumps(state)
 
                     # Try to find existing settings message
-                    async for message in dm_channel.history(limit=15):
+                    async for message in dm_channel.history(limit=100):
                         if (message.author == self.bot.user and
                             message.content.startswith("```json") and
                             '"type": "bot_settings"' in message.content):
@@ -1353,7 +1465,7 @@ class TimekeeperManager:
                     if not dm_channel:
                         dm_channel = await bot_owner.create_dm()
 
-                    async for message in dm_channel.history(limit=15):
+                    async for message in dm_channel.history(limit=100):
                         if (message.author == self.bot.user and
                             message.content.startswith("```json") and
                             '"type": "bot_settings"' in message.content):
@@ -1407,7 +1519,7 @@ class TimekeeperManager:
                     state_json = json.dumps(state)
 
                     # Try to find existing league staff message
-                    async for message in dm_channel.history(limit=15):
+                    async for message in dm_channel.history(limit=100):
                         if (message.author == self.bot.user and
                             message.content.startswith("```json") and
                             '"type": "league_staff"' in message.content):

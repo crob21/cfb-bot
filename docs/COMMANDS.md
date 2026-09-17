@@ -405,9 +405,9 @@ Costs are recorded automatically when the bot uses AI or Zyte. Use **Reconcile**
 **Description:** Set the current season and week (Admin only)  
 **Options:**
 - `season`: Season number
-- `week`: Week number (0-14)
+- `week`: Step number (1-27, as listed in `/league weeks`): 1 Preseason, 2-16 Weeks 0-14, 17-22 Postseason, 23-27 Offseason
 
-**Usage:** `/league set_week season:5 week:12`
+**Usage:** `/league set_week season:5 week:14` (Week 12)
 
 ### `/league staff`
 **Description:** View the current league owner and co-commissioner  

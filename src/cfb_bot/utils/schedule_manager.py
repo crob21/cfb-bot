@@ -85,7 +85,7 @@ class ScheduleManager:
         if not dm:
             return False
         try:
-            async for message in dm.history(limit=50):
+            async for message in dm.history(limit=100):
                 if (message.author == self.bot.user
                         and message.content.startswith(SCHEDULE_BACKUP_MARKER)
                         and message.attachments):
@@ -206,7 +206,7 @@ class ScheduleManager:
         Get the schedule for a specific week.
 
         Args:
-            week: Week number (0-13 for regular season)
+            week: Game week number (0-14 for regular season)
 
         Returns:
             Dict with 'bye_teams' and 'games' lists, or None if not found
@@ -325,7 +325,7 @@ class ScheduleManager:
             List of game info for each week
         """
         schedule = []
-        for week in range(14):  # Weeks 0-13
+        for week in range(15):  # Weeks 0-14
             game = self.get_team_game(team, week)
             if game:
                 game['week'] = week
