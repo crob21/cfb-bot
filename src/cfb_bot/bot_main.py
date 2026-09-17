@@ -20,6 +20,7 @@ import asyncio
 import logging
 import os
 import sys
+from datetime import datetime
 
 import discord
 from discord.ext import commands, tasks
@@ -78,6 +79,8 @@ async def load_cogs():
 # Global references for dependencies (set in on_ready)
 timekeeper_manager = None
 charter_editor = None
+# on_ready fires again after Discord reconnects; one-time startup must not re-run
+_startup_complete = False
 version_manager = None
 schedule_manager = None
 
@@ -202,8 +205,17 @@ async def setup_dependencies():
 @bot.event
 async def on_ready():
     """Called when the bot is ready"""
+    global _startup_complete
     logger.info(f"🏈 {bot.user} is online!")
     logger.info(f"📊 Connected to {len(bot.guilds)} server(s)")
+
+    # discord.py calls on_ready again after a reconnect. Re-running setup would build a
+    # second TimekeeperManager and restore the timer again while the old countdown task
+    # keeps running — duplicate warnings, duplicate TIME'S UP, and a double week advance.
+    if _startup_complete:
+        logger.info("🔁 Reconnected — startup already done, skipping re-initialization")
+        return
+    _startup_complete = True
 
     # Initialize server config with bot (needed for Discord storage)
     server_config.set_bot(bot)
@@ -351,12 +363,17 @@ async def send_startup_notification():
                 guild_id = timer_info.get('guild_id', 'Unknown')
                 season = timer_info.get('season', '?')
                 week = timer_info.get('week', '?')
+                if isinstance(week, int):
+                    from .utils.timekeeper import get_week_name as get_week_name_util
+                    week_label = get_week_name_util(week)
+                else:
+                    week_label = f"Week {week}"
 
                 timer_text = (
                     f"**✅ Timer Restored Successfully**\n"
                     f"• Server: **{guild_name}** (ID: {guild_id})\n"
                     f"• Channel: #{timer_info['channel_name']} (ID: {timer_channel_id})\n"
-                    f"• Season/Week: **Season {season}, Week {week}**\n"
+                    f"• Season/Week: **Season {season}, {week_label}**\n"
                     f"• Time Remaining: {int(timer_info['hours_remaining'])}h {timer_info['minutes_remaining']}m\n"
                     f"• Ends At: {timer_info['end_time']}"
                 )
@@ -397,6 +414,124 @@ async def on_guild_join(guild):
         logger.error(f"❌ Failed to sync to {guild.name}: {e}")
 
 
+async def _handle_advance(message):
+    """Advance the week and restart the 48h countdown for an "@everyone advanced" post."""
+    # Serialize advances so two people posting "advanced" at once can't double-advance
+    async with timekeeper_manager.advance_lock:
+        if timekeeper_manager.is_duplicate_advance():
+            logger.info(f"🔁 Ignoring duplicate advance from {message.author} (already advanced moments ago)")
+            await message.reply(
+                "Already got it, mate — the week was just advanced. "
+                "If that really was a second advance, an admin can fix it with `/league set_week`.",
+                mention_author=False,
+            )
+            return
+
+        # Stop every running timer (including strays in other channels) so
+        # nothing expires later and advances the week a second time
+        had_active_timer = bool(timekeeper_manager.get_all_active_timers())
+        await timekeeper_manager.stop_all_timers()
+
+        # Increment the week (manual advance) — unless the timer already expired
+        # and advanced it, in which case this post is just confirming that advance
+        season_info = timekeeper_manager.get_season_week()
+        if season_info['season'] and season_info['week'] is not None:
+            old_week = season_info['week']
+            old_week_name = season_info.get('week_name', f"Week {old_week}")
+            if timekeeper_manager.advance_pending and not had_active_timer:
+                logger.info(f"📅 Manual advance after timer expiry: already on {old_week_name}, not incrementing again")
+            else:
+                await timekeeper_manager.increment_week()
+                # Refresh season_info after increment
+                season_info = timekeeper_manager.get_season_week()
+                new_week_name = season_info.get('week_name', f"Week {season_info['week']}")
+                logger.info(f"📅 Manual advance: {old_week_name} → {new_week_name}")
+        timekeeper_manager.last_manual_advance_at = datetime.now()
+
+        # Start new timer (default 48 hours)
+        success = await timekeeper_manager.start_timer(message.channel, 48)
+
+        if success:
+            # Get season/week info for display
+            if not season_info:
+                season_info = timekeeper_manager.get_season_week()
+            if season_info['season'] and season_info['week'] is not None:
+                week_name = season_info.get('week_name', f"Week {season_info['week']}")
+                from .utils.timekeeper import get_next_week
+                from .utils.timekeeper import \
+                    get_week_name as get_week_name_util
+                next_week_name = get_week_name_util(get_next_week(season_info['week']))
+                phase = season_info.get('phase', 'Regular Season')
+                season_text = f"**Season {season_info['season']}**\n📍 {week_name} → **{next_week_name}**\n🏈 Phase: {phase}\n\n"
+            else:
+                season_text = ""
+
+            from .config import Colors
+            from .utils.timekeeper import format_est_time
+            embed = discord.Embed(
+                title="⏰ Advance Countdown Restarted!",
+                description=f"Right then! Timer's been restarted!\n\n🏈 **48 HOUR COUNTDOWN STARTED** 🏈\n\n{season_text}You got **48 hours** to get your bleedin' games done!",
+                color=Colors.SUCCESS
+            )
+            status = timekeeper_manager.get_status(message.channel)
+            embed.add_field(
+                name="⏳ Deadline",
+                value=format_est_time(status['end_time'], '%A, %B %d at %I:%M %p'),
+                inline=False
+            )
+            embed.set_footer(text="Harry's Advance Timer 🏈 | Use /league timer_status to check progress")
+
+            # Send to message channel (usually #general)
+            await message.channel.send(content="@everyone", embed=embed)
+            logger.info(f"⏰ Timer restarted by {message.author} via @everyone + 'advanced'")
+
+            # Send schedule for the new week (if schedule_announcement enabled)
+            if (
+                server_config.get_setting(message.guild.id, "schedule_announcement", True)
+                and schedule_manager
+                and season_info.get('week') is not None
+            ):
+                from .utils.timekeeper import get_game_week
+                week_num = get_game_week(season_info['week'])
+                if week_num is not None:  # Only for regular season (Week 0-14)
+                    week_data = schedule_manager.get_week_schedule(week_num)
+                    if week_data:
+                        schedule_embed = discord.Embed(
+                            title=f"📅 Week {week_num} Matchups",
+                            description="Here's what's on the slate this week, ya muppets!",
+                            color=Colors.SUCCESS
+                        )
+                        # Bye teams
+                        bye_teams = week_data.get('bye_teams', [])
+                        if bye_teams:
+                            schedule_embed.add_field(
+                                name="🛋️ Bye Week",
+                                value=schedule_manager.format_bye_teams(bye_teams),
+                                inline=False
+                            )
+                        # Games
+                        games = week_data.get('games', [])
+                        if games:
+                            games_text = "\n".join([schedule_manager.format_game(g) for g in games])
+                            schedule_embed.add_field(
+                                name="🎮 This Week's Games",
+                                value=games_text,
+                                inline=False
+                            )
+                        schedule_embed.set_footer(text="Harry's Schedule Tracker 🏈 | Get your games done!")
+                        await message.channel.send(embed=schedule_embed)
+                        logger.info(f"📅 Sent Week {week_num} schedule")
+        else:
+            from .config import Colors
+            embed = discord.Embed(
+                title="❌ Failed to Restart Timer",
+                description="Couldn't restart the timer, mate. Try using `/league timer` instead!",
+                color=Colors.ERROR
+            )
+            await message.channel.send(embed=embed)
+            logger.error(f"❌ Failed to restart timer for {message.author}")
+
+
 @bot.event
 async def on_message(message):
     """Handle messages - for @mentions, rivalry responses, and @everyone advanced"""
@@ -407,119 +542,24 @@ async def on_message(message):
     # PRIORITY: Check for @everyone/@here + "advanced" to restart timer
     # This advances the week and restarts the countdown (available to everyone)
     # Only react to "advanced" in the designated advance/notification channel.
-    # Without this guard, an @everyone "advanced" post in any other channel or
-    # server the bot can read would hijack the timer and advance the week.
+    # Without this guard, an @everyone "advanced" post in any other channel, thread,
+    # or server the bot can read would hijack the timer and advance the week.
+    from .utils.timekeeper import is_advance_trigger
     advance_channel_id = (
         timekeeper_manager.get_notification_channel_id()
         if timekeeper_manager else None
     )
-    in_advance_channel = (advance_channel_id is None) or (message.channel.id == advance_channel_id)
 
-    if in_advance_channel and (message.mention_everyone or (message.role_mentions and len(message.role_mentions) > 0)):
-        message_lower = message.content.lower()
-        if 'advanced' in message_lower:
-            logger.info(f"🔄 @everyone/@channel + 'advanced' detected from {message.author} - advancing week")
+    if is_advance_trigger(message, advance_channel_id):
+        logger.info(f"🔄 @everyone/@channel + 'advanced' detected from {message.author} - advancing week")
 
-            if not timekeeper_manager:
-                logger.warning("⚠️ Timekeeper manager not available for advance")
-            else:
-                # Stop current timer (if exists)
-                await timekeeper_manager.stop_timer(message.channel)
+        if not timekeeper_manager:
+            logger.warning("⚠️ Timekeeper manager not available for advance")
+        else:
+            await _handle_advance(message)
 
-                # Increment the week (manual advance)
-                season_info = timekeeper_manager.get_season_week()
-                if season_info['season'] and season_info['week'] is not None:
-                    old_week = season_info['week']
-                    old_week_name = season_info.get('week_name', f"Week {old_week}")
-                    await timekeeper_manager.increment_week()
-                    # Refresh season_info after increment
-                    season_info = timekeeper_manager.get_season_week()
-                    new_week_name = season_info.get('week_name', f"Week {season_info['week']}")
-                    logger.info(f"📅 Manual advance: {old_week_name} → {new_week_name}")
-
-                # Start new timer (default 48 hours)
-                success = await timekeeper_manager.start_timer(message.channel, 48)
-
-                if success:
-                    # Get season/week info for display
-                    if not season_info:
-                        season_info = timekeeper_manager.get_season_week()
-                    if season_info['season'] and season_info['week'] is not None:
-                        week_name = season_info.get('week_name', f"Week {season_info['week']}")
-                        from .utils.timekeeper import \
-                            get_week_name as get_week_name_util
-                        next_week_name = get_week_name_util(season_info['week'] + 1)
-                        phase = season_info.get('phase', 'Regular Season')
-                        season_text = f"**Season {season_info['season']}**\n📍 {week_name} → **{next_week_name}**\n🏈 Phase: {phase}\n\n"
-                    else:
-                        season_text = ""
-
-                    from .config import Colors
-                    from .utils.timekeeper import format_est_time
-                    embed = discord.Embed(
-                        title="⏰ Advance Countdown Restarted!",
-                        description=f"Right then! Timer's been restarted!\n\n🏈 **48 HOUR COUNTDOWN STARTED** 🏈\n\n{season_text}You got **48 hours** to get your bleedin' games done!",
-                        color=Colors.SUCCESS
-                    )
-                    status = timekeeper_manager.get_status(message.channel)
-                    embed.add_field(
-                        name="⏳ Deadline",
-                        value=format_est_time(status['end_time'], '%A, %B %d at %I:%M %p'),
-                        inline=False
-                    )
-                    embed.set_footer(text="Harry's Advance Timer 🏈 | Use /league timer_status to check progress")
-
-                    # Send to message channel (usually #general)
-                    await message.channel.send(content="@everyone", embed=embed)
-                    logger.info(f"⏰ Timer restarted by {message.author} via @everyone + 'advanced'")
-
-                    # Send schedule for the new week (if schedule_announcement enabled)
-                    if (
-                        server_config.get_setting(message.guild.id, "schedule_announcement", True)
-                        and schedule_manager
-                        and season_info.get('week')
-                    ):
-                        week_num = season_info['week']
-                        if week_num <= 13:  # Only for regular season
-                            week_data = schedule_manager.get_week_schedule(week_num)
-                            if week_data:
-                                schedule_embed = discord.Embed(
-                                    title=f"📅 Week {week_num} Matchups",
-                                    description="Here's what's on the slate this week, ya muppets!",
-                                    color=Colors.SUCCESS
-                                )
-                                # Bye teams
-                                bye_teams = week_data.get('bye_teams', [])
-                                if bye_teams:
-                                    schedule_embed.add_field(
-                                        name="🛋️ Bye Week",
-                                        value=schedule_manager.format_bye_teams(bye_teams),
-                                        inline=False
-                                    )
-                                # Games
-                                games = week_data.get('games', [])
-                                if games:
-                                    games_text = "\n".join([schedule_manager.format_game(g) for g in games])
-                                    schedule_embed.add_field(
-                                        name="🎮 This Week's Games",
-                                        value=games_text,
-                                        inline=False
-                                    )
-                                schedule_embed.set_footer(text="Harry's Schedule Tracker 🏈 | Get your games done!")
-                                await message.channel.send(embed=schedule_embed)
-                                logger.info(f"📅 Sent Week {week_num} schedule")
-                else:
-                    from .config import Colors
-                    embed = discord.Embed(
-                        title="❌ Failed to Restart Timer",
-                        description="Couldn't restart the timer, mate. Try using `/league timer` instead!",
-                        color=Colors.ERROR
-                    )
-                    await message.channel.send(embed=embed)
-                    logger.error(f"❌ Failed to restart timer for {message.author}")
-
-            # Don't process this message further - timer restart was handled
-            return
+        # Don't process this message further - timer restart was handled
+        return
 
     # RIVALRY RESPONSES - Team banter (Fuck Oregon!, etc.)
     # Only if message is in a guild and FUN_GAMES module is enabled
