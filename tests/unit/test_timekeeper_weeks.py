@@ -216,3 +216,32 @@ class TestAdvancePending:
         assert manager.is_duplicate_advance()
         manager.last_manual_advance_at = datetime.now() - timedelta(minutes=10)
         assert not manager.is_duplicate_advance()
+
+
+class TestPrevWeek:
+    def test_prev_week_wraps(self):
+        from cfb_bot.utils.timekeeper import get_prev_week
+        assert get_prev_week(3) == 2   # Week 1 -> Week 0
+        assert get_prev_week(2) == 1   # Week 0 -> Preseason
+        assert get_prev_week(1) == 27  # Preseason -> previous season's Training Results
+
+
+class TestCharterImportHelpers:
+    def test_google_doc_exports_markdown_then_text(self):
+        from cfb_bot.utils.charter_editor import CharterEditor
+        urls = CharterEditor.export_urls(
+            "https://docs.google.com/document/d/1lX28DlMmH0P77aficBA_1Vo9ykEm_bAroSTpwMhWr_8/edit?usp=sharing"
+        )
+        assert urls == [
+            "https://docs.google.com/document/d/1lX28DlMmH0P77aficBA_1Vo9ykEm_bAroSTpwMhWr_8/export?format=markdown",
+            "https://docs.google.com/document/d/1lX28DlMmH0P77aficBA_1Vo9ykEm_bAroSTpwMhWr_8/export?format=txt",
+        ]
+
+    def test_other_urls_pass_through(self):
+        from cfb_bot.utils.charter_editor import CharterEditor
+        assert CharterEditor.export_urls("https://example.com/charter.txt") == ["https://example.com/charter.txt"]
+
+    def test_cleanup_strips_bom_crlf_and_escapes(self):
+        from cfb_bot.utils.charter_editor import CharterEditor
+        cleaned = CharterEditor.clean_exported_text("﻿# **Charter**\r\n\n* 1\\. Rules \\- ok \\> fine  \n")
+        assert cleaned == "# **Charter**\n\n* 1. Rules - ok > fine"

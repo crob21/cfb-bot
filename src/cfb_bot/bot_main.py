@@ -456,13 +456,14 @@ async def _handle_advance(message):
             if not season_info:
                 season_info = timekeeper_manager.get_season_week()
             if season_info['season'] and season_info['week'] is not None:
+                # season_info is the week we just advanced INTO, so show where we came from
                 week_name = season_info.get('week_name', f"Week {season_info['week']}")
-                from .utils.timekeeper import get_next_week
+                from .utils.timekeeper import get_prev_week
                 from .utils.timekeeper import \
                     get_week_name as get_week_name_util
-                next_week_name = get_week_name_util(get_next_week(season_info['week']))
+                prev_week_name = get_week_name_util(get_prev_week(season_info['week']))
                 phase = season_info.get('phase', 'Regular Season')
-                season_text = f"**Season {season_info['season']}**\n📍 {week_name} → **{next_week_name}**\n🏈 Phase: {phase}\n\n"
+                season_text = f"**Season {season_info['season']}**\n📍 {prev_week_name} → **{week_name}**\n🏈 Phase: {phase}\n\n"
             else:
                 season_text = ""
 
@@ -485,42 +486,48 @@ async def _handle_advance(message):
             await message.channel.send(content="@everyone", embed=embed)
             logger.info(f"⏰ Timer restarted by {message.author} via @everyone + 'advanced'")
 
-            # Send schedule for the new week (if schedule_announcement enabled)
-            if (
-                server_config.get_setting(message.guild.id, "schedule_announcement", True)
-                and schedule_manager
-                and season_info.get('week') is not None
-            ):
-                from .utils.timekeeper import get_game_week
-                week_num = get_game_week(season_info['week'])
-                if week_num is not None:  # Only for regular season (Week 0-14)
-                    week_data = schedule_manager.get_week_schedule(week_num)
-                    if week_data:
-                        schedule_embed = discord.Embed(
-                            title=f"📅 Week {week_num} Matchups",
-                            description="Here's what's on the slate this week, ya muppets!",
-                            color=Colors.SUCCESS
+            # Send schedule for the new week (if schedule_announcement enabled).
+            # Every skip is logged — a silent miss here is hard to debug from Discord.
+            from .utils.timekeeper import get_game_week
+            week_num = get_game_week(season_info.get('week')) if season_info else None
+            if not server_config.get_setting(message.guild.id, "schedule_announcement", True):
+                logger.info("📅 Schedule announcement disabled for this server, skipping")
+            elif not schedule_manager:
+                logger.warning("⚠️ No schedule manager — can't announce this week's matchups")
+            elif season_info.get('week') is None:
+                logger.warning("⚠️ Season/week not set — can't announce this week's matchups")
+            elif week_num is None:
+                logger.info(f"📅 {season_info.get('week_name')} has no regular-season games, skipping matchups")
+            else:
+                week_data = schedule_manager.get_week_schedule(week_num)
+                if not week_data:
+                    logger.warning(f"⚠️ No schedule data for Week {week_num} — nothing to announce")
+                if week_data:
+                    schedule_embed = discord.Embed(
+                        title=f"📅 Week {week_num} Matchups",
+                        description="Here's what's on the slate this week, ya muppets!",
+                        color=Colors.SUCCESS
+                    )
+                    # Bye teams
+                    bye_teams = week_data.get('bye_teams', [])
+                    if bye_teams:
+                        schedule_embed.add_field(
+                            name="🛋️ Bye Week",
+                            value=schedule_manager.format_bye_teams(bye_teams),
+                            inline=False
                         )
-                        # Bye teams
-                        bye_teams = week_data.get('bye_teams', [])
-                        if bye_teams:
-                            schedule_embed.add_field(
-                                name="🛋️ Bye Week",
-                                value=schedule_manager.format_bye_teams(bye_teams),
-                                inline=False
-                            )
-                        # Games
-                        games = week_data.get('games', [])
-                        if games:
-                            games_text = "\n".join([schedule_manager.format_game(g) for g in games])
-                            schedule_embed.add_field(
-                                name="🎮 This Week's Games",
-                                value=games_text,
-                                inline=False
-                            )
-                        schedule_embed.set_footer(text="Harry's Schedule Tracker 🏈 | Get your games done!")
-                        await message.channel.send(embed=schedule_embed)
-                        logger.info(f"📅 Sent Week {week_num} schedule")
+                    # Games
+                    games = week_data.get('games', [])
+                    if games:
+                        games_text = "\n".join([schedule_manager.format_game(g) for g in games])
+                        schedule_embed.add_field(
+                            name="🎮 This Week's Games",
+                            value=games_text,
+                            inline=False
+                        )
+                    schedule_embed.set_footer(text="Harry's Schedule Tracker 🏈 | Get your games done!")
+                    await message.channel.send(embed=schedule_embed)
+                    logger.info(f"📅 Sent Week {week_num} schedule")
         else:
             from .config import Colors
             embed = discord.Embed(

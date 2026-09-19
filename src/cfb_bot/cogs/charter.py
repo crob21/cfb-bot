@@ -7,6 +7,7 @@ Commands:
 - /charter lookup - Look up a rule
 - /charter link - Get charter URL
 - /charter scan - Scan channel for rule changes
+- /charter import - Import from the league's Google Doc (admin)
 - /charter sync - Sync to Discord persistence
 - /charter history - View recent changes
 - /charter search - Search charter text
@@ -17,6 +18,7 @@ Commands:
 """
 
 import logging
+import os
 from datetime import datetime
 from typing import Optional
 
@@ -27,6 +29,12 @@ from discord.ext import commands
 from ..config import Colors
 from ..services.checks import check_module_enabled
 from ..utils.server_config import server_config, FeatureModule
+
+# The league charter lives in a shared Google Doc; CHARTER_URL overrides it per deployment.
+CHARTER_URL = os.getenv(
+    'CHARTER_URL',
+    'https://docs.google.com/document/d/1lX28DlMmH0P77aficBA_1Vo9ykEm_bAroSTpwMhWr_8/edit'
+)
 
 logger = logging.getLogger('CFB26Bot.Charter')
 
@@ -87,7 +95,7 @@ class CharterCog(commands.Cog):
 
         embed.add_field(
             name="📖 Full League Charter",
-            value="[View Complete Rules](https://docs.google.com/document/d/1lX28DlMmH0P77aficBA_1Vo9ykEm_bAroSTpwMhWr_8/edit)",
+            value=f"[View Complete Rules]({CHARTER_URL})",
             inline=False
         )
 
@@ -107,7 +115,7 @@ class CharterCog(commands.Cog):
 
         embed.add_field(
             name="📖 View Full Charter",
-            value="[Open League Charter](https://docs.google.com/document/d/1lX28DlMmH0P77aficBA_1Vo9ykEm_bAroSTpwMhWr_8/edit)",
+            value=f"[Open League Charter]({CHARTER_URL})",
             inline=False
         )
 
@@ -241,6 +249,38 @@ class CharterCog(commands.Cog):
             logger.error(f"❌ Error scanning rules: {e}", exc_info=True)
             await interaction.followup.send(f"❌ Error scanning for rules: {str(e)}")
 
+    @charter_group.command(name="import", description="Import the charter from its Google Doc (Admin only)")
+    @app_commands.describe(url="Charter document link (defaults to the league charter doc)")
+    async def import_charter(self, interaction: discord.Interaction, url: Optional[str] = None):
+        """Replace the stored charter with the text of the league's shared doc."""
+        if not self.admin_manager or not self.admin_manager.is_admin(interaction.user, interaction):
+            await interaction.response.send_message("❌ Only admins can import the charter!", ephemeral=True)
+            return
+
+        if not self.charter_editor:
+            await interaction.response.send_message("❌ Charter editor not available", ephemeral=True)
+            return
+
+        await interaction.response.defer(ephemeral=True)
+
+        source = url or CHARTER_URL
+        ok, detail = await self.charter_editor.import_from_url(
+            source, user_id=interaction.user.id, user_name=interaction.user.display_name
+        )
+
+        if not ok:
+            await interaction.followup.send(f"❌ {detail}", ephemeral=True)
+            return
+
+        embed = discord.Embed(
+            title="📜 Charter Imported",
+            description=f"{detail}\n\nHarry now answers from the current charter.",
+            color=Colors.SUCCESS,
+        )
+        embed.add_field(name="Source", value=source, inline=False)
+        embed.set_footer(text="Backed up the previous version and saved to Discord")
+        await interaction.followup.send(embed=embed, ephemeral=True)
+
     @charter_group.command(name="sync", description="Sync charter to Discord (Admin only)")
     async def sync(self, interaction: discord.Interaction):
         """Manually sync the charter"""
@@ -339,7 +379,7 @@ class CharterCog(commands.Cog):
 
         embed.add_field(
             name="📖 Full Charter",
-            value="[Open League Charter](https://docs.google.com/document/d/1lX28DlMmH0P77aficBA_1Vo9ykEm_bAroSTpwMhWr_8/edit)",
+            value=f"[Open League Charter]({CHARTER_URL})",
             inline=False
         )
 

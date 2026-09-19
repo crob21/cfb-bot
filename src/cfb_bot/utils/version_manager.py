@@ -11,10 +11,38 @@ from typing import Dict, List, Optional
 logger = logging.getLogger('CFB26Bot.Version')
 
 # Current version
-CURRENT_VERSION = "3.12.0"
+CURRENT_VERSION = "3.13.0"
 
 # Changelog - organized by version
 CHANGELOG: Dict[str, Dict] = {
+    "3.13.0": {
+        "date": "2026-09-19",
+        "title": "Full Schedule View & Live Charter 📜",
+        "emoji": "📜",
+        "features": [
+            {
+                "category": "Schedule",
+                "emoji": "📅",
+                "changes": [
+                    "NEW: /league schedule — the whole season at a glance",
+                    "NEW: /league schedule team:<name> — one team's full season",
+                    "Current week is marked in both views",
+                    "FIX: Advance message now reads 'Week 0 → Week 1' (was showing the next week instead)",
+                    "Matchup announcements now log why they were skipped"
+                ]
+            },
+            {
+                "category": "Charter",
+                "emoji": "📜",
+                "changes": [
+                    "NEW: /charter import — pull the latest charter from the league Google Doc (admin)",
+                    "Imports as markdown so headings and bullets survive, with plain text as backup",
+                    "Charter refreshed to the current CFB 27 version",
+                    "Charter link is configurable with the CHARTER_URL env var"
+                ]
+            }
+        ]
+    },
     "3.12.0": {
         "date": "2026-09-16",
         "title": "Correct Dynasty Week Schedule 📅",
