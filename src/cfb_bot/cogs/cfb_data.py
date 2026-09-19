@@ -117,7 +117,7 @@ class CFBDataCog(commands.Cog):
             # Try to delete the public "thinking" message
             try:
                 await interaction.delete_original_response()
-            except:
+            except Exception:
                 pass  # May already be deleted or expired
             await interaction.followup.send(f"❌ Error looking up player: {str(e)}", ephemeral=True)
 

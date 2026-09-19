@@ -64,17 +64,8 @@ class ScheduleManager:
 
     async def _get_owner_dm(self):
         """Get the DM channel with the bot owner (for persistence)."""
-        if not self.bot:
-            return None
-        try:
-            app_info = await self.bot.application_info()
-            owner = app_info.owner
-            if not owner:
-                return None
-            return owner.dm_channel or await owner.create_dm()
-        except Exception as e:
-            logger.warning(f"⚠️ Could not open owner DM for schedule persistence: {e}")
-            return None
+        from .owner_dm import get_owner_dm
+        return await get_owner_dm(self.bot)
 
     async def load_from_discord(self) -> bool:
         """Restore the schedule from the owner-DM backup attachment, if present.

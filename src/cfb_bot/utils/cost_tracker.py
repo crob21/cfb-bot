@@ -191,8 +191,12 @@ class CostTracker:
                 f"(${alert['current']:.2f} / ${alert['budget']:.2f})"
             )
 
-            # TODO: Send Discord DM or channel message to admin
-            # This would require bot instance access, so for now just log
+            from .error_reporter import get_error_reporter
+            await get_error_reporter().send_notice(
+                f"{emoji} **Cost alert: {alert['service']}**",
+                f"At **{alert['threshold']}%** of budget "
+                f"(${alert['current']:.2f} / ${alert['budget']:.2f}) — `/admin budget` for detail.",
+            )
 
     async def get_budget_status(self) -> Dict:
         """Get current budget status for display"""

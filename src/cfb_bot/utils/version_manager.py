@@ -35,7 +35,27 @@ CHANGELOG: Dict[str, Dict] = {
                 "changes": [
                     "Removed ~1,000 lines of unreferenced code (dead charter AI-update pipeline, unused query parsers, orphan helpers)",
                     "Removed the broken Google Docs integration — /charter import replaces it",
-                    "Dropped 3 unused google-api dependencies from requirements.txt"
+                    "Dropped 7 unused dependencies (google-api x3, sentry-sdk, openai, anthropic, requests, playwright-stealth)"
+                ]
+            },
+            {
+                "category": "Error Reports",
+                "emoji": "📩",
+                "changes": [
+                    "NEW: Harry DMs the bot owner when a command or event errors out",
+                    "Repeats collapse into one DM per 15 min, capped at 12 DMs/hour",
+                    "Keys and tokens are redacted from tracebacks before sending",
+                    "AI budget alerts now DM the owner too (they only logged before)",
+                    "Removed the unused Sentry integration in favour of this"
+                ]
+            },
+            {
+                "category": "Simplification",
+                "emoji": "🧼",
+                "changes": [
+                    "One owner-DM helper instead of four copies",
+                    "One save/load pair for season/week, settings and staff state (-144 lines)",
+                    "Deleted three stale docs that still described the pre-cog layout"
                 ]
             }
         ]

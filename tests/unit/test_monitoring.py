@@ -2,7 +2,7 @@
 """
 Unit tests for monitoring modules
 
-Tests Sentry integration and performance metrics
+Tests performance metrics
 """
 
 import time
@@ -196,106 +196,4 @@ class TestTrackPerformanceDecorator:
         assert metrics._command_counts["my_function"] == 1
 
 
-class TestSentryIntegration:
-    """Test suite for Sentry integration"""
-
-    @patch('src.cfb_bot.monitoring.sentry_integration.os.getenv')
-    def test_init_sentry_no_dsn(self, mock_getenv):
-        """Test Sentry initialization without DSN"""
-        from src.cfb_bot.monitoring.sentry_integration import init_sentry
-
-        mock_getenv.return_value = None
-
-        result = init_sentry()
-
-        assert result is False
-
-    @patch('src.cfb_bot.monitoring.sentry_integration.os.getenv')
-    def test_init_sentry_success(self, mock_getenv):
-        """Test successful Sentry initialization.
-        sentry_sdk is imported inside init_sentry(), so we patch sys.modules
-        so that import gets our mock."""
-        import sys
-        mock_sentry = MagicMock()
-        mock_sentry.init = MagicMock()
-        mock_sentry.integrations = MagicMock()
-        mock_sentry.integrations.logging.LoggingIntegration = MagicMock()
-        mock_sentry.integrations.aiohttp.AioHttpIntegration = MagicMock()
-
-        # Properly mock the module structure so from ... import works
-        mock_logging_integration = MagicMock()
-        mock_aiohttp_integration = MagicMock()
-        
-        mock_sentry.integrations.logging = MagicMock()
-        mock_sentry.integrations.logging.LoggingIntegration = mock_logging_integration
-        
-        mock_sentry.integrations.aiohttp = MagicMock()
-        mock_sentry.integrations.aiohttp.AioHttpIntegration = mock_aiohttp_integration
-
-        mock_getenv.side_effect = lambda key, default=None: {
-            'SENTRY_DSN': 'https://test@sentry.io/123',
-            'ENVIRONMENT': 'test',
-            'SENTRY_TRACES_SAMPLE_RATE': '0.1'
-        }.get(key, default)
-
-        # We need to patch the actual import in the function
-        with patch.dict(sys.modules, {
-            'sentry_sdk': mock_sentry,
-            'sentry_sdk.integrations.logging': mock_sentry.integrations.logging,
-            'sentry_sdk.integrations.aiohttp': mock_sentry.integrations.aiohttp,
-        }):
-            from src.cfb_bot.monitoring.sentry_integration import init_sentry
-            result = init_sentry()
-
-        assert result is True
-        mock_sentry.init.assert_called_once()
-
-    @patch('src.cfb_bot.monitoring.sentry_integration._sentry_enabled', True)
-    @patch('src.cfb_bot.monitoring.sentry_integration._sentry_sdk')
-    def test_capture_exception(self, mock_sentry):
-        """Test capturing exception"""
-        from src.cfb_bot.monitoring.sentry_integration import capture_exception
-
-        test_exception = ValueError("Test error")
-        capture_exception(test_exception)
-
-        mock_sentry.capture_exception.assert_called_once_with(test_exception)
-
-    @patch('src.cfb_bot.monitoring.sentry_integration._sentry_enabled', True)
-    @patch('src.cfb_bot.monitoring.sentry_integration._sentry_sdk')
-    def test_capture_exception_with_context(self, mock_sentry):
-        """Test capturing exception with context"""
-        from src.cfb_bot.monitoring.sentry_integration import capture_exception
-
-        test_exception = ValueError("Test error")
-        context = {'command': 'test', 'user': '123'}
-
-        capture_exception(test_exception, context=context)
-
-        mock_sentry.push_scope.assert_called_once()
-
-    @patch('src.cfb_bot.monitoring.sentry_integration._sentry_enabled', True)
-    @patch('src.cfb_bot.monitoring.sentry_integration._sentry_sdk')
-    def test_set_user_context(self, mock_sentry):
-        """Test setting user context"""
-        from src.cfb_bot.monitoring.sentry_integration import set_user_context
-
-        set_user_context("123", "testuser")
-
-        mock_sentry.set_user.assert_called_once_with({
-            "id": "123",
-            "username": "testuser"
-        })
-
-    @patch('src.cfb_bot.monitoring.sentry_integration._sentry_enabled', False)
-    def test_capture_exception_disabled(self):
-        """Test capture_exception when Sentry is disabled"""
-        from src.cfb_bot.monitoring.sentry_integration import capture_exception
-
-        # Should not raise error when disabled
-        test_exception = ValueError("Test error")
-        capture_exception(test_exception)
-
-
-# Import asyncio for async tests
 import asyncio

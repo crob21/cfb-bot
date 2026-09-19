@@ -1207,112 +1207,148 @@ class TimekeeperManager:
         await self._save_season_week_state()
         return True
 
+    # ==================== Owner-DM state blobs ====================
+    # Season/week, bot settings and league staff are each one small JSON message in the
+    # bot owner's DM, tagged with a "type". One save/load pair serves all three.
+
+    async def _save_typed_state(self, type_name: str, state: Dict) -> bool:
+        """Write a typed state blob to the owner DM, editing this type's existing message."""
+        from .owner_dm import get_owner_dm
+
+        dm_channel = await get_owner_dm(self.bot)
+        if not dm_channel:
+            logger.warning(f"⚠️ No owner DM — {type_name} state not saved")
+            return False
+
+        content = f"```json\n{json.dumps({**state, 'type': type_name})}\n```"
+        marker = f'"type": "{type_name}"'
+        try:
+            async for message in dm_channel.history(limit=100):
+                if (message.author == self.bot.user
+                        and message.content.startswith("```json")
+                        and marker in message.content):
+                    await message.edit(content=content)
+                    logger.info(f"💾 Updated {type_name} state in DM")
+                    return True
+
+            await dm_channel.send(content=content)
+            logger.info(f"💾 Created {type_name} state in DM")
+            return True
+        except Exception as e:
+            logger.warning(f"⚠️ Could not save {type_name} state to DM: {e}")
+            return False
+
+    async def _load_typed_state(self, type_name: str, legacy_key: Optional[str] = None) -> Optional[Dict]:
+        """
+        Read a typed state blob back from the owner DM.
+
+        legacy_key keeps blobs written before the "type" tag existed readable.
+        """
+        from .owner_dm import get_owner_dm
+
+        dm_channel = await get_owner_dm(self.bot)
+        if not dm_channel:
+            return None
+
+        marker = f'"type": "{type_name}"'
+        try:
+            async for message in dm_channel.history(limit=100):
+                if message.author != self.bot.user:
+                    continue
+                content = message.content.strip()
+                if marker not in content and not (legacy_key and f'"{legacy_key}"' in content):
+                    continue
+
+                if content.startswith("```json"):
+                    content = content[7:]
+                    if content.endswith("```"):
+                        content = content[:-3]
+                    content = content.strip()
+                elif not content.startswith("{"):
+                    continue
+
+                try:
+                    state = json.loads(content)
+                except json.JSONDecodeError:
+                    continue
+
+                if state.get('type') == type_name or (legacy_key and legacy_key in state):
+                    return state
+        except Exception as e:
+            logger.debug(f"Could not load {type_name} state from DM: {e}")
+        return None
+
     async def _save_season_week_state(self):
         """Save season/week state to Discord"""
-        state = {
+        await self._save_typed_state('season_week', {
             'season': self.season,
             'week': self.week,
             'scheme': WEEK_SCHEME_VERSION,
             'advance_pending': self.advance_pending,
-            'type': 'season_week'  # Mark as season/week state, not timer state
-        }
-        try:
-            # Try to save to DM channel
-            bot_owner_id = None
-            try:
-                app_info = await self.bot.application_info()
-                bot_owner_id = app_info.owner.id if app_info.owner else None
-            except Exception:
-                pass  # Ignore if we can't get app info
-
-            if bot_owner_id:
-                try:
-                    bot_owner = await self.bot.fetch_user(bot_owner_id)
-                    dm_channel = bot_owner.dm_channel
-                    if not dm_channel:
-                        dm_channel = await bot_owner.create_dm()
-
-                    state_json = json.dumps(state)
-
-                    # Try to find existing season/week message
-                    async for message in dm_channel.history(limit=100):
-                        if (message.author == self.bot.user and
-                            message.content.startswith("```json") and
-                            '"type": "season_week"' in message.content):
-                            await message.edit(content=f"```json\n{state_json}\n```")
-                            logger.info("💾 Updated season/week state in DM")
-                            return
-
-                    # Create new message
-                    await dm_channel.send(content=f"```json\n{state_json}\n```")
-                    logger.info("💾 Created season/week state in DM")
-                    return
-                except Exception as e:
-                    logger.warning(f"⚠️ Could not save season/week to DM: {e}")
-        except Exception as e:
-            logger.warning(f"⚠️ Failed to save season/week state: {e}")
+        })
 
     async def _load_season_week_state(self):
-        """Load season/week state from Discord"""
-        try:
-            # Try to load from DM channel
-            bot_owner_id = None
-            try:
-                app_info = await self.bot.application_info()
-                bot_owner_id = app_info.owner.id if app_info.owner else None
-            except Exception:
-                pass  # Ignore if we can't get app info
+        """Load season/week state from Discord, migrating the pre-3.12 week numbering."""
+        state = await self._load_typed_state('season_week', legacy_key='week')
+        if not state:
+            return
 
-            if bot_owner_id:
-                try:
-                    bot_owner = await self.bot.fetch_user(bot_owner_id)
-                    dm_channel = bot_owner.dm_channel
-                    if not dm_channel:
-                        dm_channel = await bot_owner.create_dm()
+        self.season = state.get('season')
+        self.week = state.get('week')
+        self.advance_pending = bool(state.get('advance_pending', False))
 
-                    # Search more messages (100 instead of 10)
-                    async for message in dm_channel.history(limit=100):
-                        if message.author != self.bot.user:
-                            continue
+        if state.get('scheme') != WEEK_SCHEME_VERSION:
+            legacy_week = self.week
+            self.week = migrate_legacy_week(legacy_week)
+            logger.warning(
+                f"⚠️ Migrated legacy week index {legacy_week} → step {self.week} "
+                f"({get_week_name(self.week) if self.week else '?'}). Verify with /league week."
+            )
+            await self._save_season_week_state()
 
-                        # Check if message contains season_week marker
-                        if '"type": "season_week"' not in message.content and '"season"' not in message.content:
-                            continue
+        logger.info(f"✅ Loaded season/week: Season {self.season}, Week {self.week}")
 
-                        content = message.content.strip()
+    async def _save_settings_state(self):
+        """Save bot settings (notification channel, etc.) to Discord"""
+        await self._save_typed_state('bot_settings', {
+            'notification_channel_id': self.notification_channel_id,
+        })
 
-                        # Handle both code block and raw JSON formats
-                        if content.startswith("```json"):
-                            content = content[7:]
-                            if content.endswith("```"):
-                                content = content[:-3]
-                            content = content.strip()
-                        elif not content.startswith("{"):
-                            continue
+    async def _load_settings_state(self):
+        """Load bot settings from Discord"""
+        global NOTIFICATION_CHANNEL_ID
 
-                        try:
-                            state = json.loads(content)
-                            # Check for season_week type OR just season/week keys
-                            if state.get('type') == 'season_week' or ('season' in state and 'week' in state and 'channel_id' not in state):
-                                self.season = state.get('season')
-                                self.week = state.get('week')
-                                self.advance_pending = bool(state.get('advance_pending', False))
-                                if state.get('scheme') != WEEK_SCHEME_VERSION:
-                                    legacy_week = self.week
-                                    self.week = migrate_legacy_week(legacy_week)
-                                    logger.warning(
-                                        f"⚠️ Migrated legacy week index {legacy_week} → step {self.week} "
-                                        f"({get_week_name(self.week) if self.week else '?'}). Verify with /league week."
-                                    )
-                                    await self._save_season_week_state()
-                                logger.info(f"✅ Loaded season/week: Season {self.season}, Week {self.week}")
-                                return
-                        except json.JSONDecodeError:
-                            continue
-                except Exception as e:
-                    logger.debug(f"Could not load season/week from DM: {e}")
-        except Exception as e:
-            logger.debug(f"Failed to load season/week state: {e}")
+        state = await self._load_typed_state('bot_settings')
+        saved_channel = (state or {}).get('notification_channel_id')
+        if saved_channel:
+            self.notification_channel_id = saved_channel
+            NOTIFICATION_CHANNEL_ID = saved_channel
+            logger.info(f"✅ Loaded notification channel: {saved_channel}")
+
+    async def _save_league_staff_state(self):
+        """Save league staff state to Discord"""
+        await self._save_typed_state('league_staff', {
+            'league_owner_id': self.league_owner_id,
+            'league_owner_name': self.league_owner_name,
+            'co_commish_id': self.co_commish_id,
+            'co_commish_name': self.co_commish_name,
+        })
+
+    async def _load_league_staff_state(self):
+        """Load league staff state from Discord"""
+        state = await self._load_typed_state('league_staff', legacy_key='league_owner_id')
+        if not state:
+            return
+
+        self.league_owner_id = state.get('league_owner_id')
+        self.league_owner_name = state.get('league_owner_name')
+        self.co_commish_id = state.get('co_commish_id')
+        self.co_commish_name = state.get('co_commish_name')
+        logger.info(
+            f"✅ Loaded league staff: Owner={self.league_owner_name}, Co-Commish={self.co_commish_name}"
+        )
+
+
 
     # ==================== League Staff Methods ====================
 
@@ -1383,189 +1419,9 @@ class TimekeeperManager:
         """Get the notification channel ID"""
         return self.notification_channel_id or NOTIFICATION_CHANNEL_ID
 
-    async def _save_settings_state(self):
-        """Save bot settings (notification channel, etc.) to Discord"""
-        state = {
-            'notification_channel_id': self.notification_channel_id,
-            'type': 'bot_settings'
-        }
-        try:
-            bot_owner_id = None
-            try:
-                app_info = await self.bot.application_info()
-                bot_owner_id = app_info.owner.id if app_info.owner else None
-            except Exception:
-                pass  # Ignore if we can't get app info
 
-            if bot_owner_id:
-                try:
-                    bot_owner = await self.bot.fetch_user(bot_owner_id)
-                    dm_channel = bot_owner.dm_channel
-                    if not dm_channel:
-                        dm_channel = await bot_owner.create_dm()
 
-                    state_json = json.dumps(state)
 
-                    # Try to find existing settings message
-                    async for message in dm_channel.history(limit=100):
-                        if (message.author == self.bot.user and
-                            message.content.startswith("```json") and
-                            '"type": "bot_settings"' in message.content):
-                            await message.edit(content=f"```json\n{state_json}\n```")
-                            logger.info("💾 Updated bot settings state in DM")
-                            return
-
-                    # Create new message
-                    await dm_channel.send(content=f"```json\n{state_json}\n```")
-                    logger.info("💾 Created bot settings state in DM")
-                    return
-                except Exception as e:
-                    logger.warning(f"⚠️ Could not save bot settings to DM: {e}")
-        except Exception as e:
-            logger.warning(f"⚠️ Failed to save bot settings state: {e}")
-
-    async def _load_settings_state(self):
-        """Load bot settings from Discord"""
-        global NOTIFICATION_CHANNEL_ID
-        try:
-            bot_owner_id = None
-            try:
-                app_info = await self.bot.application_info()
-                bot_owner_id = app_info.owner.id if app_info.owner else None
-            except Exception:
-                pass  # Ignore if we can't get app info
-
-            if bot_owner_id:
-                try:
-                    bot_owner = await self.bot.fetch_user(bot_owner_id)
-                    dm_channel = bot_owner.dm_channel
-                    if not dm_channel:
-                        dm_channel = await bot_owner.create_dm()
-
-                    async for message in dm_channel.history(limit=100):
-                        if (message.author == self.bot.user and
-                            message.content.startswith("```json") and
-                            '"type": "bot_settings"' in message.content):
-                            content = message.content.strip()
-                            if content.startswith("```json"):
-                                content = content[7:]
-                            if content.endswith("```"):
-                                content = content[:-3]
-                            content = content.strip()
-
-                            try:
-                                state = json.loads(content)
-                                if state.get('type') == 'bot_settings':
-                                    saved_channel = state.get('notification_channel_id')
-                                    if saved_channel:
-                                        self.notification_channel_id = saved_channel
-                                        NOTIFICATION_CHANNEL_ID = saved_channel
-                                        logger.info(f"✅ Loaded notification channel: {saved_channel}")
-                                    return
-                            except json.JSONDecodeError:
-                                pass
-                except Exception as e:
-                    logger.warning(f"⚠️ Could not load bot settings from DM: {e}")
-        except Exception as e:
-            logger.warning(f"⚠️ Failed to load bot settings state: {e}")
-
-    async def _save_league_staff_state(self):
-        """Save league staff state to Discord"""
-        state = {
-            'league_owner_id': self.league_owner_id,
-            'league_owner_name': self.league_owner_name,
-            'co_commish_id': self.co_commish_id,
-            'co_commish_name': self.co_commish_name,
-            'type': 'league_staff'
-        }
-        try:
-            bot_owner_id = None
-            try:
-                app_info = await self.bot.application_info()
-                bot_owner_id = app_info.owner.id if app_info.owner else None
-            except Exception:
-                pass  # Ignore if we can't get app info
-
-            if bot_owner_id:
-                try:
-                    bot_owner = await self.bot.fetch_user(bot_owner_id)
-                    dm_channel = bot_owner.dm_channel
-                    if not dm_channel:
-                        dm_channel = await bot_owner.create_dm()
-
-                    state_json = json.dumps(state)
-
-                    # Try to find existing league staff message
-                    async for message in dm_channel.history(limit=100):
-                        if (message.author == self.bot.user and
-                            message.content.startswith("```json") and
-                            '"type": "league_staff"' in message.content):
-                            await message.edit(content=f"```json\n{state_json}\n```")
-                            logger.info("💾 Updated league staff state in DM")
-                            return
-
-                    # Create new message
-                    await dm_channel.send(content=f"```json\n{state_json}\n```")
-                    logger.info("💾 Created league staff state in DM")
-                    return
-                except Exception as e:
-                    logger.warning(f"⚠️ Could not save league staff to DM: {e}")
-        except Exception as e:
-            logger.warning(f"⚠️ Failed to save league staff state: {e}")
-
-    async def _load_league_staff_state(self):
-        """Load league staff state from Discord"""
-        try:
-            bot_owner_id = None
-            try:
-                app_info = await self.bot.application_info()
-                bot_owner_id = app_info.owner.id if app_info.owner else None
-            except Exception:
-                pass  # Ignore if we can't get app info
-
-            if bot_owner_id:
-                try:
-                    bot_owner = await self.bot.fetch_user(bot_owner_id)
-                    dm_channel = bot_owner.dm_channel
-                    if not dm_channel:
-                        dm_channel = await bot_owner.create_dm()
-
-                    # Search more messages (100 instead of 15)
-                    async for message in dm_channel.history(limit=100):
-                        if message.author != self.bot.user:
-                            continue
-
-                        # Check if message contains league_staff marker
-                        if '"type": "league_staff"' not in message.content and '"league_owner_id"' not in message.content:
-                            continue
-
-                        content = message.content.strip()
-
-                        # Handle both code block and raw JSON formats
-                        if content.startswith("```json"):
-                            content = content[7:]
-                            if content.endswith("```"):
-                                content = content[:-3]
-                            content = content.strip()
-                        elif not content.startswith("{"):
-                            continue
-
-                        try:
-                            state = json.loads(content)
-                            # Check for league_staff type OR just league_owner_id key
-                            if state.get('type') == 'league_staff' or 'league_owner_id' in state:
-                                self.league_owner_id = state.get('league_owner_id')
-                                self.league_owner_name = state.get('league_owner_name')
-                                self.co_commish_id = state.get('co_commish_id')
-                                self.co_commish_name = state.get('co_commish_name')
-                                logger.info(f"✅ Loaded league staff: Owner={self.league_owner_name}, Co-Commish={self.co_commish_name}")
-                                return
-                        except json.JSONDecodeError:
-                            continue
-                except Exception as e:
-                    logger.debug(f"Could not load league staff from DM: {e}")
-        except Exception as e:
-            logger.debug(f"Failed to load league staff state: {e}")
 
     # ==================== Owner Nagging System ====================
 

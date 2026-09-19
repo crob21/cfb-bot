@@ -34,18 +34,8 @@ class CharterEditor:
 
     async def _get_bot_owner_dm(self):
         """Get the bot owner's DM channel for storage"""
-        if not self.bot:
-            return None
-        try:
-            app_info = await self.bot.application_info()
-            if app_info.owner:
-                dm_channel = app_info.owner.dm_channel
-                if not dm_channel:
-                    dm_channel = await app_info.owner.create_dm()
-                return dm_channel
-        except Exception as e:
-            logger.error(f"❌ Could not get bot owner DM: {e}")
-        return None
+        from .owner_dm import get_owner_dm
+        return await get_owner_dm(self.bot)
 
     async def save_to_discord(self, content: str) -> bool:
         """Save charter content to Discord DM for persistence across deployments"""

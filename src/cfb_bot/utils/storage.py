@@ -108,16 +108,16 @@ class DiscordDMStorage(StorageBackend):
             logger.error("Bot not set for DiscordDMStorage")
             return None
         
-        try:
-            if self.owner_id:
+        if self.owner_id:
+            try:
                 owner = await self.bot.fetch_user(self.owner_id)
-            else:
-                app_info = await self.bot.application_info()
-                owner = app_info.owner
-            return await owner.create_dm()
-        except Exception as e:
-            logger.error(f"Failed to get DM channel: {e}")
-            return None
+                return owner.dm_channel or await owner.create_dm()
+            except Exception as e:
+                logger.error(f"Failed to get DM channel for {self.owner_id}: {e}")
+                return None
+
+        from .owner_dm import get_owner_dm
+        return await get_owner_dm(self.bot)
     
     async def save(self, namespace: str, key: str, data: Dict[str, Any]) -> bool:
         """Save data to Discord DM"""
