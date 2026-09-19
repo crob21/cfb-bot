@@ -608,38 +608,10 @@ class AdvanceTimer:
             if not schedule_mgr:
                 return
 
-            week_data = schedule_mgr.get_week_schedule(new_week)
-            if not week_data:
+            schedule_embed = schedule_mgr.build_week_embed(new_week)
+            if not schedule_embed:
                 logger.warning(f"⚠️ No schedule data for Week {new_week}")
                 return
-
-            # Build the schedule embed
-            schedule_embed = discord.Embed(
-                title=f"📅 Week {new_week} Matchups",
-                description="Here's what's on the slate this week, ya muppets!",
-                color=0x00ff00
-            )
-
-            # Bye teams (bold user teams)
-            bye_teams = week_data.get('bye_teams', [])
-            if bye_teams:
-                schedule_embed.add_field(
-                    name="🛋️ Bye Week",
-                    value=schedule_mgr.format_bye_teams(bye_teams),
-                    inline=False
-                )
-
-            # Games (bold user teams)
-            games = week_data.get('games', [])
-            if games:
-                games_text = "\n".join([schedule_mgr.format_game(g) for g in games])
-                schedule_embed.add_field(
-                    name="🎮 This Week's Games",
-                    value=games_text,
-                    inline=False
-                )
-
-            schedule_embed.set_footer(text="Harry's Schedule Tracker 🏈 | Get your games done!")
 
             notification_channel = self.get_notification_channel()
             await notification_channel.send(embed=schedule_embed)

@@ -8,7 +8,7 @@ import asyncio
 import json
 import logging
 import os
-from typing import Dict, List, Optional
+from typing import Optional
 
 import aiohttp
 from dotenv import load_dotenv
@@ -106,17 +106,6 @@ class AICharterAssistant:
                         return content
         except Exception as e:
             logger.warning(f"⚠️  Local charter file failed: {e}")
-
-        # Try to get content from Google Docs as fallback
-        try:
-            from google_docs_integration import GoogleDocsIntegration
-            google_docs = GoogleDocsIntegration()
-            if google_docs.authenticate():
-                content = google_docs.get_document_content()
-                if content:
-                    return content
-        except Exception as e:
-            logger.warning(f"⚠️  Google Docs integration failed: {e}")
 
         # No charter content available
         logger.info("📄 No charter content available - using fallback context")
@@ -644,15 +633,6 @@ class AICharterAssistant:
             return 0.0
         return (total_tokens / 1000) * self.openai_cost_per_1k
 
-    def log_token_summary(self):
-        """Log a summary of token usage with cost estimates"""
-        stats = self.get_token_usage()
-        logger.info(f"📊 AI Token Usage Summary:")
-        logger.info(f"   Total Requests: {stats['total_requests']}")
-        logger.info(f"   OpenAI Tokens: {stats['openai_tokens']:,} (${stats['openai_cost']:.4f})")
-        logger.info(f"   Anthropic Tokens: {stats['anthropic_tokens']:,} (${stats['anthropic_cost']:.4f})")
-        logger.info(f"   Total Tokens: {stats['total_tokens']:,}")
-        logger.info(f"   💰 Estimated Total Cost: ${stats['total_cost']:.4f}")
 
 def setup_ai_integration():
     """Setup instructions for AI integration"""

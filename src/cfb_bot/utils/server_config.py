@@ -194,13 +194,6 @@ class ServerConfigManager:
         config = self.get_config(guild_id)
         return config.get("modules", {}).get(module.value, False)
 
-    def is_command_enabled(self, guild_id: int, command_name: str) -> bool:
-        """Check if a specific command is enabled for a guild"""
-        module = COMMAND_MODULES.get(command_name)
-        if module is None:
-            # Unknown command, allow by default
-            return True
-        return self.is_module_enabled(guild_id, module)
 
     def enable_module(self, guild_id: int, module: FeatureModule) -> bool:
         """Enable a module for a guild"""
@@ -244,9 +237,6 @@ class ServerConfigManager:
         config = self.get_config(guild_id)
         return config.get("settings", {}).get(key, default)
 
-    def get_module_commands(self, module: FeatureModule) -> list:
-        """Get list of commands belonging to a module"""
-        return [cmd for cmd, mod in COMMAND_MODULES.items() if mod == module]
 
     # ==================== CHANNEL SETTINGS ====================
 
@@ -259,9 +249,6 @@ class ServerConfigManager:
         self.set_setting(guild_id, "admin_channel_id", channel_id)
         logger.info(f"✅ Set admin channel to {channel_id} for guild {guild_id}")
 
-    def get_timer_channel(self, guild_id: int) -> Optional[int]:
-        """Get the timer notification channel ID for a guild"""
-        return self.get_setting(guild_id, "timer_channel_id")
 
     def set_timer_channel(self, guild_id: int, channel_id: int):
         """Set the timer notification channel for a guild"""
@@ -454,24 +441,6 @@ class ServerConfigManager:
         if channel_key in overrides:
             return overrides[channel_key].get(key)
         return None
-
-    def is_module_enabled_for_channel(self, guild_id: int, channel_id: int, module: FeatureModule) -> bool:
-        """Check if a module is enabled for a specific channel"""
-        # First check if channel is enabled at all
-        if not self.is_channel_enabled(guild_id, channel_id):
-            return False
-
-        # Core is always enabled
-        if module == FeatureModule.CORE:
-            return True
-
-        # Check channel-specific override
-        override = self.get_channel_override(guild_id, channel_id, f"module_{module.value}")
-        if override is not None:
-            return override
-
-        # Fall back to server-level setting
-        return self.is_module_enabled(guild_id, module)
 
 
 # Singleton instance

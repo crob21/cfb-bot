@@ -11,7 +11,7 @@ Handles transient failures gracefully:
 import asyncio
 import logging
 from functools import wraps
-from typing import Callable, Any, Optional
+from typing import Callable, Any
 import aiohttp
 
 from ..security import API_RETRY_ATTEMPTS, API_RETRY_BACKOFF, HTTP_TIMEOUT
@@ -111,67 +111,6 @@ async def fetch_with_retry(
 
     return await _fetch()
 
-
-async def fetch_with_rate_limit_handling(
-    url: str,
-    method: str = 'GET',
-    max_attempts: int = API_RETRY_ATTEMPTS,
-    timeout: int = HTTP_TIMEOUT,
-    **kwargs
-) -> dict:
-    """
-    Fetch data with automatic rate limit (429) handling
-
-    If a 429 response is received, this will:
-    1. Check for 'Retry-After' header
-    2. Wait the specified time (or use exponential backoff)
-    3. Retry the request
-
-    Args:
-        url: API endpoint URL
-        method: HTTP method
-        max_attempts: Maximum retry attempts
-        timeout: Request timeout
-        **kwargs: Additional aiohttp arguments
-
-    Returns:
-        JSON response as dict
-    """
-    last_exception = None
-
-    for attempt in range(1, max_attempts + 1):
-        try:
-            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=timeout)) as session:
-                async with session.request(method, url, **kwargs) as response:
-
-                    # Handle rate limiting
-                    if response.status == 429:
-                        retry_after = response.headers.get('Retry-After', API_RETRY_BACKOFF ** attempt)
-                        retry_after = int(retry_after)
-
-                        if attempt == max_attempts:
-                            raise APIRetryError(f"Rate limited after {max_attempts} attempts")
-
-                        logger.warning(f"⏱️ Rate limited. Waiting {retry_after}s before retry {attempt}/{max_attempts}")
-                        await asyncio.sleep(retry_after)
-                        continue
-
-                    # Raise for other 4xx/5xx errors
-                    response.raise_for_status()
-                    return await response.json()
-
-        except (aiohttp.ClientError, asyncio.TimeoutError, ConnectionError) as e:
-            last_exception = e
-
-            if attempt == max_attempts:
-                logger.error(f"❌ Request to {url} failed after {max_attempts} attempts: {e}")
-                raise APIRetryError(f"Failed after {max_attempts} attempts") from e
-
-            delay = API_RETRY_BACKOFF ** attempt
-            logger.warning(f"⚠️ Request failed (attempt {attempt}/{max_attempts}): {e}. Retrying in {delay}s...")
-            await asyncio.sleep(delay)
-
-    raise last_exception
 
 
 # Example usage:

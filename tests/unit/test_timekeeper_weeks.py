@@ -245,3 +245,24 @@ class TestCharterImportHelpers:
         from cfb_bot.utils.charter_editor import CharterEditor
         cleaned = CharterEditor.clean_exported_text("﻿# **Charter**\r\n\n* 1\\. Rules \\- ok \\> fine  \n")
         assert cleaned == "# **Charter**\n\n* 1. Rules - ok > fine"
+
+
+class TestWeekEmbedBuilder:
+    """Both advance paths share one matchups embed builder"""
+
+    def _manager(self, schedule):
+        from cfb_bot.utils.schedule_manager import ScheduleManager
+        m = ScheduleManager()
+        m.load_from_dict({"season": 2, "teams": ["California"], "schedule": schedule})
+        return m
+
+    def test_returns_none_without_data(self):
+        assert self._manager({}).build_week_embed(3) is None
+
+    def test_includes_games_and_byes_with_user_teams_bolded(self):
+        m = self._manager({"3": {"bye_teams": ["Duke"], "games": [{"away": "California", "home": "Oklahoma State"}]}})
+        embed = m.build_week_embed(3)
+        assert embed.title == "📅 Week 3 Matchups"
+        fields = {f.name: f.value for f in embed.fields}
+        assert fields["🛋️ Bye Week"] == "Duke"
+        assert fields["🎮 This Week's Games"] == "🏈 **California** @ Oklahoma State"

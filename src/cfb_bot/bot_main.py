@@ -117,8 +117,8 @@ async def setup_dependencies():
     try:
         from .utils.charter_editor import CharterEditor
         charter_editor = CharterEditor(ai_assistant if AI_AVAILABLE else None, bot=bot)
-        # Load charter from Discord
-        await charter_editor.load_from_discord()
+        # Restore the Discord-persisted charter into the local file (survives redeploys)
+        await charter_editor.restore_from_discord()
         logger.info("✅ Charter editor initialized and loaded from Discord")
     except ImportError:
         logger.warning("⚠️ Charter editor not available")
@@ -499,33 +499,10 @@ async def _handle_advance(message):
             elif week_num is None:
                 logger.info(f"📅 {season_info.get('week_name')} has no regular-season games, skipping matchups")
             else:
-                week_data = schedule_manager.get_week_schedule(week_num)
-                if not week_data:
+                schedule_embed = schedule_manager.build_week_embed(week_num)
+                if not schedule_embed:
                     logger.warning(f"⚠️ No schedule data for Week {week_num} — nothing to announce")
-                if week_data:
-                    schedule_embed = discord.Embed(
-                        title=f"📅 Week {week_num} Matchups",
-                        description="Here's what's on the slate this week, ya muppets!",
-                        color=Colors.SUCCESS
-                    )
-                    # Bye teams
-                    bye_teams = week_data.get('bye_teams', [])
-                    if bye_teams:
-                        schedule_embed.add_field(
-                            name="🛋️ Bye Week",
-                            value=schedule_manager.format_bye_teams(bye_teams),
-                            inline=False
-                        )
-                    # Games
-                    games = week_data.get('games', [])
-                    if games:
-                        games_text = "\n".join([schedule_manager.format_game(g) for g in games])
-                        schedule_embed.add_field(
-                            name="🎮 This Week's Games",
-                            value=games_text,
-                            inline=False
-                        )
-                    schedule_embed.set_footer(text="Harry's Schedule Tracker 🏈 | Get your games done!")
+                else:
                     await message.channel.send(embed=schedule_embed)
                     logger.info(f"📅 Sent Week {week_num} schedule")
         else:
