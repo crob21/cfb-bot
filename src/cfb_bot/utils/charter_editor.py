@@ -10,7 +10,7 @@ import logging
 import os
 import re
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import discord
 
@@ -234,6 +234,102 @@ class CharterEditor:
         except Exception as e:
             logger.error(f"❌ Error writing charter: {e}")
             return False
+
+    # ---- Import from a shared document URL -------------------------------------------------
+
+    GOOGLE_DOC_RE = re.compile(r"docs\.google\.com/document/d/([A-Za-z0-9_\-]+)")
+    MAX_IMPORT_BYTES = 2_000_000
+
+    @classmethod
+    def export_urls(cls, url: str) -> List[str]:
+        """
+        URLs to try for a charter document, best first.
+
+        A Google Docs link exports as markdown (keeps headings and bullets), with plain
+        text as a fallback. Any other URL is fetched as-is.
+        """
+        match = cls.GOOGLE_DOC_RE.search(url or "")
+        if match:
+            doc_id = match.group(1)
+            return [
+                f"https://docs.google.com/document/d/{doc_id}/export?format=markdown",
+                f"https://docs.google.com/document/d/{doc_id}/export?format=txt",
+            ]
+        return [url]
+
+    @staticmethod
+    def clean_exported_text(raw: str) -> str:
+        """Normalize an exported document: strip BOM/CRLF and Google's markdown escapes."""
+        text = raw.lstrip("\ufeff").replace("\r\n", "\n").strip()
+        return re.sub(r"\\([.\->\[\]()#*_])", r"\1", text)
+
+    async def import_from_url(self, url: str, user_id: int = 0, user_name: str = "unknown") -> Tuple[bool, str]:
+        """
+        Replace the charter with the text of a publicly readable document (e.g. the league's
+        Google Doc). Backs up the old charter and persists the new one to Discord.
+
+        Returns (ok, message).
+        """
+        import httpx
+
+        response = None
+        last_error = None
+        try:
+            async with httpx.AsyncClient(follow_redirects=True, timeout=20.0) as client:
+                for fetch_url in self.export_urls(url):
+                    try:
+                        candidate = await client.get(fetch_url)
+                    except Exception as e:
+                        last_error = e
+                        continue
+                    response = candidate
+                    if candidate.status_code == 200:
+                        break
+        except Exception as e:
+            last_error = e
+
+        if response is None:
+            logger.error(f"❌ Charter import failed to fetch {url}: {last_error}")
+            return False, f"Couldn't fetch that document: {last_error}"
+
+        if response.status_code != 200:
+            if response.status_code in (401, 403, 404):
+                return False, (
+                    f"The document isn't readable (HTTP {response.status_code}). "
+                    "Set its sharing to 'Anyone with the link can view' and try again."
+                )
+            return False, f"The document returned HTTP {response.status_code}."
+
+        if len(response.content) > self.MAX_IMPORT_BYTES:
+            return False, "That document is too large to import (over 2 MB)."
+
+        content = self.clean_exported_text(response.text)
+        if len(content) < 100:
+            return False, "That document looks empty — nothing was imported."
+        if content.lstrip().lower().startswith("<!doctype html") or "<html" in content[:200].lower():
+            return False, (
+                "That link returned a web page instead of the document text. "
+                "Use the document's share link and make sure it's viewable by anyone with the link."
+            )
+
+        previous = self.read_charter() or ""
+        saved = await self.write_charter_async(content)
+        if not saved:
+            return False, "Fetched the document, but couldn't save the charter."
+
+        self.add_changelog_entry(
+            user_id=user_id,
+            user_name=user_name,
+            action="import",
+            description=f"Imported charter from {url}",
+            before_text=previous[:500],
+            after_text=content[:500],
+        )
+        delta = len(content) - len(previous)
+        return True, (
+            f"Imported **{len(content):,}** characters "
+            f"({'+' if delta >= 0 else ''}{delta:,} vs the old charter)."
+        )
 
     async def add_rule_section(
         self,

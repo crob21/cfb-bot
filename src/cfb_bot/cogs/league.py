@@ -14,6 +14,7 @@ Commands:
 - /league week - Current week
 - /league weeks - Full schedule
 - /league games - Games for a week
+- /league schedule - Full season schedule (or one team's)
 - /league find_game - Find team's game
 - /league byes - Teams on bye
 - /league set_week - Set season/week (admin)
@@ -580,6 +581,83 @@ class LeagueCog(commands.Cog):
             else:
                 embed.set_footer(text="Harry's Schedule 🏈")
 
+        await interaction.followup.send(embed=embed)
+
+    @league_group.command(name="schedule", description="View the full season schedule, or one team's whole season")
+    @app_commands.describe(team="Optional — show just this team's season (leave empty for the whole league)")
+    async def schedule(self, interaction: discord.Interaction, team: Optional[str] = None):
+        """Show the full season schedule for the league or a single team"""
+        if not await check_module_enabled(interaction, FeatureModule.LEAGUE, server_config):
+            return
+
+        await interaction.response.defer()
+
+        if not self.schedule_manager:
+            await interaction.followup.send("❌ Schedule manager not available", ephemeral=True)
+            return
+
+        current_game_week, _ = self._resolve_game_week(None)
+
+        if team:
+            resolved = self.schedule_manager.find_team(team) or team
+            lines = []
+            for week in range(MAX_GAME_WEEK + 1):
+                game = self.schedule_manager.get_team_game(resolved, week)
+                marker = "**►**" if week == current_game_week else "  "
+                if not game:
+                    continue
+                if game.get('bye'):
+                    lines.append(f"{marker} `W{week:<2}` 😴 BYE")
+                elif game.get('location') == 'home':
+                    lines.append(f"{marker} `W{week:<2}` vs {game['opponent']}")
+                else:
+                    lines.append(f"{marker} `W{week:<2}` at {game['opponent']}")
+
+            if not lines:
+                await interaction.followup.send(
+                    f"❌ No schedule found for **{team}**. Try `/league schedule` to see every team.",
+                    ephemeral=True,
+                )
+                return
+
+            embed = discord.Embed(
+                title=f"📅 {self.schedule_manager.format_team(resolved)} — Season {self.schedule_manager.season}",
+                description="\n".join(lines),
+                color=Colors.SUCCESS,
+            )
+            embed.set_footer(text="Harry's Schedule Tracker 🏈 | ► = current week")
+            await interaction.followup.send(embed=embed)
+            return
+
+        embed = discord.Embed(
+            title=f"📅 Season {self.schedule_manager.season} Schedule",
+            description="Every week of the regular season. Use `/league schedule team:<name>` for one team.",
+            color=Colors.SUCCESS,
+        )
+        weeks_shown = 0
+        for week in range(MAX_GAME_WEEK + 1):
+            week_data = self.schedule_manager.get_week_schedule(week)
+            if not week_data:
+                continue
+            parts = [self.schedule_manager.format_game(g) for g in week_data.get('games', [])]
+            byes = week_data.get('bye_teams', [])
+            if byes:
+                parts.append(f"😴 Bye: {self.schedule_manager.format_bye_teams(byes)}")
+            if not parts:
+                continue
+            name = f"Week {week}" + (" ◄ current" if week == current_game_week else "")
+            embed.add_field(name=name, value="\n".join(parts)[:1024], inline=False)
+            weeks_shown += 1
+
+        if not weeks_shown:
+            await interaction.followup.send(
+                "❌ No schedule loaded yet. An admin can add one with `/league upload_schedule`.",
+                ephemeral=True,
+            )
+            return
+
+        teams = self.schedule_manager.teams
+        embed.set_footer(text=(f"User Teams: {', '.join(teams)} | " if teams else "") + "Harry's Schedule Tracker 🏈")
         await interaction.followup.send(embed=embed)
 
     @league_group.command(name="find_game", description="Find a team's game for a specific week")

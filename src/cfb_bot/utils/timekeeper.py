@@ -124,6 +124,11 @@ def is_advance_trigger(message, advance_channel_id: Optional[int]) -> bool:
     return bool(_ADVANCED_WORD.search(message.content or ""))
 
 
+def get_prev_week(week: int) -> int:
+    """Step number before week, wrapping Preseason (1) back to Training Results (27)."""
+    return LAST_WEEK if week <= FIRST_WEEK else week - 1
+
+
 def get_week_name(week: int, short: bool = False) -> str:
     """
     Get the display name for a given step number.
