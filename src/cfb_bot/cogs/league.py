@@ -1130,10 +1130,33 @@ class LeagueCog(commands.Cog):
             await interaction.response.send_message("❌ Only the bot owner can use this!", ephemeral=True)
             return
 
-        # Simplified - actual implementation would start a background task
+        if not self.timekeeper_manager:
+            await interaction.response.send_message("❌ Timekeeper not available", ephemeral=True)
+            return
+        if interval < 1 or interval > 1440:
+            await interaction.response.send_message("❌ Interval must be 1-1440 minutes.", ephemeral=True)
+            return
+
+        staff = self.timekeeper_manager.get_league_staff()
+        if not staff.get('owner_id'):
+            await interaction.response.send_message(
+                "❌ No league owner set — use `/league set_owner` first.", ephemeral=True
+            )
+            return
+
+        started = await self.timekeeper_manager.start_nagging(interval)
+        if not started:
+            await interaction.response.send_message(
+                "⚠️ Already nagging — use `/league stop_nag` first.", ephemeral=True
+            )
+            return
+
         embed = discord.Embed(
             title="🔔 Nag Mode Activated",
-            description=f"Will nag every {interval} minutes!",
+            description=(
+                f"DMing **{staff.get('owner_name') or 'the league owner'}** every "
+                f"{interval} minute{'s' if interval != 1 else ''} until `/league stop_nag`."
+            ),
             color=Colors.WARNING
         )
         await interaction.response.send_message(embed=embed, ephemeral=True)
@@ -1151,9 +1174,14 @@ class LeagueCog(commands.Cog):
             await interaction.response.send_message("❌ Only the bot owner can use this!", ephemeral=True)
             return
 
+        if not self.timekeeper_manager:
+            await interaction.response.send_message("❌ Timekeeper not available", ephemeral=True)
+            return
+
+        stopped = await self.timekeeper_manager.stop_nagging()
         embed = discord.Embed(
             title="🔕 Nag Mode Deactivated",
-            description="The owner gets a break... for now.",
+            description="The owner gets a break... for now." if stopped else "Wasn't nagging anyone, mate.",
             color=Colors.SUCCESS
         )
         await interaction.response.send_message(embed=embed, ephemeral=True)

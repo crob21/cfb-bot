@@ -12,7 +12,6 @@ import re
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
-import discord
 
 logger = logging.getLogger('CFB26Bot.CharterEditor')
 
@@ -35,18 +34,8 @@ class CharterEditor:
 
     async def _get_bot_owner_dm(self):
         """Get the bot owner's DM channel for storage"""
-        if not self.bot:
-            return None
-        try:
-            app_info = await self.bot.application_info()
-            if app_info.owner:
-                dm_channel = app_info.owner.dm_channel
-                if not dm_channel:
-                    dm_channel = await app_info.owner.create_dm()
-                return dm_channel
-        except Exception as e:
-            logger.error(f"❌ Could not get bot owner DM: {e}")
-        return None
+        from .owner_dm import get_owner_dm
+        return await get_owner_dm(self.bot)
 
     async def save_to_discord(self, content: str) -> bool:
         """Save charter content to Discord DM for persistence across deployments"""
@@ -145,6 +134,28 @@ class CharterEditor:
             logger.error(f"❌ Failed to load charter from Discord: {e}")
             return None
 
+    async def restore_from_discord(self) -> bool:
+        """
+        Load the Discord-persisted charter into the local file at startup.
+
+        The file is what /charter search and Harry's AI context read, and it resets to the
+        committed copy on every redeploy — so without this, charter edits silently revert.
+        """
+        content = await self.load_from_discord()
+        if not content:
+            return False
+        if (self.read_charter() or "").strip() == content.strip():
+            logger.info("📄 Local charter already matches the Discord copy")
+            return True
+        try:
+            with open(self.charter_file, 'w', encoding='utf-8') as f:
+                f.write(content)
+            logger.info(f"📄 Restored charter from Discord into {self.charter_file} ({len(content)} chars)")
+            return True
+        except Exception as e:
+            logger.error(f"❌ Could not write restored charter: {e}")
+            return False
+
     def read_charter(self) -> Optional[str]:
         """Read the current charter content from file (sync version)"""
         try:
@@ -160,22 +171,6 @@ class CharterEditor:
             logger.error(f"❌ Error reading charter: {e}")
             return None
 
-    async def read_charter_async(self) -> Optional[str]:
-        """Read charter - prefers Discord version, falls back to file"""
-        # Try Discord first (persists across deployments)
-        discord_content = await self.load_from_discord()
-        if discord_content:
-            # Also update local file to keep in sync
-            try:
-                with open(self.charter_file, 'w', encoding='utf-8') as f:
-                    f.write(discord_content)
-                logger.info("📄 Updated local file from Discord charter")
-            except Exception:
-                pass
-            return discord_content
-
-        # Fall back to file
-        return self.read_charter()
 
     def backup_charter(self) -> bool:
         """Create a backup of the current charter"""
@@ -530,75 +525,6 @@ Just provide the formatted rule text, nothing else."""
             logger.error(f"❌ Error formatting rule with AI: {e}")
             return f"**Rule**: {rule_summary}"
 
-    def update_commissioner(self, new_commish_name: str) -> Dict:
-        """
-        Update the league commissioner in the charter
-
-        Args:
-            new_commish_name: Name of the new commissioner
-
-        Returns:
-            Dict with status and message
-        """
-        try:
-            current_charter = self.read_charter()
-            if not current_charter:
-                return {
-                    'success': False,
-                    'message': 'Could not read current charter'
-                }
-
-            lines = current_charter.split('\n')
-            updated_lines = []
-            commish_updated = False
-
-            for line in lines:
-                # Look for the League Commish line
-                if '**League Commish:**' in line or 'League Commish:' in line:
-                    # Extract the old name (if any) and replace with new one
-                    updated_line = f"- **League Commish:** {new_commish_name}"
-                    updated_lines.append(updated_line)
-                    commish_updated = True
-                    logger.info(f"📝 Updated commissioner: {new_commish_name}")
-                else:
-                    updated_lines.append(line)
-
-            if not commish_updated:
-                # If the section doesn't exist, try to add it after "## Officers"
-                for i, line in enumerate(lines):
-                    updated_lines.append(line)
-                    if '## Officers' in line or 'Officers' in line:
-                        # Add commissioner line after Officers header
-                        updated_lines.append(f"- **League Commish:** {new_commish_name}")
-                        commish_updated = True
-                        break
-
-            if commish_updated:
-                updated_charter = '\n'.join(updated_lines)
-                success = self.write_charter(updated_charter)
-
-                if success:
-                    return {
-                        'success': True,
-                        'message': f'Successfully updated League Commish to: {new_commish_name}'
-                    }
-                else:
-                    return {
-                        'success': False,
-                        'message': 'Failed to write updated charter'
-                    }
-            else:
-                return {
-                    'success': False,
-                    'message': 'Could not find Officers section in charter'
-                }
-
-        except Exception as e:
-            logger.error(f"❌ Error updating commissioner: {e}")
-            return {
-                'success': False,
-                'message': f'Error: {str(e)}'
-            }
 
     def get_backup_list(self) -> List[Dict]:
         """Get a list of available charter backups"""
@@ -717,230 +643,9 @@ Just provide the formatted rule text, nothing else."""
         changelog = self._load_changelog()
         return changelog[-limit:][::-1]  # Most recent first
 
-    async def parse_update_request(self, request: str) -> Optional[Dict]:
-        """
-        Use AI to parse a natural language update request
 
-        Returns dict with:
-        - action: 'update', 'add', 'remove', 'unknown'
-        - section: which section to modify
-        - old_text: text to find/replace (if updating)
-        - new_text: new text to add
-        - summary: human-readable summary of the change
-        """
-        if not self.ai_assistant:
-            logger.warning("⚠️ AI assistant not available for parsing")
-            return None
 
-        current_charter = self.read_charter()
-        if not current_charter:
-            return None
 
-        prompt = f"""You are helping to parse a charter update request for a CFB 26 league.
-
-CURRENT CHARTER:
-{current_charter}
-
-UPDATE REQUEST: "{request}"
-
-Analyze this request and determine:
-1. What ACTION is being requested? (update/add/remove)
-2. What SECTION is affected? (provide the section header or identifier)
-3. What is the CURRENT TEXT that will be changed? (exact quote from charter, if updating)
-4. What is the NEW TEXT? (the replacement or addition)
-5. A brief SUMMARY of the change
-
-Respond in this EXACT JSON format (no markdown, just raw JSON):
-{{
-    "action": "update|add|remove",
-    "section": "section name or number",
-    "old_text": "exact current text to replace (null if adding new)",
-    "new_text": "the new or replacement text",
-    "summary": "brief description of what's changing"
-}}
-
-If you cannot understand the request, respond with:
-{{
-    "action": "unknown",
-    "error": "explanation of what's unclear"
-}}"""
-
-        try:
-            response = await self.ai_assistant.ask_openai(prompt, "Charter Update Parser", max_tokens=1000)
-            if not response:
-                response = await self.ai_assistant.ask_anthropic(prompt, "Charter Update Parser", max_tokens=1000)
-
-            if not response:
-                return None
-
-            # Clean up response - remove markdown code blocks if present
-            response = response.strip()
-            if response.startswith("```"):
-                response = re.sub(r'^```\w*\n?', '', response)
-                response = re.sub(r'\n?```$', '', response)
-
-            # Parse JSON
-            parsed = json.loads(response)
-            logger.info(f"📝 Parsed update request: {parsed.get('action')} - {parsed.get('summary')}")
-            return parsed
-
-        except json.JSONDecodeError as e:
-            logger.error(f"❌ Failed to parse AI response as JSON: {e}")
-            logger.error(f"Response was: {response}")
-            return None
-        except Exception as e:
-            logger.error(f"❌ Error parsing update request: {e}")
-            return None
-
-    async def generate_update_preview(self, parsed_request: Dict) -> Optional[Dict]:
-        """
-        Generate a before/after preview of the proposed change
-
-        Returns dict with:
-        - before: the text before the change
-        - after: the text after the change
-        - full_new_charter: the complete updated charter
-        """
-        current_charter = self.read_charter()
-        if not current_charter:
-            return None
-
-        action = parsed_request.get("action")
-        old_text = parsed_request.get("old_text")
-        new_text = parsed_request.get("new_text")
-        section = parsed_request.get("section")
-
-        if action == "unknown":
-            return None
-
-        try:
-            if action == "update" and old_text:
-                # Find and replace
-                if old_text in current_charter:
-                    new_charter = current_charter.replace(old_text, new_text, 1)
-                    return {
-                        "before": old_text,
-                        "after": new_text,
-                        "full_new_charter": new_charter
-                    }
-                else:
-                    # Try fuzzy matching - ask AI to find the right section
-                    logger.warning(f"⚠️ Exact text not found, attempting fuzzy match")
-                    return await self._fuzzy_update(current_charter, parsed_request)
-
-            elif action == "add":
-                # Add new content
-                # Try to find the section to add to
-                if section:
-                    # Look for the section header
-                    section_pattern = re.compile(
-                        rf'(###?\s*{re.escape(section)}.*?)(\n##|\n###|\Z)',
-                        re.IGNORECASE | re.DOTALL
-                    )
-                    match = section_pattern.search(current_charter)
-
-                    if match:
-                        section_content = match.group(1)
-                        insert_pos = match.start() + len(section_content)
-                        new_charter = (
-                            current_charter[:insert_pos] +
-                            f"\n\n{new_text}" +
-                            current_charter[insert_pos:]
-                        )
-                        return {
-                            "before": "(Adding new content)",
-                            "after": new_text,
-                            "full_new_charter": new_charter
-                        }
-
-                # Default: add at end
-                new_charter = current_charter + f"\n\n{new_text}"
-                return {
-                    "before": "(Adding new content at end)",
-                    "after": new_text,
-                    "full_new_charter": new_charter
-                }
-
-            elif action == "remove" and old_text:
-                # Remove content
-                if old_text in current_charter:
-                    new_charter = current_charter.replace(old_text, "", 1)
-                    # Clean up extra newlines
-                    new_charter = re.sub(r'\n{3,}', '\n\n', new_charter)
-                    return {
-                        "before": old_text,
-                        "after": "(REMOVED)",
-                        "full_new_charter": new_charter
-                    }
-
-            return None
-
-        except Exception as e:
-            logger.error(f"❌ Error generating preview: {e}")
-            return None
-
-    async def _fuzzy_update(self, current_charter: str, parsed_request: Dict) -> Optional[Dict]:
-        """Use AI to find and update when exact match fails"""
-        if not self.ai_assistant:
-            return None
-
-        prompt = f"""You are updating a charter document. The user wants to make this change:
-{json.dumps(parsed_request, indent=2)}
-
-Here is the current charter:
-{current_charter}
-
-Find the relevant section and apply the change. Return the COMPLETE updated charter with the change applied.
-Return ONLY the updated charter text, nothing else."""
-
-        try:
-            new_charter = await self.ai_assistant.ask_openai(prompt, "Charter Fuzzy Update", max_tokens=4000)
-            if not new_charter:
-                new_charter = await self.ai_assistant.ask_anthropic(prompt, "Charter Fuzzy Update", max_tokens=4000)
-
-            if new_charter:
-                return {
-                    "before": parsed_request.get("old_text", "(Section being modified)"),
-                    "after": parsed_request.get("new_text"),
-                    "full_new_charter": new_charter
-                }
-            return None
-
-        except Exception as e:
-            logger.error(f"❌ Error in fuzzy update: {e}")
-            return None
-
-    async def apply_update(
-        self,
-        new_charter: str,
-        user_id: int,
-        user_name: str,
-        description: str,
-        before_text: Optional[str] = None,
-        after_text: Optional[str] = None
-    ) -> bool:
-        """Apply an update to the charter and log it (saves to file AND Discord)"""
-        try:
-            # Write the new charter (this also creates a backup and saves to Discord)
-            success = await self.write_charter_async(new_charter)
-
-            if success:
-                # Log the change
-                self.add_changelog_entry(
-                    user_id=user_id,
-                    user_name=user_name,
-                    action="update",
-                    description=description,
-                    before_text=before_text,
-                    after_text=after_text
-                )
-                logger.info(f"✅ Charter updated by {user_name}: {description}")
-
-            return success
-
-        except Exception as e:
-            logger.error(f"❌ Error applying update: {e}")
-            return False
 
     async def find_rule_changes_in_messages(
         self,
@@ -1040,75 +745,3 @@ IMPORTANT: Even if you're not 100% sure, include anything that looks like a rule
             logger.error(f"❌ Error finding rule changes: {e}")
             return None
 
-    async def generate_charter_updates_from_rules(
-        self,
-        rule_changes: List[Dict]
-    ) -> Optional[List[Dict]]:
-        """
-        Generate charter update suggestions based on found rule changes
-
-        Returns list of suggested updates with before/after text
-        """
-        if not self.ai_assistant or not rule_changes:
-            return None
-
-        current_charter = self.read_charter()
-        if not current_charter:
-            return None
-
-        # Filter to only passed/decided rules
-        passed_rules = [r for r in rule_changes if r.get("status") in ["passed", "decided"]]
-
-        if not passed_rules:
-            return None
-
-        prompt = f"""You are updating a CFB 26 league charter based on rules that were voted on and passed.
-
-CURRENT CHARTER:
-{current_charter}
-
-RULES THAT PASSED (need to be added/updated in charter):
-{json.dumps(passed_rules, indent=2)}
-
-For each passed rule, determine:
-1. Is this a NEW rule that needs to be added?
-2. Is this an UPDATE to an existing rule?
-3. Where in the charter should it go?
-
-Generate the charter updates needed. Respond in this EXACT JSON format:
-[
-    {{
-        "rule_description": "Brief description of what's being changed",
-        "action": "add|update",
-        "section": "Which section this belongs to",
-        "old_text": "Text to find and replace (null if adding new)",
-        "new_text": "The new or updated text to insert"
-    }}
-]
-
-If no updates are needed (rules already in charter), respond with: []"""
-
-        try:
-            response = await self.ai_assistant.ask_openai(prompt, "Charter Update Generator", max_tokens=3000)
-            if not response:
-                response = await self.ai_assistant.ask_anthropic(prompt, "Charter Update Generator", max_tokens=3000)
-
-            if not response:
-                return None
-
-            # Clean up response
-            response = response.strip()
-            if response.startswith("```"):
-                response = re.sub(r'^```\w*\n?', '', response)
-                response = re.sub(r'\n?```$', '', response)
-
-            updates = json.loads(response)
-            logger.info(f"📝 Generated {len(updates)} charter update suggestions")
-            return updates
-
-        except json.JSONDecodeError as e:
-            logger.error(f"❌ Failed to parse charter updates JSON: {e}")
-            return None
-        except Exception as e:
-            logger.error(f"❌ Error generating charter updates: {e}")
-            return None

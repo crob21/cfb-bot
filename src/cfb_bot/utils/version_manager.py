@@ -11,10 +11,55 @@ from typing import Dict, List, Optional
 logger = logging.getLogger('CFB26Bot.Version')
 
 # Current version
-CURRENT_VERSION = "3.13.0"
+CURRENT_VERSION = "3.14.0"
 
 # Changelog - organized by version
 CHANGELOG: Dict[str, Dict] = {
+    "3.14.0": {
+        "date": "2026-09-19",
+        "title": "Code Scrub & Charter Persistence 🧹",
+        "emoji": "🧹",
+        "features": [
+            {
+                "category": "Fixes",
+                "emoji": "🔧",
+                "changes": [
+                    "FIX: Charter edits survive redeploys — the Discord copy is now restored to disk at startup",
+                    "FIX: /league nag and /league stop_nag actually nag (the command claimed success and did nothing)",
+                    "Both advance paths share one matchups embed builder, so they can't drift apart"
+                ]
+            },
+            {
+                "category": "Cleanup",
+                "emoji": "🧹",
+                "changes": [
+                    "Removed ~1,000 lines of unreferenced code (dead charter AI-update pipeline, unused query parsers, orphan helpers)",
+                    "Removed the broken Google Docs integration — /charter import replaces it",
+                    "Dropped 7 unused dependencies (google-api x3, sentry-sdk, openai, anthropic, requests, playwright-stealth)"
+                ]
+            },
+            {
+                "category": "Error Reports",
+                "emoji": "📩",
+                "changes": [
+                    "NEW: Harry DMs the bot owner when a command or event errors out",
+                    "Repeats collapse into one DM per 15 min, capped at 12 DMs/hour",
+                    "Keys and tokens are redacted from tracebacks before sending",
+                    "AI budget alerts now DM the owner too (they only logged before)",
+                    "Removed the unused Sentry integration in favour of this"
+                ]
+            },
+            {
+                "category": "Simplification",
+                "emoji": "🧼",
+                "changes": [
+                    "One owner-DM helper instead of four copies",
+                    "One save/load pair for season/week, settings and staff state (-144 lines)",
+                    "Deleted three stale docs that still described the pre-cog layout"
+                ]
+            }
+        ]
+    },
     "3.13.0": {
         "date": "2026-09-19",
         "title": "Full Schedule View & Live Charter 📜",
@@ -1960,33 +2005,3 @@ class VersionManager:
 
         return '\n'.join(summary_lines)
 
-    def compare_versions(self, from_version: str, to_version: str) -> List[str]:
-        """
-        Get all changes between two versions
-
-        Returns:
-            List of change descriptions
-        """
-        all_versions = self.get_all_versions()
-
-        try:
-            from_idx = all_versions.index(from_version)
-            to_idx = all_versions.index(to_version)
-
-            # Get versions between (inclusive)
-            if from_idx > to_idx:
-                from_idx, to_idx = to_idx, from_idx
-
-            versions_between = all_versions[to_idx:from_idx+1]
-
-            all_changes = []
-            for version in versions_between:
-                version_info = self.changelog.get(version, {})
-                for feature_group in version_info.get('features', []):
-                    changes = feature_group.get('changes', [])
-                    all_changes.extend(changes)
-
-            return all_changes
-
-        except ValueError:
-            return []

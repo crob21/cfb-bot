@@ -245,3 +245,102 @@ class TestCharterImportHelpers:
         from cfb_bot.utils.charter_editor import CharterEditor
         cleaned = CharterEditor.clean_exported_text("﻿# **Charter**\r\n\n* 1\\. Rules \\- ok \\> fine  \n")
         assert cleaned == "# **Charter**\n\n* 1. Rules - ok > fine"
+
+
+class TestWeekEmbedBuilder:
+    """Both advance paths share one matchups embed builder"""
+
+    def _manager(self, schedule):
+        from cfb_bot.utils.schedule_manager import ScheduleManager
+        m = ScheduleManager()
+        m.load_from_dict({"season": 2, "teams": ["California"], "schedule": schedule})
+        return m
+
+    def test_returns_none_without_data(self):
+        assert self._manager({}).build_week_embed(3) is None
+
+    def test_includes_games_and_byes_with_user_teams_bolded(self):
+        m = self._manager({"3": {"bye_teams": ["Duke"], "games": [{"away": "California", "home": "Oklahoma State"}]}})
+        embed = m.build_week_embed(3)
+        assert embed.title == "📅 Week 3 Matchups"
+        fields = {f.name: f.value for f in embed.fields}
+        assert fields["🛋️ Bye Week"] == "Duke"
+        assert fields["🎮 This Week's Games"] == "🏈 **California** @ Oklahoma State"
+
+
+class TestTypedStatePersistence:
+    """Season/week, settings and staff all share one save/load pair"""
+
+    def _manager(self, history_messages):
+        from unittest.mock import MagicMock
+        from cfb_bot.utils.timekeeper import TimekeeperManager
+
+        bot = MagicMock()
+        manager = TimekeeperManager.__new__(TimekeeperManager)
+        manager.bot = bot
+        bot.user = "harry"
+
+        dm = MagicMock()
+
+        class _History:
+            def __init__(self, msgs):
+                self.msgs = msgs
+
+            def __call__(self, limit=100):
+                return self
+
+            def __aiter__(self):
+                async def gen():
+                    for m in self.msgs:
+                        yield m
+                return gen()
+
+        dm.history = _History(history_messages)
+        dm.send = AsyncMock()
+        manager._dm = dm
+        return manager, dm
+
+    def _message(self, payload, author="harry"):
+        from unittest.mock import MagicMock
+        m = MagicMock()
+        m.author = author
+        m.content = f"```json\n{payload}\n```"
+        m.edit = AsyncMock()
+        return m
+
+    @pytest.mark.asyncio
+    async def test_save_edits_existing_message_for_that_type(self, monkeypatch):
+        manager, dm = self._manager([self._message('{"season": 1, "type": "season_week"}')])
+        monkeypatch.setattr('cfb_bot.utils.owner_dm.get_owner_dm', AsyncMock(return_value=dm))
+
+        assert await manager._save_typed_state('season_week', {'season': 4, 'week': 3})
+        dm.send.assert_not_awaited()
+        written = dm.history.msgs[0].edit.call_args.kwargs['content']
+        assert '"season": 4' in written and '"type": "season_week"' in written
+
+    @pytest.mark.asyncio
+    async def test_save_creates_message_when_type_absent(self, monkeypatch):
+        manager, dm = self._manager([self._message('{"notification_channel_id": 5, "type": "bot_settings"}')])
+        monkeypatch.setattr('cfb_bot.utils.owner_dm.get_owner_dm', AsyncMock(return_value=dm))
+
+        assert await manager._save_typed_state('league_staff', {'league_owner_id': 9})
+        dm.send.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_load_ignores_other_types(self, monkeypatch):
+        manager, dm = self._manager([
+            self._message('{"notification_channel_id": 5, "type": "bot_settings"}'),
+            self._message('{"season": 4, "week": 3, "type": "season_week"}'),
+        ])
+        monkeypatch.setattr('cfb_bot.utils.owner_dm.get_owner_dm', AsyncMock(return_value=dm))
+
+        state = await manager._load_typed_state('season_week')
+        assert state['season'] == 4 and state['week'] == 3
+
+    @pytest.mark.asyncio
+    async def test_load_accepts_legacy_untyped_blob(self, monkeypatch):
+        manager, dm = self._manager([self._message('{"league_owner_id": 42, "league_owner_name": "Yesko"}')])
+        monkeypatch.setattr('cfb_bot.utils.owner_dm.get_owner_dm', AsyncMock(return_value=dm))
+
+        state = await manager._load_typed_state('league_staff', legacy_key='league_owner_id')
+        assert state['league_owner_name'] == "Yesko"

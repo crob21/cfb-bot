@@ -64,17 +64,8 @@ class ScheduleManager:
 
     async def _get_owner_dm(self):
         """Get the DM channel with the bot owner (for persistence)."""
-        if not self.bot:
-            return None
-        try:
-            app_info = await self.bot.application_info()
-            owner = app_info.owner
-            if not owner:
-                return None
-            return owner.dm_channel or await owner.create_dm()
-        except Exception as e:
-            logger.warning(f"⚠️ Could not open owner DM for schedule persistence: {e}")
-            return None
+        from .owner_dm import get_owner_dm
+        return await get_owner_dm(self.bot)
 
     async def load_from_discord(self) -> bool:
         """Restore the schedule from the owner-DM backup attachment, if present.
@@ -257,6 +248,39 @@ class ScheduleManager:
 
         return None
 
+    def build_week_embed(self, week: int, discord_module=None):
+        """
+        Build the "Week N Matchups" embed announced after an advance.
+
+        Returns None when there is no schedule data for that week. Both advance paths
+        (the countdown expiring and an "@everyone advanced" post) use this, so the two
+        announcements can't drift apart.
+        """
+        week_data = self.get_week_schedule(week)
+        if not week_data:
+            return None
+
+        import discord as _discord
+        discord_module = discord_module or _discord
+
+        embed = discord_module.Embed(
+            title=f"📅 Week {week} Matchups",
+            description="Here's what's on the slate this week, ya muppets!",
+            color=0x00ff00,
+        )
+        bye_teams = week_data.get('bye_teams', [])
+        if bye_teams:
+            embed.add_field(name="🛋️ Bye Week", value=self.format_bye_teams(bye_teams), inline=False)
+        games = week_data.get('games', [])
+        if games:
+            embed.add_field(
+                name="🎮 This Week's Games",
+                value="\n".join(self.format_game(g) for g in games),
+                inline=False,
+            )
+        embed.set_footer(text="Harry's Schedule Tracker 🏈 | Get your games done!")
+        return embed
+
     def get_bye_teams(self, week: int) -> List[str]:
         """Get list of teams on bye for a specific week"""
         week_data = self.get_week_schedule(week)
@@ -264,12 +288,6 @@ class ScheduleManager:
             return []
         return week_data.get('bye_teams', [])
 
-    def get_all_games(self, week: int) -> List[Dict]:
-        """Get all games for a specific week"""
-        week_data = self.get_week_schedule(week)
-        if not week_data:
-            return []
-        return week_data.get('games', [])
 
     def find_team(self, query: str) -> Optional[str]:
         """
@@ -332,35 +350,6 @@ class ScheduleManager:
                 schedule.append(game)
         return schedule
 
-    def format_week_schedule(self, week: int) -> str:
-        """
-        Format the week's schedule as a readable string.
-
-        Args:
-            week: Week number
-
-        Returns:
-            Formatted string of the week's schedule
-        """
-        week_data = self.get_week_schedule(week)
-        if not week_data:
-            return f"No schedule data for Week {week}"
-
-        lines = [f"**Week {week} Schedule:**\n"]
-
-        # Bye teams (bold user teams)
-        bye_teams = week_data.get('bye_teams', [])
-        if bye_teams:
-            lines.append(f"🛋️ **Bye Week:** {self.format_bye_teams(bye_teams)}\n")
-
-        # Games (bold user teams)
-        games = week_data.get('games', [])
-        if games:
-            lines.append("**Games:**")
-            for game in games:
-                lines.append(self.format_game(game, "•"))
-
-        return "\n".join(lines)
 
     def get_schedule_context_for_ai(self) -> str:
         """

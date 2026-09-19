@@ -394,3 +394,43 @@ class TestLeagueAdminScope:
         cog = self._cog()
         cog.admin_manager.is_admin.return_value = False
         assert not cog._is_league_admin(self._interaction(guild_id=1))
+
+
+class TestLeagueNag:
+    """/league nag drives the real nag loop (it used to be a no-op that claimed success)"""
+
+    @pytest.fixture
+    def owner_cog(self, mock_timekeeper):
+        from cfb_bot.cogs.league import LeagueCog
+        cog = LeagueCog(MagicMock())
+        cog.bot.application_info = AsyncMock(return_value=MagicMock(owner=MagicMock(id=7)))
+        cog.timekeeper_manager = mock_timekeeper
+        mock_timekeeper.get_league_staff = MagicMock(return_value={'owner_id': 99, 'owner_name': 'Yesko'})
+        mock_timekeeper.start_nagging = AsyncMock(return_value=True)
+        mock_timekeeper.stop_nagging = AsyncMock(return_value=True)
+        return cog
+
+    @pytest.mark.asyncio
+    async def test_nag_starts_the_loop(self, owner_cog, mock_interaction):
+        mock_interaction.user.id = 7
+        await owner_cog.nag.callback(owner_cog, mock_interaction, interval=10)
+        owner_cog.timekeeper_manager.start_nagging.assert_awaited_once_with(10)
+
+    @pytest.mark.asyncio
+    async def test_nag_requires_league_owner(self, owner_cog, mock_interaction):
+        mock_interaction.user.id = 7
+        owner_cog.timekeeper_manager.get_league_staff.return_value = {'owner_id': None}
+        await owner_cog.nag.callback(owner_cog, mock_interaction, interval=5)
+        owner_cog.timekeeper_manager.start_nagging.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_non_bot_owner_rejected(self, owner_cog, mock_interaction):
+        mock_interaction.user.id = 1234
+        await owner_cog.nag.callback(owner_cog, mock_interaction, interval=5)
+        owner_cog.timekeeper_manager.start_nagging.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_stop_nag_stops_the_loop(self, owner_cog, mock_interaction):
+        mock_interaction.user.id = 7
+        await owner_cog.stop_nag.callback(owner_cog, mock_interaction)
+        owner_cog.timekeeper_manager.stop_nagging.assert_awaited_once()

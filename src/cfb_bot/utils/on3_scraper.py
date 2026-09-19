@@ -484,14 +484,7 @@ class On3Scraper:
             self._is_blocked = False
         return False
 
-    def is_blocked(self) -> bool:
-        """Check if On3 is currently blocking requests"""
-        return self._is_blocked
 
-    def clear_block_status(self):
-        """Manually clear the blocked status (e.g., after waiting)"""
-        self._is_blocked = False
-        logger.info("✅ Block status cleared - will try normal request timing")
 
     def get_zyte_usage(self) -> Dict[str, Any]:
         """Get Zyte API usage statistics (current session)"""
@@ -594,13 +587,6 @@ class On3Scraper:
             logger.exception("Full traceback:")
             return None
 
-    def reset_zyte_usage(self):
-        """Reset Zyte usage counter (for tracking periods)"""
-        old_count = self._zyte_request_count
-        old_cost = (old_count * self._zyte_cost_per_1k) / 1000
-        self._zyte_request_count = 0
-        logger.info(f"🔄 Zyte usage reset: {old_count} requests (${old_cost:.4f}) → 0 requests ($0.00)")
-        return old_count, old_cost
 
     async def search_recruit(
         self,

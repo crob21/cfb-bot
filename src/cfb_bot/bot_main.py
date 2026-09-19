@@ -115,10 +115,17 @@ async def setup_dependencies():
         logger.warning(f"⚠️ AI assistant not available: {e}")
 
     try:
+        from .utils.error_reporter import get_error_reporter
+        get_error_reporter(bot)
+        logger.info("📩 Error reporting to bot owner DM enabled")
+    except ImportError:
+        logger.warning("⚠️ Error reporter not available")
+
+    try:
         from .utils.charter_editor import CharterEditor
         charter_editor = CharterEditor(ai_assistant if AI_AVAILABLE else None, bot=bot)
-        # Load charter from Discord
-        await charter_editor.load_from_discord()
+        # Restore the Discord-persisted charter into the local file (survives redeploys)
+        await charter_editor.restore_from_discord()
         logger.info("✅ Charter editor initialized and loaded from Discord")
     except ImportError:
         logger.warning("⚠️ Charter editor not available")
@@ -401,6 +408,44 @@ async def send_startup_notification():
         logger.warning(f"⚠️ Could not send startup to dev channel: {e}")
 
 
+@bot.tree.error
+async def on_app_command_error(interaction: discord.Interaction, error):
+    """Catch slash-command failures: tell the user, DM the owner the traceback."""
+    from discord import app_commands
+
+    original = getattr(error, 'original', error)
+    command_name = interaction.command.qualified_name if interaction.command else "unknown command"
+
+    # Expected, user-facing conditions — no need to wake the owner
+    if isinstance(error, (app_commands.CommandOnCooldown, app_commands.MissingPermissions,
+                          app_commands.CheckFailure)):
+        message = f"❌ {error}"
+    else:
+        logger.error(f"❌ Error in /{command_name}: {original}", exc_info=original)
+        from .utils.error_reporter import get_error_reporter
+        await get_error_reporter().report(original, f"/{command_name}")
+        message = "❌ That went wrong, mate. The bot owner's been told."
+
+    try:
+        if interaction.response.is_done():
+            await interaction.followup.send(message, ephemeral=True)
+        else:
+            await interaction.response.send_message(message, ephemeral=True)
+    except Exception:
+        pass  # Interaction may have expired; the report already went out
+
+
+@bot.event
+async def on_error(event_method, *args, **kwargs):
+    """Catch errors raised inside event handlers (on_message and friends)."""
+    import sys
+    error = sys.exc_info()[1]
+    logger.error(f"❌ Error in {event_method}", exc_info=True)
+    if error is not None:
+        from .utils.error_reporter import get_error_reporter
+        await get_error_reporter().report(error, f"event {event_method}")
+
+
 @bot.event
 async def on_guild_join(guild):
     """Called when the bot joins a new guild"""
@@ -499,33 +544,10 @@ async def _handle_advance(message):
             elif week_num is None:
                 logger.info(f"📅 {season_info.get('week_name')} has no regular-season games, skipping matchups")
             else:
-                week_data = schedule_manager.get_week_schedule(week_num)
-                if not week_data:
+                schedule_embed = schedule_manager.build_week_embed(week_num)
+                if not schedule_embed:
                     logger.warning(f"⚠️ No schedule data for Week {week_num} — nothing to announce")
-                if week_data:
-                    schedule_embed = discord.Embed(
-                        title=f"📅 Week {week_num} Matchups",
-                        description="Here's what's on the slate this week, ya muppets!",
-                        color=Colors.SUCCESS
-                    )
-                    # Bye teams
-                    bye_teams = week_data.get('bye_teams', [])
-                    if bye_teams:
-                        schedule_embed.add_field(
-                            name="🛋️ Bye Week",
-                            value=schedule_manager.format_bye_teams(bye_teams),
-                            inline=False
-                        )
-                    # Games
-                    games = week_data.get('games', [])
-                    if games:
-                        games_text = "\n".join([schedule_manager.format_game(g) for g in games])
-                        schedule_embed.add_field(
-                            name="🎮 This Week's Games",
-                            value=games_text,
-                            inline=False
-                        )
-                    schedule_embed.set_footer(text="Harry's Schedule Tracker 🏈 | Get your games done!")
+                else:
                     await message.channel.send(embed=schedule_embed)
                     logger.info(f"📅 Sent Week {week_num} schedule")
         else:
