@@ -113,24 +113,24 @@ class RecruitingScraper:
         await self._rate_limit()
 
         try:
-            logger.info(f"🔍 Fetching: {url}")
+            logger.info(f"Fetching: {url}")
             async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
                 response = await client.get(url, headers=self._headers)
 
                 if response.status_code == 200:
                     return response.text
                 elif response.status_code == 404:
-                    logger.warning(f"⚠️ Page not found: {url}")
+                    logger.warning(f"Page not found: {url}")
                     return None
                 else:
-                    logger.error(f"❌ HTTP {response.status_code} for {url}")
+                    logger.error(f"HTTP {response.status_code} for {url}")
                     return None
 
         except httpx.TimeoutException:
-            logger.error(f"❌ Timeout fetching {url}")
+            logger.error(f"Timeout fetching {url}")
             return None
         except Exception as e:
-            logger.error(f"❌ Error fetching {url}: {e}")
+            logger.error(f"Error fetching {url}: {e}")
             return None
 
     def _parse_star_rating(self, element) -> Optional[int]:
@@ -248,23 +248,23 @@ class RecruitingScraper:
                         else:
                             profile_url = self.BASE_URL + '/' + profile_url
 
-                        logger.info(f"✅ Found profile link: {player_name} -> {profile_url}")
+                        logger.info(f"Found profile link: {player_name} -> {profile_url}")
                         break
 
                 if profile_url:
                     break
 
             except Exception as e:
-                logger.error(f"❌ Error parsing search results: {e}")
+                logger.error(f"Error parsing search results: {e}")
                 continue
 
         # If direct search failed, try searching the composite rankings
         if not profile_url:
-            logger.info(f"🔍 Direct search failed, trying composite rankings for {name} (max {max_pages} pages)")
+            logger.info(f"Direct search failed, trying composite rankings for {name} (max {max_pages} pages)")
             profile_url, player_name = await self._search_composite_rankings(name, year, max_pages=max_pages, position_filter=position)
 
         if not profile_url:
-            logger.info(f"❌ No profile found for {name} ({year})")
+            logger.info(f"No profile found for {name} ({year})")
             return None
 
         # Now fetch the full profile page
@@ -274,8 +274,8 @@ class RecruitingScraper:
             if position:
                 recruit_pos = (recruit.get('position') or '').upper()
                 if recruit_pos != position.upper():
-                    logger.warning(f"⚠️ Position mismatch: Found {player_name or name} but position is {recruit_pos}, not {position}")
-                    logger.info("💡 Tip: This might be a different player with the same name")
+                    logger.warning(f"Position mismatch: Found {player_name or name} but position is {recruit_pos}, not {position}")
+                    logger.info("Tip: This might be a different player with the same name")
                     # Still return the recruit, but log the warning
 
             self._set_cached(cache_key, recruit)
@@ -308,7 +308,7 @@ class RecruitingScraper:
         name_lower = name.lower()
         name_parts = name_lower.split()
 
-        logger.info(f"🔍 Searching up to {max_pages} pages of rankings for: {name}")
+        logger.info(f"Searching up to {max_pages} pages of rankings for: {name}")
 
         # Build list of URLs to try (page 1, 2, 3... up to max_pages)
         base_url = self.PLAYER_RANKINGS_URL.format(year=year)
@@ -323,7 +323,7 @@ class RecruitingScraper:
 
             if not html:
                 # If we get no HTML, likely hit the end of rankings
-                logger.info(f"📄 No more pages after page {page_num - 1}")
+                logger.info(f"No more pages after page {page_num - 1}")
                 break
 
             try:
@@ -336,7 +336,7 @@ class RecruitingScraper:
 
                 # If no valid player links, we've hit the end
                 if not valid_links:
-                    logger.info(f"📄 No players on page {page_num}, stopping search")
+                    logger.info(f"No players on page {page_num}, stopping search")
                     break
 
                 for link in player_links:
@@ -364,18 +364,18 @@ class RecruitingScraper:
                         elif profile_url.startswith('/'):
                             profile_url = self.BASE_URL + profile_url
 
-                        logger.info(f"✅ Found on page {page_num}: {link_text} -> {profile_url}")
+                        logger.info(f"Found on page {page_num}: {link_text} -> {profile_url}")
                         return profile_url, link_text
 
                 # Log progress every 10 pages
                 if page_num % 10 == 0:
-                    logger.info(f"📄 Searched {page_num} pages (~{page_num * 50} recruits)...")
+                    logger.info(f"Searched {page_num} pages (~{page_num * 50} recruits)...")
 
             except Exception as e:
-                logger.error(f"❌ Error searching page {page_num}: {e}")
+                logger.error(f"Error searching page {page_num}: {e}")
                 continue
 
-        logger.info(f"❌ Player not found in top {max_pages * 50} recruits")
+        logger.info(f"Player not found in top {max_pages * 50} recruits")
         return None, None
 
     async def _scrape_player_profile(self, profile_url: str, year: int) -> Optional[Dict[str, Any]]:
@@ -713,11 +713,11 @@ class RecruitingScraper:
             # Normalize rating field to match On3 (use composite if available, else 247)
             recruit['rating'] = recruit['rating_composite'] or recruit['rating_247']
 
-            logger.info(f"✅ Scraped profile: {recruit['name']} ({recruit['position']}) - {recruit['stars']}⭐ | {len(recruit['offers'])} offers, {len(recruit['top_predictions'])} predictions, {len(recruit['visits'])} visits")
+            logger.info(f"Scraped profile: {recruit['name']} ({recruit['position']}) - {recruit['stars']} | {len(recruit['offers'])} offers, {len(recruit['top_predictions'])} predictions, {len(recruit['visits'])} visits")
             return recruit
 
         except Exception as e:
-            logger.error(f"❌ Error parsing player profile: {e}", exc_info=True)
+            logger.error(f"Error parsing player profile: {e}", exc_info=True)
             return None
 
     def _parse_stats_table(self, table) -> List[Dict[str, Any]]:
@@ -836,7 +836,7 @@ class RecruitingScraper:
             return recruit
 
         except Exception as e:
-            logger.error(f"❌ Error parsing recruit row: {e}")
+            logger.error(f"Error parsing recruit row: {e}")
             return None
 
     async def get_top_recruits(
@@ -905,11 +905,11 @@ class RecruitingScraper:
                     recruits.append(recruit)
 
             self._set_cached(cache_key, recruits)
-            logger.info(f"✅ Found {len(recruits)} top recruits")
+            logger.info(f"Found {len(recruits)} top recruits")
             return recruits[:limit]
 
         except Exception as e:
-            logger.error(f"❌ Error parsing top recruits: {e}", exc_info=True)
+            logger.error(f"Error parsing top recruits: {e}", exc_info=True)
             return []
 
     async def get_team_recruiting_class(
@@ -1018,14 +1018,14 @@ class RecruitingScraper:
                             team_data['3_stars'] = int(match.group(1))
 
                 self._set_cached(cache_key, team_data)
-                logger.info(f"✅ Found team class: {team_name} (Rank #{team_data['rank']})")
+                logger.info(f"Found team class: {team_name} (Rank #{team_data['rank']})")
                 return team_data
 
-            logger.info(f"❌ Team not found: {team}")
+            logger.info(f"Team not found: {team}")
             return None
 
         except Exception as e:
-            logger.error(f"❌ Error parsing team class: {e}", exc_info=True)
+            logger.error(f"Error parsing team class: {e}", exc_info=True)
             return None
 
     async def get_team_rankings(self, year: Optional[int] = None, limit: int = 25) -> List[Dict[str, Any]]:
@@ -1102,11 +1102,11 @@ class RecruitingScraper:
                 teams.append(team_data)
 
             self._set_cached(cache_key, teams)
-            logger.info(f"✅ Found {len(teams)} team rankings")
+            logger.info(f"Found {len(teams)} team rankings")
             return teams[:limit]
 
         except Exception as e:
-            logger.error(f"❌ Error parsing team rankings: {e}", exc_info=True)
+            logger.error(f"Error parsing team rankings: {e}", exc_info=True)
             return []
 
     def format_recruit(self, recruit: Dict[str, Any]) -> str:

@@ -27,7 +27,7 @@ async def get_owner_dm(bot) -> Optional[object]:
         app_info = await bot.application_info()
         owner = getattr(app_info, 'owner', None)
         if not owner:
-            logger.warning("⚠️ Could not determine bot owner")
+            logger.warning("Could not determine bot owner")
             return None
         _cached_dm = owner.dm_channel or await owner.create_dm()
         return _cached_dm

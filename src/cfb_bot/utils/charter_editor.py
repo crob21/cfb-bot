@@ -42,13 +42,13 @@ class CharterEditor:
     async def save_to_discord(self, content: str) -> bool:
         """Save charter content to Discord DM for persistence across deployments"""
         if not self.bot:
-            logger.warning("⚠️ No bot reference, cannot save charter to Discord")
+            logger.warning("No bot reference, cannot save charter to Discord")
             return False
 
         try:
             dm_channel = await self._get_bot_owner_dm()
             if not dm_channel:
-                logger.warning("⚠️ Could not get DM channel for charter storage")
+                logger.warning("Could not get DM channel for charter storage")
                 return False
 
             # Delete old charter messages first
@@ -76,11 +76,11 @@ class CharterEditor:
                 marker = f"📜CHARTER_CHUNK_{i+1}of{total_chunks}📜\n"
                 await dm_channel.send(marker + chunk)
 
-            logger.info(f"💾 Charter saved to Discord ({total_chunks} chunks, {len(content)} chars)")
+            logger.info(f"Charter saved to Discord ({total_chunks} chunks, {len(content)} chars)")
             return True
 
         except Exception as e:
-            logger.error(f"❌ Failed to save charter to Discord: {e}")
+            logger.error(f"Failed to save charter to Discord: {e}")
             return False
 
     async def load_from_discord(self) -> Optional[str]:
@@ -116,24 +116,24 @@ class CharterEditor:
                         continue
 
             if not chunks:
-                logger.info("📄 No charter found in Discord, using file")
+                logger.info("No charter found in Discord, using file")
                 return None
 
             # Reassemble in order
             if len(chunks) != total_chunks:
-                logger.warning(f"⚠️ Charter incomplete: {len(chunks)}/{total_chunks} chunks")
+                logger.warning(f"Charter incomplete: {len(chunks)}/{total_chunks} chunks")
                 return None
 
             full_content = ""
             for i in range(1, total_chunks + 1):
                 full_content += chunks.get(i, "")
 
-            logger.info(f"✅ Charter loaded from Discord ({total_chunks} chunks, {len(full_content)} chars)")
+            logger.info(f"Charter loaded from Discord ({total_chunks} chunks, {len(full_content)} chars)")
             self._discord_charter_loaded = True
             return full_content
 
         except Exception as e:
-            logger.error(f"❌ Failed to load charter from Discord: {e}")
+            logger.error(f"Failed to load charter from Discord: {e}")
             return None
 
     async def restore_from_discord(self) -> bool:
@@ -147,15 +147,15 @@ class CharterEditor:
         if not content:
             return False
         if (self.read_charter() or "").strip() == content.strip():
-            logger.info("📄 Local charter already matches the Discord copy")
+            logger.info("Local charter already matches the Discord copy")
             return True
         try:
             with open(self.charter_file, 'w', encoding='utf-8') as f:
                 f.write(content)
-            logger.info(f"📄 Restored charter from Discord into {self.charter_file} ({len(content)} chars)")
+            logger.info(f"Restored charter from Discord into {self.charter_file} ({len(content)} chars)")
             return True
         except Exception as e:
-            logger.error(f"❌ Could not write restored charter: {e}")
+            logger.error(f"Could not write restored charter: {e}")
             return False
 
     def read_charter(self) -> Optional[str]:
@@ -164,13 +164,13 @@ class CharterEditor:
             if os.path.exists(self.charter_file):
                 with open(self.charter_file, 'r', encoding='utf-8') as f:
                     content = f.read()
-                logger.info(f"📄 Read charter from file: {len(content)} characters")
+                logger.info(f"Read charter from file: {len(content)} characters")
                 return content
             else:
-                logger.warning("⚠️ Charter file not found")
+                logger.warning("Charter file not found")
                 return None
         except Exception as e:
-            logger.error(f"❌ Error reading charter: {e}")
+            logger.error(f"Error reading charter: {e}")
             return None
 
 
@@ -187,10 +187,10 @@ class CharterEditor:
             with open(backup_file, 'w', encoding='utf-8') as f:
                 f.write(content)
 
-            logger.info(f"💾 Charter backed up to {backup_file}")
+            logger.info(f"Charter backed up to {backup_file}")
             return True
         except Exception as e:
-            logger.error(f"❌ Error backing up charter: {e}")
+            logger.error(f"Error backing up charter: {e}")
             return False
 
     def write_charter(self, content: str) -> bool:
@@ -203,10 +203,10 @@ class CharterEditor:
             with open(self.charter_file, 'w', encoding='utf-8') as f:
                 f.write(content)
 
-            logger.info(f"✅ Charter updated in file: {len(content)} characters")
+            logger.info(f"Charter updated in file: {len(content)} characters")
             return True
         except Exception as e:
-            logger.error(f"❌ Error writing charter: {e}")
+            logger.error(f"Error writing charter: {e}")
             return False
 
     async def write_charter_async(self, content: str) -> bool:
@@ -218,18 +218,18 @@ class CharterEditor:
             # Write to local file
             with open(self.charter_file, 'w', encoding='utf-8') as f:
                 f.write(content)
-            logger.info(f"✅ Charter updated in file: {len(content)} characters")
+            logger.info(f"Charter updated in file: {len(content)} characters")
 
             # Also save to Discord for persistence across deployments
             discord_saved = await self.save_to_discord(content)
             if discord_saved:
-                logger.info("✅ Charter also saved to Discord for persistence")
+                logger.info("Charter also saved to Discord for persistence")
             else:
-                logger.warning("⚠️ Charter saved to file but NOT to Discord")
+                logger.warning("Charter saved to file but NOT to Discord")
 
             return True
         except Exception as e:
-            logger.error(f"❌ Error writing charter: {e}")
+            logger.error(f"Error writing charter: {e}")
             return False
 
     # ---- Import from a shared document URL -------------------------------------------------
@@ -286,7 +286,7 @@ class CharterEditor:
             last_error = e
 
         if response is None:
-            logger.error(f"❌ Charter import failed to fetch {url}: {last_error}")
+            logger.error(f"Charter import failed to fetch {url}: {last_error}")
             return False, f"Couldn't fetch that document: {last_error}"
 
         if response.status_code != 200:
@@ -395,7 +395,7 @@ class CharterEditor:
                 }
 
         except Exception as e:
-            logger.error(f"❌ Error adding rule section: {e}")
+            logger.error(f"Error adding rule section: {e}")
             return {
                 'success': False,
                 'message': f'Error: {str(e)}'
@@ -473,7 +473,7 @@ class CharterEditor:
                 }
 
         except Exception as e:
-            logger.error(f"❌ Error updating rule section: {e}")
+            logger.error(f"Error updating rule section: {e}")
             return {
                 'success': False,
                 'message': f'Error: {str(e)}'
@@ -513,18 +513,18 @@ Format it as a proper charter rule entry. Use this style:
 
 Just provide the formatted rule text, nothing else."""
 
-            logger.info(f"🤖 Requesting AI formatting for rule: {rule_summary[:50]}...")
+            logger.info(f"Requesting AI formatting for rule: {rule_summary[:50]}...")
             formatted_rule = await self.ai_assistant.ask_ai(prompt, "Charter Editor")
 
             if formatted_rule:
-                logger.info("✅ AI rule formatting successful")
+                logger.info("AI rule formatting successful")
                 return formatted_rule
             else:
-                logger.warning("⚠️ AI formatting failed, using basic format")
+                logger.warning("AI formatting failed, using basic format")
                 return f"**Rule**: {rule_summary}"
 
         except Exception as e:
-            logger.error(f"❌ Error formatting rule with AI: {e}")
+            logger.error(f"Error formatting rule with AI: {e}")
             return f"**Rule**: {rule_summary}"
 
 
@@ -549,7 +549,7 @@ Just provide the formatted rule text, nothing else."""
 
             return backups
         except Exception as e:
-            logger.error(f"❌ Error listing backups: {e}")
+            logger.error(f"Error listing backups: {e}")
             return []
 
     def restore_backup(self, backup_filename: str) -> bool:
@@ -558,7 +558,7 @@ Just provide the formatted rule text, nothing else."""
             backup_path = os.path.join(self.backup_dir, backup_filename)
 
             if not os.path.exists(backup_path):
-                logger.error(f"❌ Backup file not found: {backup_filename}")
+                logger.error(f"Backup file not found: {backup_filename}")
                 return False
 
             # Read the backup
@@ -572,12 +572,12 @@ Just provide the formatted rule text, nothing else."""
             success = self.write_charter(backup_content)
 
             if success:
-                logger.info(f"✅ Charter restored from backup: {backup_filename}")
+                logger.info(f"Charter restored from backup: {backup_filename}")
 
             return success
 
         except Exception as e:
-            logger.error(f"❌ Error restoring backup: {e}")
+            logger.error(f"Error restoring backup: {e}")
             return False
 
     # ==================== Interactive Update Methods ====================
@@ -591,7 +591,7 @@ Just provide the formatted rule text, nothing else."""
                     return json.load(f)
             return []
         except Exception as e:
-            logger.error(f"❌ Error loading changelog: {e}")
+            logger.error(f"Error loading changelog: {e}")
             return []
 
     def _save_changelog(self, changelog: List[Dict]) -> bool:
@@ -602,7 +602,7 @@ Just provide the formatted rule text, nothing else."""
                 json.dump(changelog, f, indent=2, default=str)
             return True
         except Exception as e:
-            logger.error(f"❌ Error saving changelog: {e}")
+            logger.error(f"Error saving changelog: {e}")
             return False
 
     def add_changelog_entry(
@@ -636,7 +636,7 @@ Just provide the formatted rule text, nothing else."""
 
             return self._save_changelog(changelog)
         except Exception as e:
-            logger.error(f"❌ Error adding changelog entry: {e}")
+            logger.error(f"Error adding changelog entry: {e}")
             return False
 
     def get_recent_changes(self, limit: int = 10) -> List[Dict]:
@@ -664,7 +664,7 @@ Just provide the formatted rule text, nothing else."""
         - context: additional context
         """
         if not self.ai_assistant:
-            logger.warning("⚠️ AI assistant not available for message analysis")
+            logger.warning("AI assistant not available for message analysis")
             return None
 
         if not messages:
@@ -674,9 +674,9 @@ Just provide the formatted rule text, nothing else."""
         messages_text = "\n".join(messages[:100])  # Limit to recent 100
 
         # Log what we're sending to AI for debugging
-        logger.info(f"📝 Sending {len(messages)} messages to AI for rule analysis")
+        logger.info(f"Sending {len(messages)} messages to AI for rule analysis")
         if messages:
-            logger.debug("📝 First 3 messages:\n" + "\n".join(messages[:3]))
+            logger.debug("First 3 messages:\n" + "\n".join(messages[:3]))
 
         prompt = f"""You are analyzing a Discord channel called "{channel_name}" for rule changes and votes in a {GAME_NAME} dynasty league.
 
@@ -731,7 +731,7 @@ IMPORTANT: Even if you're not 100% sure, include anything that looks like a rule
                 response = re.sub(r'\n?```$', '', response)
 
             changes = json.loads(response)
-            logger.info(f"📜 Found {len(changes)} rule changes in {channel_name}")
+            logger.info(f"Found {len(changes)} rule changes in {channel_name}")
             # Log details for debugging
             for i, change in enumerate(changes):
                 logger.debug(f"  Rule {i+1}: {change.get('rule', 'N/A')[:50]}...")
@@ -739,9 +739,9 @@ IMPORTANT: Even if you're not 100% sure, include anything that looks like a rule
             return changes
 
         except json.JSONDecodeError as e:
-            logger.error(f"❌ Failed to parse rule changes JSON: {e}")
+            logger.error(f"Failed to parse rule changes JSON: {e}")
             return None
         except Exception as e:
-            logger.error(f"❌ Error finding rule changes: {e}")
+            logger.error(f"Error finding rule changes: {e}")
             return None
 

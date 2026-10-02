@@ -35,7 +35,7 @@ class CFBDataCog(commands.Cog):
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        logger.info("📊 CFBDataCog initialized")
+        logger.info("CFBDataCog initialized")
 
     # Command group
     cfb_group = app_commands.Group(
@@ -75,7 +75,7 @@ class CFBDataCog(commands.Cog):
         if not await self._check_cfb_available(interaction):
             return
 
-        logger.info(f"🏈 /cfb player from {interaction.user}: {name}" + (f" from {team}" if team else ""))
+        logger.info(f"/cfb player from {interaction.user}: {name}" + (f" from {team}" if team else ""))
 
         try:
             player_info = await cfb_data.get_full_player_info(name, team)
@@ -113,7 +113,7 @@ class CFBDataCog(commands.Cog):
                 await interaction.followup.send(embed=embed, ephemeral=True)
 
         except Exception as e:
-            logger.error(f"❌ Error in /cfb player: {e}", exc_info=True)
+            logger.error(f"Error in /cfb player: {e}", exc_info=True)
             # Try to delete the public "thinking" message
             try:
                 await interaction.delete_original_response()
@@ -160,7 +160,7 @@ class CFBDataCog(commands.Cog):
             )
             return
 
-        logger.info(f"🏈 /cfb players bulk lookup from {interaction.user}: {len(players)} players")
+        logger.info(f"/cfb players bulk lookup from {interaction.user}: {len(players)} players")
 
         try:
             results = await cfb_data.lookup_multiple_players(players)
@@ -188,7 +188,7 @@ class CFBDataCog(commands.Cog):
                 await interaction.followup.send(embed=embed)
 
         except Exception as e:
-            logger.error(f"❌ Error in /cfb players: {e}", exc_info=True)
+            logger.error(f"Error in /cfb players: {e}", exc_info=True)
             await interaction.followup.send(f"❌ Error looking up players: {str(e)}", ephemeral=True)
 
     @cfb_group.command(name="rankings", description="Get college football rankings (AP, Coaches, CFP)")
@@ -268,7 +268,7 @@ class CFBDataCog(commands.Cog):
                 await interaction.followup.send(embed=embed)
 
         except Exception as e:
-            logger.error(f"❌ Error in /cfb rankings: {e}", exc_info=True)
+            logger.error(f"Error in /cfb rankings: {e}", exc_info=True)
             await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
 
     @cfb_group.command(name="matchup", description="Get historical matchup data between two teams")
@@ -304,7 +304,7 @@ class CFBDataCog(commands.Cog):
             await interaction.followup.send(embed=embed)
 
         except Exception as e:
-            logger.error(f"❌ Error in /cfb matchup: {e}", exc_info=True)
+            logger.error(f"Error in /cfb matchup: {e}", exc_info=True)
             await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
 
     @cfb_group.command(name="schedule", description="Get a team's schedule and results")
@@ -340,7 +340,7 @@ class CFBDataCog(commands.Cog):
             await interaction.followup.send(embed=embed)
 
         except Exception as e:
-            logger.error(f"❌ Error in /cfb schedule: {e}", exc_info=True)
+            logger.error(f"Error in /cfb schedule: {e}", exc_info=True)
             await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
 
     @cfb_group.command(name="draft", description="Get NFL draft picks from a college")
@@ -373,7 +373,7 @@ class CFBDataCog(commands.Cog):
             await interaction.followup.send(embed=embed)
 
         except Exception as e:
-            logger.error(f"❌ Error in /cfb draft: {e}", exc_info=True)
+            logger.error(f"Error in /cfb draft: {e}", exc_info=True)
             await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
 
     @cfb_group.command(name="transfers", description="Get transfer portal activity for a team")
@@ -409,7 +409,7 @@ class CFBDataCog(commands.Cog):
             await interaction.followup.send(embed=embed)
 
         except Exception as e:
-            logger.error(f"❌ Error in /cfb transfers: {e}", exc_info=True)
+            logger.error(f"Error in /cfb transfers: {e}", exc_info=True)
             await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
 
     @cfb_group.command(name="betting", description="Get betting lines for games")
@@ -460,7 +460,7 @@ class CFBDataCog(commands.Cog):
             await interaction.followup.send(embed=embed)
 
         except Exception as e:
-            logger.error(f"❌ Error in /cfb betting: {e}", exc_info=True)
+            logger.error(f"Error in /cfb betting: {e}", exc_info=True)
             await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
 
     @cfb_group.command(name="ratings", description="Get advanced ratings (SP+, SRS, Elo) for a team")
@@ -496,7 +496,7 @@ class CFBDataCog(commands.Cog):
             await interaction.followup.send(embed=embed)
 
         except Exception as e:
-            logger.error(f"❌ Error in /cfb ratings: {e}", exc_info=True)
+            logger.error(f"Error in /cfb ratings: {e}", exc_info=True)
             await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
 
     @cfb_group.command(name="teamstats", description="Get full season statistics for a team (offense & defense)")
@@ -582,7 +582,7 @@ class CFBDataCog(commands.Cog):
                 await interaction.followup.send(embed=embed)
 
         except Exception as e:
-            logger.error(f"❌ Error in /cfb teamstats: {e}", exc_info=True)
+            logger.error(f"Error in /cfb teamstats: {e}", exc_info=True)
             await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
 
 
@@ -590,5 +590,5 @@ async def setup(bot: commands.Bot):
     """Required setup function for loading cog"""
     cog = CFBDataCog(bot)
     await bot.add_cog(cog)
-    logger.info("✅ CFBDataCog loaded")
-    logger.info("✅ CFBDataCog loaded")
+    logger.info("CFBDataCog loaded")
+    logger.info("CFBDataCog loaded")

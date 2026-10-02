@@ -33,7 +33,7 @@ class CoreCog(commands.Cog):
         self.version_manager = VersionManager()
         self.ai_assistant = None
         self.AI_AVAILABLE = False
-        logger.info("🏈 CoreCog initialized")
+        logger.info("CoreCog initialized")
 
     def set_dependencies(self, ai_assistant=None, AI_AVAILABLE=False):
         """Set dependencies after bot is ready"""
@@ -178,7 +178,6 @@ class CoreCog(commands.Cog):
         )
 
         embed.add_field(name="📅 Release Date", value=version_info.get('date', 'Unknown'), inline=True)
-        embed.add_field(name="📊 Total Versions", value=str(len(self.version_manager.get_all_versions())), inline=True)
         embed.add_field(name="📖 View Details", value="Use `/changelog` to see all changes!", inline=False)
 
         embed.set_footer(text="Harry's CFB Bot 🏈")
@@ -191,7 +190,7 @@ class CoreCog(commands.Cog):
         if not version:
             embed = discord.Embed(
                 title="📜 Harry's Version History",
-                description="Here's all the updates!",
+                description="Recent updates — the full history is in `docs/CHANGELOG.md` on GitHub.",
                 color=Colors.SUCCESS
             )
 
@@ -199,7 +198,7 @@ class CoreCog(commands.Cog):
             if len(summary) > 1000:
                 summary = summary[:997] + "..."
 
-            embed.add_field(name="📋 All Versions", value=summary, inline=False)
+            embed.add_field(name="📋 Recent Versions", value=summary, inline=False)
             embed.add_field(name="🔍 View Specific Version", value="Use `/changelog 1.1.0` to see details!", inline=False)
             embed.set_footer(text=f"Current Version: v{self.version_manager.get_current_version()}")
             await interaction.response.send_message(embed=embed)
@@ -307,4 +306,4 @@ async def setup(bot: commands.Bot):
     """Required setup function for loading cog"""
     cog = CoreCog(bot)
     await bot.add_cog(cog)
-    logger.info("✅ CoreCog loaded")
+    logger.info("CoreCog loaded")

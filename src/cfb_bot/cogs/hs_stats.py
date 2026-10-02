@@ -29,7 +29,7 @@ class HSStatsCog(commands.Cog):
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        logger.info("🏫 HSStatsCog initialized")
+        logger.info("HSStatsCog initialized")
 
     # Command group
     hs_group = app_commands.Group(
@@ -129,7 +129,7 @@ class HSStatsCog(commands.Cog):
             await interaction.followup.send(embed=embed)
 
         except Exception as e:
-            logger.error(f"❌ Error in /hs stats: {e}", exc_info=True)
+            logger.error(f"Error in /hs stats: {e}", exc_info=True)
             await interaction.followup.send(
                 f"❌ Error looking up player: {str(e)}",
                 ephemeral=True
@@ -262,7 +262,7 @@ class HSStatsCog(commands.Cog):
             await interaction.followup.send(embed=embed)
 
         except Exception as e:
-            logger.error(f"❌ Error in /hs bulk: {e}", exc_info=True)
+            logger.error(f"Error in /hs bulk: {e}", exc_info=True)
             await interaction.followup.send(
                 f"❌ Error looking up players: {str(e)}",
                 ephemeral=True
@@ -273,6 +273,6 @@ async def setup(bot: commands.Bot):
     """Required setup function for loading cog"""
     cog = HSStatsCog(bot)
     await bot.add_cog(cog)
-    logger.info("✅ HSStatsCog loaded")
-    logger.info("✅ HSStatsCog loaded")
+    logger.info("HSStatsCog loaded")
+    logger.info("HSStatsCog loaded")
 

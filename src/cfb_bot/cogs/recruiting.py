@@ -48,7 +48,7 @@ class RecruitingCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.admin_manager = None  # Will be set by bot after loading
-        logger.info("⭐ RecruitingCog initialized")
+        logger.info("RecruitingCog initialized")
 
     # Command group
     recruiting_group = app_commands.Group(
@@ -95,7 +95,7 @@ class RecruitingCog(commands.Cog):
         try:
             await interaction.response.defer()
         except discord.errors.NotFound:
-            logger.warning(f"⚠️ /recruiting player interaction expired for {name}")
+            logger.warning(f"/recruiting player interaction expired for {name}")
             return
 
         try:
@@ -104,7 +104,7 @@ class RecruitingCog(commands.Cog):
 
             search_depth = "deep (all ~3000)" if deep_search else "standard"
             pos_filter = f" (position: {position})" if position else ""
-            logger.info(f"🔍 /recruiting player: {name} ({year or 'current'}){pos_filter} via {source_name} - {search_depth}")
+            logger.info(f"/recruiting player: {name} ({year or 'current'}){pos_filter} via {source_name} - {search_depth}")
 
             # Check cache first (24 hour TTL) - include position in cache key
             cache = get_cache()
@@ -112,7 +112,7 @@ class RecruitingCog(commands.Cog):
             recruit = cache.get(cache_key, namespace='recruiting')
 
             if recruit:
-                logger.info(f"✅ Cache HIT for {name} - saved API call!")
+                logger.info(f"Cache HIT for {name} - saved API call!")
             else:
                 # Cache miss - scrape the data
                 max_pages = 65 if deep_search else 20
@@ -121,7 +121,7 @@ class RecruitingCog(commands.Cog):
                 if recruit:
                     # Cache successful lookups for 24 hours (86400 seconds)
                     cache.set(cache_key, recruit, ttl_seconds=86400, namespace='recruiting')
-                    logger.info(f"💾 Cached {name} for 24 hours")
+                    logger.info(f"Cached {name} for 24 hours")
 
             # Check if we got multiple candidates
             if recruit and recruit.get('multiple'):
@@ -272,7 +272,7 @@ class RecruitingCog(commands.Cog):
                                         if cfb_pos in valid_pos or on3_pos in cfb_pos:
                                             college_stats = await cfb_data.get_full_player_info(p.get('name'), p.get('team'))
                                             if college_stats:
-                                                logger.info(f"✅ Found college stats via last name match: {p.get('name')}")
+                                                logger.info(f"Found college stats via last name match: {p.get('name')}")
                                                 break
                                 elif players:
                                     # No position to match, take first result
@@ -354,7 +354,7 @@ class RecruitingCog(commands.Cog):
                 await interaction.followup.send(embed=embed)
 
         except Exception as e:
-            logger.error(f"❌ Error in /recruiting player: {e}", exc_info=True)
+            logger.error(f"Error in /recruiting player: {e}", exc_info=True)
             await interaction.followup.send(f"❌ Error looking up recruit: {str(e)}")
 
     @recruiting_group.command(name="top", description="Get top recruits by position or state")
@@ -388,7 +388,7 @@ class RecruitingCog(commands.Cog):
         try:
             await interaction.response.defer()
         except discord.errors.NotFound:
-            logger.warning("⚠️ /recruiting top interaction expired")
+            logger.warning("/recruiting top interaction expired")
             return
 
         if not await check_module_enabled_deferred(interaction, FeatureModule.RECRUITING, server_config):
@@ -403,7 +403,7 @@ class RecruitingCog(commands.Cog):
             scraper, source_name = get_recruiting_scraper(guild_id)
 
             actual_year = year or scraper._get_current_recruiting_year()
-            logger.info(f"🔍 /recruiting top via {source_name}: pos={position}, state={state}, year={actual_year}")
+            logger.info(f"/recruiting top via {source_name}: pos={position}, state={state}, year={actual_year}")
 
             recruits = await scraper.get_top_recruits(
                 year=actual_year,
@@ -437,7 +437,7 @@ class RecruitingCog(commands.Cog):
                 )
 
         except Exception as e:
-            logger.error(f"❌ Error in /recruiting top: {e}", exc_info=True)
+            logger.error(f"Error in /recruiting top: {e}", exc_info=True)
             await interaction.followup.send(f"❌ Error getting recruits: {str(e)}", ephemeral=True)
 
     @recruiting_group.command(name="class", description="Get a team's recruiting class ranking")
@@ -455,7 +455,7 @@ class RecruitingCog(commands.Cog):
         try:
             await interaction.response.defer()
         except discord.errors.NotFound:
-            logger.warning(f"⚠️ /recruiting class interaction expired for {team}")
+            logger.warning(f"/recruiting class interaction expired for {team}")
             return
 
         if not await check_module_enabled_deferred(interaction, FeatureModule.RECRUITING, server_config):
@@ -466,7 +466,7 @@ class RecruitingCog(commands.Cog):
             scraper, source_name = get_recruiting_scraper(guild_id)
 
             actual_year = year or scraper._get_current_recruiting_year()
-            logger.info(f"🔍 /recruiting class via {source_name}: {team} ({actual_year})")
+            logger.info(f"/recruiting class via {source_name}: {team} ({actual_year})")
 
             team_data = await scraper.get_team_recruiting_class(team, actual_year)
 
@@ -486,7 +486,7 @@ class RecruitingCog(commands.Cog):
                 )
 
         except Exception as e:
-            logger.error(f"❌ Error in /recruiting class: {e}", exc_info=True)
+            logger.error(f"Error in /recruiting class: {e}", exc_info=True)
             await interaction.followup.send(f"❌ Error getting class: {str(e)}", ephemeral=True)
 
     @recruiting_group.command(name="commits", description="List all committed recruits for a team")
@@ -506,7 +506,7 @@ class RecruitingCog(commands.Cog):
         try:
             await interaction.response.defer()
         except discord.errors.NotFound:
-            logger.warning(f"⚠️ /recruiting commits interaction expired for {team}")
+            logger.warning(f"/recruiting commits interaction expired for {team}")
             return
 
         if not await check_module_enabled_deferred(interaction, FeatureModule.RECRUITING, server_config):
@@ -526,7 +526,7 @@ class RecruitingCog(commands.Cog):
                 return
 
             actual_year = year or scraper._get_current_recruiting_year()
-            logger.info(f"🔍 /recruiting commits: {team} ({actual_year})")
+            logger.info(f"/recruiting commits: {team} ({actual_year})")
 
             commits_data = await scraper.get_team_commits(team, actual_year)
 
@@ -546,7 +546,7 @@ class RecruitingCog(commands.Cog):
                 )
 
         except Exception as e:
-            logger.error(f"❌ Error in /recruiting commits: {e}", exc_info=True)
+            logger.error(f"Error in /recruiting commits: {e}", exc_info=True)
             await interaction.followup.send(f"❌ Error getting commits: {str(e)}", ephemeral=True)
 
     @recruiting_group.command(name="rankings", description="Get top team recruiting class rankings")
@@ -564,7 +564,7 @@ class RecruitingCog(commands.Cog):
         try:
             await interaction.response.defer()
         except discord.errors.NotFound:
-            logger.warning("⚠️ /recruiting rankings interaction expired")
+            logger.warning("/recruiting rankings interaction expired")
             return
 
         if not await check_module_enabled_deferred(interaction, FeatureModule.RECRUITING, server_config):
@@ -579,7 +579,7 @@ class RecruitingCog(commands.Cog):
             scraper, source_name = get_recruiting_scraper(guild_id)
 
             actual_year = year or scraper._get_current_recruiting_year()
-            logger.info(f"🔍 /recruiting rankings via {source_name}: year={actual_year}, top={top}")
+            logger.info(f"/recruiting rankings via {source_name}: year={actual_year}, top={top}")
 
             # Check cache first (same pattern as player lookup)
             cache = get_cache()
@@ -587,10 +587,10 @@ class RecruitingCog(commands.Cog):
             cached_teams = cache.get(cache_key, namespace='recruiting')
 
             if cached_teams:
-                logger.info(f"💾 Cache hit for recruiting rankings: {cache_key}")
+                logger.info(f"Cache hit for recruiting rankings: {cache_key}")
                 teams = cached_teams
             else:
-                logger.info(f"🔍 Cache miss for recruiting rankings: {cache_key}")
+                logger.info(f"Cache miss for recruiting rankings: {cache_key}")
                 teams = await scraper.get_team_rankings(actual_year, top or 25)
 
                 # Cache for 24 hours (rankings don't change often)
@@ -621,7 +621,7 @@ class RecruitingCog(commands.Cog):
                 )
 
         except Exception as e:
-            logger.error(f"❌ Error in /recruiting rankings: {e}", exc_info=True)
+            logger.error(f"Error in /recruiting rankings: {e}", exc_info=True)
 
     @recruiting_group.command(name="portal", description="Look up a transfer portal player (recruiting + college stats)")
     @app_commands.describe(
@@ -638,14 +638,14 @@ class RecruitingCog(commands.Cog):
         try:
             await interaction.response.defer()
         except discord.errors.NotFound:
-            logger.warning(f"⚠️ /recruiting portal interaction expired for {name}")
+            logger.warning(f"/recruiting portal interaction expired for {name}")
             return
 
         if not await check_module_enabled_deferred(interaction, FeatureModule.RECRUITING, server_config):
             return
 
         try:
-            logger.info(f"🔄 Portal lookup: {name}" + (f" ({team})" if team else ""))
+            logger.info(f"Portal lookup: {name}" + (f" ({team})" if team else ""))
 
             # Get recruiting data from On3
             recruit_data = None
@@ -655,7 +655,7 @@ class RecruitingCog(commands.Cog):
                 if recruit_data:
                     on3_name = recruit_data.get('name')
             except Exception as e:
-                logger.warning(f"⚠️ On3 lookup failed for {name}: {e}")
+                logger.warning(f"On3 lookup failed for {name}: {e}")
 
             # Get college stats from CFB Data
             college_stats = None
@@ -665,7 +665,7 @@ class RecruitingCog(commands.Cog):
                 if college_stats:
                     cfb_name = college_stats.get('name')
             except Exception as e:
-                logger.warning(f"⚠️ CFB Data lookup failed for {name}: {e}")
+                logger.warning(f"CFB Data lookup failed for {name}: {e}")
 
             # Cross-reference names
             if recruit_data and not college_stats and on3_name and on3_name.lower() != name.lower():
@@ -824,7 +824,7 @@ class RecruitingCog(commands.Cog):
             await interaction.followup.send(embed=embed)
 
         except Exception as e:
-            logger.error(f"❌ Error in /recruiting portal: {e}", exc_info=True)
+            logger.error(f"Error in /recruiting portal: {e}", exc_info=True)
             await interaction.followup.send(f"❌ Error looking up portal player: {str(e)}", ephemeral=True)
 
     @recruiting_group.command(name="source", description="Set the recruiting data source")
@@ -915,4 +915,4 @@ async def setup(bot: commands.Bot):
     """Required setup function for loading cog"""
     cog = RecruitingCog(bot)
     await bot.add_cog(cog)
-    logger.info("✅ RecruitingCog loaded")
+    logger.info("RecruitingCog loaded")

@@ -97,7 +97,7 @@ class FunCog(commands.Cog):
         # Track processed interactions to prevent duplicates: {interaction_id: timestamp}
         self._processed_interactions: Dict[int, float] = {}
 
-        logger.info("🎭 FunCog initialized")
+        logger.info("FunCog initialized")
 
     def set_dependencies(self, admin_manager=None, ai_assistant=None):
         """Set dependencies after bot is ready"""
@@ -117,7 +117,7 @@ class FunCog(commands.Cog):
         if interaction_id in self._processed_interactions:
             time_since = current_time - self._processed_interactions[interaction_id]
             if time_since < 5:
-                logger.warning(f"⚠️ Duplicate interaction detected (ID: {interaction_id}, {time_since:.2f}s ago)")
+                logger.warning(f"Duplicate interaction detected (ID: {interaction_id}, {time_since:.2f}s ago)")
                 return True
 
         # Mark this interaction as processed
@@ -189,7 +189,7 @@ class FunCog(commands.Cog):
             'argument_count': 0  # Track how many times Harry has argued back
         }
 
-        logger.info(f"🎯 {interaction.user.display_name} enabled trolling for {user.display_name} (timeout: {timeout}m, engage: {engage})")
+        logger.info(f"{interaction.user.display_name} enabled trolling for {user.display_name} (timeout: {timeout}m, engage: {engage})")
 
         engage_text = "🔥 **Engage mode: ON** - Harry will argue if they respond!" if engage else "💤 **Engage mode: OFF**"
 
@@ -226,7 +226,7 @@ class FunCog(commands.Cog):
         guild_targets = self._targets_for_guild(interaction.guild_id)
         if user.id in guild_targets:
             guild_targets.pop(user.id)
-            logger.info(f"🛑 {interaction.user.display_name} disabled trolling for {user.display_name}")
+            logger.info(f"{interaction.user.display_name} disabled trolling for {user.display_name}")
 
             embed = discord.Embed(
                 title="🛑 Target Released",
@@ -279,7 +279,7 @@ class FunCog(commands.Cog):
             old_timeout = guild_targets[user.id]['timeout']
             guild_targets[user.id]['timeout'] = timeout
 
-            logger.info(f"⏱️ {interaction.user.display_name} changed timeout for {user.display_name}: {old_timeout}m → {timeout}m")
+            logger.info(f"{interaction.user.display_name} changed timeout for {user.display_name}: {old_timeout}m → {timeout}m")
 
             embed = discord.Embed(
                 title="⏱️ Timeout Adjusted",
@@ -326,7 +326,7 @@ class FunCog(commands.Cog):
         target_info['engage'] = new_state
         target_info['argument_count'] = 0  # Reset counter when toggling
 
-        logger.info(f"🔥 {interaction.user.display_name} toggled engage mode for {user.display_name}: {old_state} → {new_state}")
+        logger.info(f"{interaction.user.display_name} toggled engage mode for {user.display_name}: {old_state} → {new_state}")
 
         status_emoji = "🔥" if new_state else "💤"
         status_text = "ON - Harry will argue back!" if new_state else "OFF - No arguments"
@@ -485,7 +485,7 @@ class FunCog(commands.Cog):
             )
             return
 
-        logger.info(f"🎯 {interaction.user.display_name} enabled trolling for {len(added)} users (timeout: {timeout}m, engage: {engage})")
+        logger.info(f"{interaction.user.display_name} enabled trolling for {len(added)} users (timeout: {timeout}m, engage: {engage})")
 
         engage_text = "🔥 **Engage mode: ON** - Harry will argue if they respond!" if engage else "💤 **Engage mode: OFF**"
 
@@ -550,10 +550,10 @@ Do NOT start with "Oh," or "Look," - start directly with the roast."""
                 insult = self._get_targeted_insult(user.mention)
 
             await interaction.followup.send(insult)
-            logger.info(f"🔥 {interaction.user.display_name} roasted {user.display_name}")
+            logger.info(f"{interaction.user.display_name} roasted {user.display_name}")
 
         except Exception as e:
-            logger.error(f"❌ Roast failed: {e}")
+            logger.error(f"Roast failed: {e}")
             await interaction.followup.send(self._get_targeted_insult(user.mention))
 
     @fun_group.command(name="untarget_all", description="🛑 Stop trolling ALL users (Admin only)")
@@ -581,7 +581,7 @@ Do NOT start with "Oh," or "Look," - start directly with the roast."""
         target_names = [info['target_name'] for info in guild_targets.values()]
         guild_targets.clear()
 
-        logger.info(f"🛑 {interaction.user.display_name} disabled trolling for all {count} users")
+        logger.info(f"{interaction.user.display_name} disabled trolling for all {count} users")
 
         embed = discord.Embed(
             title="🛑 All Targets Released (this server)",
@@ -629,9 +629,9 @@ Do NOT start with "Oh," or "Look," - start directly with the roast."""
                 sent_message = await message.channel.send(insult)
                 if target_info.get('engage'):
                     self.troll_messages[sent_message.id] = (message.guild.id, message.author.id)
-                logger.info(f"🎭 Harry responded to mention from {message.author.display_name} (no timeout)")
+                logger.info(f"Harry responded to mention from {message.author.display_name} (no timeout)")
             except Exception as e:
-                logger.error(f"❌ Failed to send mention response: {e}")
+                logger.error(f"Failed to send mention response: {e}")
             return
 
         # PRIORITY 1.6: Targeted user insulting (other keywords) + engage mode → argument with limit
@@ -655,9 +655,9 @@ Do NOT start with "Oh," or "Look," - start directly with the roast."""
             try:
                 annoying_emojis = ["💩", "🤡", "👶", "🤢", "🤏", "🤥", "🖕", "🥱", "🚮", "🤨"]
                 await message.add_reaction(random.choice(annoying_emojis))
-                logger.info(f"🎭 Reacted to targeted user {message.author.display_name}")
+                logger.info(f"Reacted to targeted user {message.author.display_name}")
             except Exception as e:
-                logger.error(f"❌ Failed to add reaction: {e}")
+                logger.error(f"Failed to add reaction: {e}")
 
         current_time = time.time()
         time_since_last = current_time - target_info['last_triggered']
@@ -674,16 +674,16 @@ Do NOT start with "Oh," or "Look," - start directly with the roast."""
 
             if target_info.get('engage'):
                 self.troll_messages[sent_message.id] = (message.guild.id, message.author.id)
-            logger.info(f"🎭 Organic troll: {message.author.display_name} in #{message.channel.name}")
+            logger.info(f"Organic troll: {message.author.display_name} in #{message.channel.name}")
 
             if len(self.troll_messages) > 100:
                 oldest_keys = list(self.troll_messages.keys())[:50]
                 for key in oldest_keys:
                     del self.troll_messages[key]
-                logger.debug(f"🧹 Cleaned up {len(oldest_keys)} old troll message IDs")
+                logger.debug(f"Cleaned up {len(oldest_keys)} old troll message IDs")
 
         except Exception as e:
-            logger.error(f"❌ Failed to send troll message: {e}")
+            logger.error(f"Failed to send troll message: {e}")
 
     async def _handle_direct_insult(self, message: discord.Message, target_info: Dict):
         """Handle when targeted user insults Harry directly (not a reply)"""
@@ -702,10 +702,10 @@ Do NOT start with "Oh," or "Look," - start directly with the roast."""
             # Increment argument counter
             target_info['argument_count'] = target_info.get('argument_count', 0) + 1
 
-            logger.info(f"🔥 Harry responded to direct insult from {message.author.display_name} (count: {target_info['argument_count']})")
+            logger.info(f"Harry responded to direct insult from {message.author.display_name} (count: {target_info['argument_count']})")
 
         except Exception as e:
-            logger.error(f"❌ Failed to respond to insult: {e}")
+            logger.error(f"Failed to respond to insult: {e}")
 
     async def _handle_argument_reply(self, message: discord.Message, guild_targets: Dict[int, Dict]):
         """Handle replies to Harry's troll messages (argument mode). guild_targets is for message.guild."""
@@ -735,7 +735,7 @@ Do NOT start with "Oh," or "Look," - start directly with the roast."""
 
         # Limit argument escalation (max 5 back-and-forth)
         if target_info.get('argument_count', 0) >= 5:
-            logger.info(f"🛑 Argument limit reached for {message.author.display_name}")
+            logger.info(f"Argument limit reached for {message.author.display_name}")
             return
 
         # Generate AI comeback if available
@@ -754,10 +754,10 @@ Do NOT start with "Oh," or "Look," - start directly with the roast."""
             # Increment argument counter
             target_info['argument_count'] = target_info.get('argument_count', 0) + 1
 
-            logger.info(f"🔥 Harry argued back with {message.author.display_name} (count: {target_info['argument_count']})")
+            logger.info(f"Harry argued back with {message.author.display_name} (count: {target_info['argument_count']})")
 
         except Exception as e:
-            logger.error(f"❌ Failed to generate comeback: {e}")
+            logger.error(f"Failed to generate comeback: {e}")
 
     async def _generate_ai_comeback(self, user_message: str, user_name: str) -> str:
         """Generate contextual AI comeback"""
@@ -791,7 +791,7 @@ Your BRUTAL comeback (max 200 chars):"""
             return response
 
         except Exception as e:
-            logger.error(f"❌ AI comeback failed: {e}")
+            logger.error(f"AI comeback failed: {e}")
             return self._get_fallback_comeback(user_message)
 
     def _get_targeted_insult(self, mention: str) -> str:
@@ -891,4 +891,4 @@ async def setup(bot: commands.Bot):
     """Required setup function for loading cog"""
     cog = FunCog(bot)
     await bot.add_cog(cog)
-    logger.info("✅ FunCog loaded")
+    logger.info("FunCog loaded")

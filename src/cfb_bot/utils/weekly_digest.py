@@ -124,9 +124,9 @@ class WeeklyDigest:
                 try:
                     app_info = await self.bot.application_info()
                     admin_ids = [app_info.owner.id]
-                    logger.info("📧 No BOT_ADMIN_IDS configured, sending to bot owner")
+                    logger.info("No BOT_ADMIN_IDS configured, sending to bot owner")
                 except Exception as e:
-                    logger.error(f"❌ Could not get bot owner: {e}")
+                    logger.error(f"Could not get bot owner: {e}")
                     return
 
             sent_count = 0
@@ -136,21 +136,21 @@ class WeeklyDigest:
                     user = await self.bot.fetch_user(admin_id)
                     await user.send(embed=embed)
                     sent_count += 1
-                    logger.info(f"📧 Sent weekly digest to admin {admin_id}")
+                    logger.info(f"Sent weekly digest to admin {admin_id}")
                 except discord.Forbidden:
-                    logger.warning(f"⚠️ Cannot DM admin {admin_id} (DMs disabled)")
+                    logger.warning(f"Cannot DM admin {admin_id} (DMs disabled)")
                 except discord.NotFound:
-                    logger.warning(f"⚠️ Admin {admin_id} not found")
+                    logger.warning(f"Admin {admin_id} not found")
                 except Exception as e:
-                    logger.error(f"❌ Error sending digest to {admin_id}: {e}")
+                    logger.error(f"Error sending digest to {admin_id}: {e}")
 
-            logger.info(f"✅ Weekly digest sent to {sent_count} admin(s)")
+            logger.info(f"Weekly digest sent to {sent_count} admin(s)")
 
             # Mark as sent
             await self.mark_digest_sent()
 
         except Exception as e:
-            logger.error(f"❌ Error generating/sending weekly digest: {e}")
+            logger.error(f"Error generating/sending weekly digest: {e}")
 
     async def send_manual_digest(self, interaction: discord.Interaction):
         """Send digest manually via command"""
@@ -158,7 +158,7 @@ class WeeklyDigest:
             embed = await self.generate_digest()
             await interaction.followup.send(embed=embed, ephemeral=True)
         except Exception as e:
-            logger.error(f"❌ Error generating manual digest: {e}")
+            logger.error(f"Error generating manual digest: {e}")
             await interaction.followup.send(
                 f"❌ Error generating digest: {str(e)}",
                 ephemeral=True
@@ -175,6 +175,6 @@ def get_weekly_digest(bot) -> WeeklyDigest:
 
     if _digest_instance is None:
         _digest_instance = WeeklyDigest(bot)
-        logger.info("📊 Weekly digest initialized")
+        logger.info("Weekly digest initialized")
 
     return _digest_instance

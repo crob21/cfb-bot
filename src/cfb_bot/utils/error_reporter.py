@@ -107,7 +107,7 @@ class ErrorReporter:
                 }
 
                 if not self._under_hourly_cap():
-                    logger.warning("⚠️ Error-report DM cap reached this hour, not sending")
+                    logger.warning("Error-report DM cap reached this hour, not sending")
                     return False
                 self._sent_times.append(now)
 
@@ -115,10 +115,10 @@ class ErrorReporter:
             if not dm:
                 return False
             await dm.send(self._format(error, context, repeats))
-            logger.info(f"📩 DMed the bot owner about: {type(error).__name__} ({context})")
+            logger.info(f"DMed the bot owner about: {type(error).__name__} ({context})")
             return True
         except Exception as e:  # never let reporting break the caller
-            logger.error(f"❌ Failed to send error report: {e}")
+            logger.error(f"Failed to send error report: {e}")
             return False
 
     async def send_notice(self, title: str, body: str) -> bool:
@@ -136,7 +136,7 @@ class ErrorReporter:
             await dm.send(f"{title}\n{body}"[:1990])
             return True
         except Exception as e:
-            logger.error(f"❌ Failed to send notice: {e}")
+            logger.error(f"Failed to send notice: {e}")
             return False
 
 

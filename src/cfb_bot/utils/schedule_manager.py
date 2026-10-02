@@ -44,13 +44,13 @@ class ScheduleManager:
                     self.schedule_data = json.load(f)
                 self.season = self.schedule_data.get('season', 1)
                 self.teams = self.schedule_data.get('teams', [])
-                logger.info(f"✅ Loaded schedule for Season {self.season} ({len(self.teams)} teams)")
+                logger.info(f"Loaded schedule for Season {self.season} ({len(self.teams)} teams)")
                 return True
             else:
-                logger.warning(f"⚠️ Schedule file not found: {SCHEDULE_FILE}")
+                logger.warning(f"Schedule file not found: {SCHEDULE_FILE}")
                 return False
         except Exception as e:
-            logger.error(f"❌ Failed to load schedule: {e}")
+            logger.error(f"Failed to load schedule: {e}")
             return False
 
     def reload_schedule(self) -> bool:
@@ -84,18 +84,18 @@ class ScheduleManager:
                     data = json.loads(raw.decode('utf-8'))
                     ok, err = self.validate_schedule(data)
                     if not ok:
-                        logger.warning(f"⚠️ Ignoring invalid schedule backup: {err}")
+                        logger.warning(f"Ignoring invalid schedule backup: {err}")
                         return False
                     self.load_from_dict(data)
                     logger.info(
-                        f"✅ Restored schedule from Discord backup "
+                        f"Restored schedule from Discord backup "
                         f"(Season {self.season}, {len(self.schedule_data.get('schedule', {}))} weeks)"
                     )
                     return True
-            logger.info("📅 No schedule backup in Discord; using bundled schedule.json")
+            logger.info("No schedule backup in Discord; using bundled schedule.json")
             return False
         except Exception as e:
-            logger.error(f"❌ Failed to load schedule from Discord: {e}")
+            logger.error(f"Failed to load schedule from Discord: {e}")
             return False
 
     async def save_to_discord(self) -> bool:
@@ -110,11 +110,11 @@ class ScheduleManager:
             with open(SCHEDULE_FILE, 'w') as f:
                 json.dump(self.schedule_data, f, indent=2)
         except Exception as e:
-            logger.warning(f"⚠️ Could not write local schedule file: {e}")
+            logger.warning(f"Could not write local schedule file: {e}")
 
         dm = await self._get_owner_dm()
         if not dm:
-            logger.error("❌ No owner DM available — schedule NOT persisted to Discord!")
+            logger.error("No owner DM available — schedule NOT persisted to Discord!")
             return False
 
         try:
@@ -133,10 +133,10 @@ class ScheduleManager:
 
             file = discord.File(io.BytesIO(payload), filename=SCHEDULE_BACKUP_FILENAME)
             await dm.send(content=f"{SCHEDULE_BACKUP_MARKER} (Season {self.season})", file=file)
-            logger.info("✅ Schedule backed up to Discord (owner DM attachment)")
+            logger.info("Schedule backed up to Discord (owner DM attachment)")
             return True
         except Exception as e:
-            logger.error(f"❌ Failed to back up schedule to Discord: {e}")
+            logger.error(f"Failed to back up schedule to Discord: {e}")
             return False
 
     @staticmethod

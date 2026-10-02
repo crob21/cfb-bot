@@ -61,12 +61,12 @@ class AICharterAssistant:
                 self.total_openai_tokens = data.get('openai_tokens', 0)
                 self.total_anthropic_tokens = data.get('anthropic_tokens', 0)
                 self.total_requests = data.get('total_requests', 0)
-                logger.info(f"📊 Loaded AI usage stats: {self.total_requests:,} requests, {self.total_openai_tokens + self.total_anthropic_tokens:,} tokens")
+                logger.info(f"Loaded AI usage stats: {self.total_requests:,} requests, {self.total_openai_tokens + self.total_anthropic_tokens:,} tokens")
             else:
-                logger.info("📊 No existing AI usage stats found - starting fresh")
+                logger.info("No existing AI usage stats found - starting fresh")
             self._loaded = True
         except Exception as e:
-            logger.warning(f"⚠️ Failed to load AI usage stats: {e}")
+            logger.warning(f"Failed to load AI usage stats: {e}")
             self._loaded = True  # Don't try again
 
     async def _save_usage_stats(self):
@@ -78,9 +78,9 @@ class AICharterAssistant:
                 'total_requests': self.total_requests
             }
             await self._storage.save("ai_usage", "global", data)
-            logger.debug("💾 Saved AI usage stats")
+            logger.debug("Saved AI usage stats")
         except Exception as e:
-            logger.error(f"❌ Failed to save AI usage stats: {e}")
+            logger.error(f"Failed to save AI usage stats: {e}")
 
     async def _record_ai_cost(self, amount: float):
         """Record AI cost with the cost tracker for /admin budget and alerts."""
@@ -89,7 +89,7 @@ class AICharterAssistant:
         try:
             from ..utils.cost_tracker import get_cost_tracker
             await get_cost_tracker().record_cost('ai', amount)
-            logger.info(f"💰 Recorded ${amount:.4f} AI cost for /admin budget")
+            logger.info(f"Recorded ${amount:.4f} AI cost for /admin budget")
         except Exception as e:
             logger.warning(f"Failed to record AI cost for budget (/admin budget will not update): {e}")
 
@@ -102,13 +102,13 @@ class AICharterAssistant:
                 with open(charter_file, 'r', encoding='utf-8') as f:
                     content = f.read()
                     if content:
-                        logger.info(f"📄 Loaded local charter content ({len(content)} characters)")
+                        logger.info(f"Loaded local charter content ({len(content)} characters)")
                         return content
         except Exception as e:
-            logger.warning(f"⚠️  Local charter file failed: {e}")
+            logger.warning(f"Local charter file failed: {e}")
 
         # No charter content available
-        logger.info("📄 No charter content available - using fallback context")
+        logger.info("No charter content available - using fallback context")
         return None
 
     def get_schedule_context(self) -> str:
@@ -145,7 +145,7 @@ class AICharterAssistant:
             if schedule_mgr:
                 context_parts.append(schedule_mgr.get_schedule_context_for_ai())
         except Exception as e:
-            logger.warning(f"⚠️ Could not get schedule context: {e}")
+            logger.warning(f"Could not get schedule context: {e}")
 
         return "\n".join(context_parts)
 
@@ -164,7 +164,7 @@ class AICharterAssistant:
         if cache_key in self._response_cache:
             cached_response, timestamp = self._response_cache[cache_key]
             if time.time() - timestamp < self._cache_ttl:
-                logger.info("💾 Cache hit for question (saved ~$0.001)")
+                logger.info("Cache hit for question (saved ~$0.001)")
                 return cached_response
             else:
                 # Expired, remove from cache
@@ -175,7 +175,7 @@ class AICharterAssistant:
         """Cache a response"""
         import time
         self._response_cache[cache_key] = (response, time.time())
-        logger.debug(f"💾 Cached response (key: {cache_key[:8]}...)")
+        logger.debug(f"Cached response (key: {cache_key[:8]}...)")
 
     async def ask_openai(self, question: str, context: str, max_tokens: int = 500, personality_prompt: str = None, include_league_context: bool = True) -> Optional[str]:
         """Ask OpenAI - optionally includes league charter and schedule context
@@ -194,7 +194,7 @@ class AICharterAssistant:
             return sanitize_ai_response(cached)
 
         if not self.openai_api_key:
-            logger.warning("⚠️ OpenAI API key not found")
+            logger.warning("OpenAI API key not found")
             return None
 
         headers = {
@@ -270,13 +270,13 @@ class AICharterAssistant:
 
         try:
             # Log the full prompt being sent
-            logger.info(f"🤖 Asking OpenAI: {question[:100]}...")
-            logger.info(f"📝 Full prompt length: {len(prompt)} characters")
-            logger.info(f"📄 Context length: {len(context)} characters")
+            logger.info(f"Asking OpenAI: {question[:100]}...")
+            logger.info(f"Full prompt length: {len(prompt)} characters")
+            logger.info(f"Context length: {len(context)} characters")
 
             # Estimate token count (rough approximation: 1 token ≈ 4 characters)
             estimated_tokens = len(prompt) // 4
-            logger.info(f"🔢 Estimated input tokens: ~{estimated_tokens}")
+            logger.info(f"Estimated input tokens: ~{estimated_tokens}")
 
             async with aiohttp.ClientSession() as session:
                 async with session.post(
@@ -295,25 +295,25 @@ class AICharterAssistant:
                         total_tokens = usage.get('total_tokens', 0)
 
                         # Log detailed usage information
-                        logger.info("✅ OpenAI response received")
-                        logger.info(f"🔢 Token usage - Prompt: {prompt_tokens}, Completion: {completion_tokens}, Total: {total_tokens}")
+                        logger.info("OpenAI response received")
+                        logger.info(f"Token usage - Prompt: {prompt_tokens}, Completion: {completion_tokens}, Total: {total_tokens}")
 
                         # Log any rate limit information if available
                         if 'x-ratelimit-remaining-requests' in response.headers:
                             remaining_requests = response.headers.get('x-ratelimit-remaining-requests')
-                            logger.info(f"⏱️ Rate limit - Remaining requests: {remaining_requests}")
+                            logger.info(f"Rate limit - Remaining requests: {remaining_requests}")
 
                         if 'x-ratelimit-remaining-tokens' in response.headers:
                             remaining_tokens = response.headers.get('x-ratelimit-remaining-tokens')
-                            logger.info(f"⏱️ Rate limit - Remaining tokens: {remaining_tokens}")
+                            logger.info(f"Rate limit - Remaining tokens: {remaining_tokens}")
 
                         if 'x-ratelimit-reset-requests' in response.headers:
                             reset_requests = response.headers.get('x-ratelimit-reset-requests')
-                            logger.info(f"⏱️ Rate limit - Requests reset at: {reset_requests}")
+                            logger.info(f"Rate limit - Requests reset at: {reset_requests}")
 
                         if 'x-ratelimit-reset-tokens' in response.headers:
                             reset_tokens = response.headers.get('x-ratelimit-reset-tokens')
-                            logger.info(f"⏱️ Rate limit - Tokens reset at: {reset_tokens}")
+                            logger.info(f"Rate limit - Tokens reset at: {reset_tokens}")
 
                         # Update token counters
                         self.total_openai_tokens += total_tokens
@@ -326,10 +326,10 @@ class AICharterAssistant:
                         request_cost = (total_tokens / 1000) * self.openai_cost_per_1k
                         await self._record_ai_cost(request_cost)
 
-                        logger.info(f"📊 Total OpenAI tokens used: {self.total_openai_tokens} (across {self.total_requests} requests)")
+                        logger.info(f"Total OpenAI tokens used: {self.total_openai_tokens} (across {self.total_requests} requests)")
 
                         response_text = result['choices'][0]['message']['content'].strip()
-                        logger.info(f"📝 Response length: {len(response_text)} characters")
+                        logger.info(f"Response length: {len(response_text)} characters")
 
                         # Never send keys/secrets to users (sneaky prompts)
                         response_text = sanitize_ai_response(response_text)
@@ -364,7 +364,7 @@ class AICharterAssistant:
             return sanitize_ai_response(cached)
 
         if not self.anthropic_api_key:
-            logger.warning("⚠️ Anthropic API key not found")
+            logger.warning("Anthropic API key not found")
             return None
 
         headers = {
@@ -437,13 +437,13 @@ class AICharterAssistant:
 
         try:
             # Log the request details
-            logger.info(f"🤖 Asking Anthropic: {question[:100]}...")
-            logger.info(f"📝 Full prompt length: {len(prompt)} characters")
-            logger.info(f"📄 Context length: {len(context)} characters")
+            logger.info(f"Asking Anthropic: {question[:100]}...")
+            logger.info(f"Full prompt length: {len(prompt)} characters")
+            logger.info(f"Context length: {len(context)} characters")
 
             # Estimate token count (rough approximation: 1 token ≈ 4 characters)
             estimated_tokens = len(prompt) // 4
-            logger.info(f"🔢 Estimated input tokens: ~{estimated_tokens}")
+            logger.info(f"Estimated input tokens: ~{estimated_tokens}")
 
             async with aiohttp.ClientSession() as session:
                 async with session.post(
@@ -472,12 +472,12 @@ class AICharterAssistant:
                         request_cost = (total_tokens / 1000) * self.anthropic_cost_per_1k
                         await self._record_ai_cost(request_cost)
 
-                        logger.info("✅ Anthropic response received")
-                        logger.info(f"🔢 Token usage - Input: {input_tokens}, Output: {output_tokens}")
-                        logger.info(f"📊 Total Anthropic tokens used: {self.total_anthropic_tokens} (across {self.total_requests} requests)")
+                        logger.info("Anthropic response received")
+                        logger.info(f"Token usage - Input: {input_tokens}, Output: {output_tokens}")
+                        logger.info(f"Total Anthropic tokens used: {self.total_anthropic_tokens} (across {self.total_requests} requests)")
 
                         response_text = result['content'][0]['text'].strip()
-                        logger.info(f"📝 Response length: {len(response_text)} characters")
+                        logger.info(f"Response length: {len(response_text)} characters")
 
                         # Never send keys/secrets to users (sneaky prompts)
                         response_text = sanitize_ai_response(response_text)
@@ -507,33 +507,33 @@ class AICharterAssistant:
         await self._load_usage_stats()
 
         if user_info:
-            logger.info(f"🤖 AI asked by {user_info}: {question[:100]}...")
+            logger.info(f"AI asked by {user_info}: {question[:100]}...")
         else:
-            logger.info(f"🤖 AI asked: {question[:100]}...")
+            logger.info(f"AI asked: {question[:100]}...")
 
         context = await self.get_charter_content()
 
         # Use empty context if no charter content available
         if not context:
             context = f"No charter content available. Please provide general information about {GAME_NAME} league rules, recruiting, transfers, or dynasty management."
-            logger.info("📄 Using fallback context (no charter content)")
+            logger.info("Using fallback context (no charter content)")
         else:
-            logger.info(f"📄 Using charter context ({len(context)} characters)")
+            logger.info(f"Using charter context ({len(context)} characters)")
 
         # Try OpenAI first
-        logger.info(f"🔄 Trying OpenAI... (include_league_context={include_league_context})")
+        logger.info(f"Trying OpenAI... (include_league_context={include_league_context})")
         response = await self.ask_openai(question, context, include_league_context=include_league_context)
         if response:
-            logger.info("✅ OpenAI response received")
+            logger.info("OpenAI response received")
             return response
 
         # Fallback to Anthropic
-        logger.info("🔄 Trying Anthropic...")
+        logger.info("Trying Anthropic...")
         response = await self.ask_anthropic(question, context, include_league_context=include_league_context)
         if response:
-            logger.info("✅ Anthropic response received")
+            logger.info("Anthropic response received")
         else:
-            logger.warning("❌ No AI response from either provider")
+            logger.warning("No AI response from either provider")
         return response
 
     def get_token_usage(self) -> dict:
@@ -565,7 +565,7 @@ class AICharterAssistant:
               check the OpenAI Dashboard at https://platform.openai.com/usage
         """
         if not self.openai_api_key:
-            logger.warning("⚠️ OpenAI API key not found")
+            logger.warning("OpenAI API key not found")
             return None
 
         headers = {
@@ -584,7 +584,7 @@ class AICharterAssistant:
         }
 
         try:
-            logger.info(f"📊 Querying OpenAI Usage API (date: {date})...")
+            logger.info(f"Querying OpenAI Usage API (date: {date})...")
             async with aiohttp.ClientSession() as session:
                 async with session.get(
                     'https://api.openai.com/v1/usage',
@@ -594,18 +594,18 @@ class AICharterAssistant:
                 ) as response:
                     if response.status == 200:
                         data = await response.json()
-                        logger.info("✅ Retrieved OpenAI usage data")
+                        logger.info("Retrieved OpenAI usage data")
                         return data
                     else:
                         error_text = await response.text()
                         from ..utils.log_utils import sanitize_for_log
-                        logger.warning(f"⚠️ OpenAI Usage API error: {response.status} - {sanitize_for_log(error_text)}")
+                        logger.warning(f"OpenAI Usage API error: {response.status} - {sanitize_for_log(error_text)}")
                         return None
         except asyncio.TimeoutError:
-            logger.warning("⚠️ OpenAI Usage API timeout")
+            logger.warning("OpenAI Usage API timeout")
             return None
         except Exception as e:
-            logger.error(f"❌ Error querying OpenAI Usage API: {e}")
+            logger.error(f"Error querying OpenAI Usage API: {e}")
             return None
 
     async def get_openai_cost_for_current_month(self) -> Optional[float]:

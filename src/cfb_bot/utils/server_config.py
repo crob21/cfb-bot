@@ -183,7 +183,7 @@ class ServerConfigManager:
         for module_name, default_enabled in DEFAULT_CONFIG["modules"].items():
             if module_name not in config["modules"]:
                 config["modules"][module_name] = default_enabled
-                logger.info(f"🆕 Auto-migrated new module '{module_name}' (enabled={default_enabled}) for guild {guild_id}")
+                logger.info(f"Auto-migrated new module '{module_name}' (enabled={default_enabled}) for guild {guild_id}")
 
         return config
 
@@ -204,7 +204,7 @@ class ServerConfigManager:
 
         config = self.get_config(guild_id)
         config["modules"][module.value] = True
-        logger.info(f"✅ Enabled {module.value} for guild {guild_id}")
+        logger.info(f"Enabled {module.value} for guild {guild_id}")
         return True
 
     def disable_module(self, guild_id: int, module: FeatureModule) -> bool:
@@ -215,7 +215,7 @@ class ServerConfigManager:
 
         config = self.get_config(guild_id)
         config["modules"][module.value] = False
-        logger.info(f"❌ Disabled {module.value} for guild {guild_id}")
+        logger.info(f"Disabled {module.value} for guild {guild_id}")
         return True
 
     def get_enabled_modules(self, guild_id: int) -> Set[str]:
@@ -249,13 +249,13 @@ class ServerConfigManager:
     def set_admin_channel(self, guild_id: int, channel_id: int):
         """Set the admin channel for a guild"""
         self.set_setting(guild_id, "admin_channel_id", channel_id)
-        logger.info(f"✅ Set admin channel to {channel_id} for guild {guild_id}")
+        logger.info(f"Set admin channel to {channel_id} for guild {guild_id}")
 
 
     def set_timer_channel(self, guild_id: int, channel_id: int):
         """Set the timer notification channel for a guild"""
         self.set_setting(guild_id, "timer_channel_id", channel_id)
-        logger.info(f"✅ Set timer channel to {channel_id} for guild {guild_id}")
+        logger.info(f"Set timer channel to {channel_id} for guild {guild_id}")
 
     # ==================== RECRUITING SOURCE ====================
 
@@ -269,7 +269,7 @@ class ServerConfigManager:
             logger.warning(f"Invalid recruiting source: {source}")
             return False
         self.set_setting(guild_id, "recruiting_source", source)
-        logger.info(f"✅ Set recruiting source to {source} for guild {guild_id}")
+        logger.info(f"Set recruiting source to {source} for guild {guild_id}")
         return True
 
     # ==================== STORAGE ====================
@@ -286,7 +286,7 @@ class ServerConfigManager:
 
         success = await storage.save("server_config", "all", serializable)
         if success:
-            logger.info(f"✅ Saved configs for {len(self._configs)} servers")
+            logger.info(f"Saved configs for {len(self._configs)} servers")
         return success
 
     async def load_from_discord(self):
@@ -309,7 +309,7 @@ class ServerConfigManager:
             if data:
                 # New format: {"guild_id": config, ...}
                 self._configs = {int(k): v for k, v in data.items()}
-                logger.info(f"✅ Loaded configs for {len(self._configs)} servers")
+                logger.info(f"Loaded configs for {len(self._configs)} servers")
             else:
                 # Try loading old format (direct guild configs without "all" wrapper)
                 # Old format stored directly as SERVER_CONFIG:{guild_id: config, ...}
@@ -327,20 +327,20 @@ class ServerConfigManager:
                             continue
 
                     if self._configs:
-                        logger.info(f"✅ Migrated {len(self._configs)} server configs from old format")
+                        logger.info(f"Migrated {len(self._configs)} server configs from old format")
                         # Save in new format
                         await self.save_to_discord()
                     else:
-                        logger.info("📝 No existing server configs found")
+                        logger.info("No existing server configs found")
                 else:
                     self._configs = {}
-                    logger.info("📝 No existing server configs found")
+                    logger.info("No existing server configs found")
 
             self._loaded = True
             return True
 
         except Exception as e:
-            logger.error(f"❌ Failed to load configs: {e}")
+            logger.error(f"Failed to load configs: {e}")
             return False
 
     def get_module_description(self, module: FeatureModule) -> str:
@@ -374,7 +374,7 @@ class ServerConfigManager:
         current = self.auto_responses_enabled(guild_id, channel_id)
         new_value = not current
         self.set_channel_override(guild_id, channel_id, "auto_responses", new_value)
-        logger.info(f"{'✅' if new_value else '❌'} Toggled auto_responses for channel {channel_id} in guild {guild_id}: {new_value}")
+        logger.info(f"{'' if new_value else ''} Toggled auto_responses for channel {channel_id} in guild {guild_id}: {new_value}")
         return new_value
 
     def get_personality_prompt(self, guild_id: int) -> str:
@@ -402,7 +402,7 @@ class ServerConfigManager:
 
         if channel_id not in config["enabled_channels"]:
             config["enabled_channels"].append(channel_id)
-            logger.info(f"✅ Enabled channel {channel_id} for guild {guild_id}")
+            logger.info(f"Enabled channel {channel_id} for guild {guild_id}")
         return True
 
     def disable_channel(self, guild_id: int, channel_id: int) -> bool:
@@ -413,7 +413,7 @@ class ServerConfigManager:
 
         if channel_id in config["enabled_channels"]:
             config["enabled_channels"].remove(channel_id)
-            logger.info(f"❌ Disabled channel {channel_id} for guild {guild_id}")
+            logger.info(f"Disabled channel {channel_id} for guild {guild_id}")
         return True
 
     def get_enabled_channels(self, guild_id: int) -> List[int]:
@@ -432,7 +432,7 @@ class ServerConfigManager:
             config["channel_overrides"][channel_key] = {}
 
         config["channel_overrides"][channel_key][key] = value
-        logger.info(f"⚙️ Set channel {channel_id} override: {key}={value}")
+        logger.info(f"Set channel {channel_id} override: {key}={value}")
 
     def get_channel_override(self, guild_id: int, channel_id: int, key: str) -> Any:
         """Get a per-channel override (returns None if not set)"""

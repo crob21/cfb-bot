@@ -113,7 +113,7 @@ def get_cache() -> SimpleCache:
 
     if _cache_instance is None:
         _cache_instance = SimpleCache()
-        logger.info("📦 Cache initialized")
+        logger.info("Cache initialized")
 
     return _cache_instance
 

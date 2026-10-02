@@ -52,7 +52,7 @@ def safe_log_user_input(logger: logging.Logger, user: str, content: str):
         content: User input content
     """
     sanitized_content = sanitize_for_log(content)
-    logger.info(f"📨 User input from {user}: {sanitized_content}")
+    logger.info(f"User input from {user}: {sanitized_content}")
 
 
 

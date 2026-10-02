@@ -27,9 +27,9 @@ class AdminManager:
             try:
                 admin_list = [int(uid.strip()) for uid in admin_env.split(',') if uid.strip()]
                 self.admin_ids.update(admin_list)
-                logger.info(f"✅ Loaded {len(admin_list)} admin(s) from BOT_ADMIN_IDS")
+                logger.info(f"Loaded {len(admin_list)} admin(s) from BOT_ADMIN_IDS")
             except ValueError as e:
-                logger.error(f"❌ Error parsing BOT_ADMIN_IDS: {e}")
+                logger.error(f"Error parsing BOT_ADMIN_IDS: {e}")
 
         # Hardcoded fallback admins (you can add your user ID here!)
         # To find your user ID: Enable Developer Mode in Discord → Right-click your name → Copy User ID
@@ -40,17 +40,17 @@ class AdminManager:
 
         if HARDCODED_ADMINS:
             self.admin_ids.update(HARDCODED_ADMINS)
-            logger.info(f"✅ Loaded {len(HARDCODED_ADMINS)} hardcoded admin(s)")
+            logger.info(f"Loaded {len(HARDCODED_ADMINS)} hardcoded admin(s)")
 
         if not self.admin_ids:
-            logger.warning("⚠️ No bot admins configured! Admin commands will require Discord Administrator permission.")
+            logger.warning("No bot admins configured! Admin commands will require Discord Administrator permission.")
 
     def add_admin(self, user_id: int) -> bool:
         """Add a user as bot admin"""
         if user_id in self.admin_ids:
             return False
         self.admin_ids.add(user_id)
-        logger.info(f"✅ Added admin: {user_id}")
+        logger.info(f"Added admin: {user_id}")
         return True
 
     def remove_admin(self, user_id: int) -> bool:
@@ -58,7 +58,7 @@ class AdminManager:
         if user_id not in self.admin_ids:
             return False
         self.admin_ids.remove(user_id)
-        logger.info(f"✅ Removed admin: {user_id}")
+        logger.info(f"Removed admin: {user_id}")
         return True
 
     def is_admin(self, user: discord.User, interaction: discord.Interaction = None) -> bool:

@@ -50,7 +50,7 @@ def save_configs(configs: dict):
         CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
         with open(CONFIG_FILE, 'w') as f:
             json.dump(configs, f, indent=2)
-        logger.info(f"✅ Saved configs for {len(configs)} servers")
+        logger.info(f"Saved configs for {len(configs)} servers")
     except Exception as e:
         logger.error(f"Error saving configs: {e}")
 
@@ -152,7 +152,7 @@ async def update_modules(request: Request, guild_id: str, user: dict = Depends(r
         config["modules"]["core"] = True  # Always on
     
     save_server_config(guild_id, config)
-    logger.info(f"✅ Updated modules for guild {guild_id}")
+    logger.info(f"Updated modules for guild {guild_id}")
     
     return {"success": True, "config": config}
 
@@ -171,7 +171,7 @@ async def update_settings(request: Request, guild_id: str, user: dict = Depends(
         config["settings"].update(data["settings"])
     
     save_server_config(guild_id, config)
-    logger.info(f"✅ Updated settings for guild {guild_id}")
+    logger.info(f"Updated settings for guild {guild_id}")
     
     return {"success": True, "config": config}
 
@@ -212,7 +212,7 @@ async def add_admin(request: Request, guild_id: str, user: dict = Depends(requir
     config["admins"].append({"id": user_id, "username": username})
     save_server_config(guild_id, config)
     
-    logger.info(f"✅ Added admin {username} ({user_id}) to guild {guild_id}")
+    logger.info(f"Added admin {username} ({user_id}) to guild {guild_id}")
     return {"success": True, "admins": config["admins"]}
 
 
@@ -230,6 +230,6 @@ async def remove_admin(request: Request, guild_id: str, user_id: str, user: dict
     config["admins"] = [a for a in config["admins"] if a["id"] != user_id]
     save_server_config(guild_id, config)
     
-    logger.info(f"✅ Removed admin {user_id} from guild {guild_id}")
+    logger.info(f"Removed admin {user_id} from guild {guild_id}")
     return {"success": True, "admins": config["admins"]}
 

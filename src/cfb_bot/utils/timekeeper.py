@@ -284,7 +284,7 @@ class AdvanceTimer:
         if notification_channel:
             return notification_channel
         # Fallback to original channel if notification channel not found
-        logger.warning(f"⚠️ Notification channel {NOTIFICATION_CHANNEL_ID} not found, using original channel")
+        logger.warning(f"Notification channel {NOTIFICATION_CHANNEL_ID} not found, using original channel")
         return self.channel
 
     async def save_state(self):
@@ -307,7 +307,7 @@ class AdvanceTimer:
                     'channel_id': self.channel.id,
                     'is_active': False
                 })
-            logger.info("💾 Cleared timer state (no active timer)")
+            logger.info("Cleared timer state (no active timer)")
             return
 
         try:
@@ -327,41 +327,41 @@ class AdvanceTimer:
                 TIMER_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
                 with open(TIMER_STATE_FILE, 'w') as f:
                     json.dump(state, f, indent=2)
-                logger.info(f"💾 Timer state saved to {TIMER_STATE_FILE}")
+                logger.info(f"Timer state saved to {TIMER_STATE_FILE}")
             except Exception as e:
-                logger.warning(f"⚠️ Failed to save timer state to file: {e}")
+                logger.warning(f"Failed to save timer state to file: {e}")
 
             # Save to environment variable (for Render/Railway if manually set)
             try:
                 os.environ['TIMER_STATE'] = state_json
-                logger.debug("💾 Timer state saved to environment variable")
+                logger.debug("Timer state saved to environment variable")
             except Exception as e:
-                logger.warning(f"⚠️ Failed to save timer state to environment variable: {e}")
+                logger.warning(f"Failed to save timer state to environment variable: {e}")
 
             # Save to Discord (persists across deployments!)
             # This MUST succeed for persistence to work
             if self.manager:
                 discord_saved = await self.manager._save_state_to_discord(state)
                 if not discord_saved:
-                    logger.error("❌ CRITICAL: Failed to save timer state to Discord - timer will NOT persist!")
+                    logger.error("CRITICAL: Failed to save timer state to Discord - timer will NOT persist!")
                 else:
-                    logger.info("✅ Timer state saved to Discord successfully")
+                    logger.info("Timer state saved to Discord successfully")
             else:
-                logger.error("❌ CRITICAL: No manager available - timer state NOT saved to Discord!")
+                logger.error("CRITICAL: No manager available - timer state NOT saved to Discord!")
 
         except Exception as e:
-            logger.error(f"❌ Failed to save timer state: {e}")
+            logger.error(f"Failed to save timer state: {e}")
             logger.exception("Full error details:")
 
     async def start_countdown(self, hours: int = 48) -> bool:
         """Start a countdown with custom duration"""
         if self.is_active:
-            logger.warning("⚠️ Countdown already active")
+            logger.warning("Countdown already active")
             return False
 
         # Cancel any existing monitoring task before starting a new one
         if self.task and not self.task.done():
-            logger.info("🔄 Cancelling old monitoring task before starting new countdown")
+            logger.info("Cancelling old monitoring task before starting new countdown")
             self.task.cancel()
             try:
                 await self.task
@@ -381,9 +381,9 @@ class AdvanceTimer:
         # Start the monitoring task
         self.task = asyncio.create_task(self._monitor_countdown())
 
-        logger.info(f"⏰ Countdown started at {self.start_time}")
-        logger.info(f"⏰ Duration: {hours} hours")
-        logger.info(f"⏰ Countdown will end at {self.end_time}")
+        logger.info(f"Countdown started at {self.start_time}")
+        logger.info(f"Duration: {hours} hours")
+        logger.info(f"Countdown will end at {self.end_time}")
         return True
 
     async def stop_countdown(self) -> bool:
@@ -398,7 +398,7 @@ class AdvanceTimer:
         # Clear saved state
         await self.save_state()
 
-        logger.info("⏹️ Countdown stopped")
+        logger.info("Countdown stopped")
         return True
 
     def get_time_remaining(self) -> Optional[timedelta]:
@@ -471,9 +471,9 @@ class AdvanceTimer:
                 await asyncio.sleep(60)
 
         except asyncio.CancelledError:
-            logger.info("⏹️ Countdown monitoring task cancelled")
+            logger.info("Countdown monitoring task cancelled")
         except Exception as e:
-            logger.error(f"❌ Error in countdown monitoring: {type(e).__name__}: {e}")
+            logger.error(f"Error in countdown monitoring: {type(e).__name__}: {e}")
 
     async def _send_notification(self, hours: int):
         """Send a countdown warning to this timer's channel."""
@@ -487,7 +487,7 @@ class AdvanceTimer:
             try:
                 await self.channel.send(embed=embed)
             except Exception as e:
-                logger.error(f"❌ Failed to send {self.label} notification: {e}")
+                logger.error(f"Failed to send {self.label} notification: {e}")
             return
 
         # More urgent messages and colors for lower time remaining
@@ -514,12 +514,12 @@ class AdvanceTimer:
             # Add @everyone ping for 6 hour and 1 hour warnings to cut through muted channels
             if hours <= 6:
                 await notification_channel.send(content="@everyone", embed=embed)
-                logger.info(f"📢 Sent {hours}h notification with @everyone ping to #{notification_channel.name}")
+                logger.info(f"Sent {hours}h notification with @everyone ping to #{notification_channel.name}")
             else:
                 await notification_channel.send(embed=embed)
-                logger.info(f"📢 Sent {hours}h notification to #{notification_channel.name}")
+                logger.info(f"Sent {hours}h notification to #{notification_channel.name}")
         except Exception as e:
-            logger.error(f"❌ Failed to send notification: {e}")
+            logger.error(f"Failed to send notification: {e}")
 
     async def _send_times_up(self):
         """
@@ -540,9 +540,9 @@ class AdvanceTimer:
             embed.set_footer(text="Harry's Side Timer ⏱️")
             try:
                 await self.channel.send(content="@everyone", embed=embed)
-                logger.info(f"📢 Sent TIMES UP for side league '{self.label}'")
+                logger.info(f"Sent TIMES UP for side league '{self.label}'")
             except Exception as e:
-                logger.error(f"❌ Failed to send {self.label} times-up: {e}")
+                logger.error(f"Failed to send {self.label} times-up: {e}")
             if self.manager:
                 await self.manager.save_side_timers()
             return
@@ -578,9 +578,9 @@ class AdvanceTimer:
             notification_channel = self.get_notification_channel()
             # @everyone for TIME'S UP - this is the most important one!
             await notification_channel.send(content="@everyone", embed=embed)
-            logger.info(f"📢 Sent TIMES UP message with @everyone ping to #{notification_channel.name}")
+            logger.info(f"Sent TIMES UP message with @everyone ping to #{notification_channel.name}")
         except Exception as e:
-            logger.error(f"❌ Failed to send times up message: {e}")
+            logger.error(f"Failed to send times up message: {e}")
 
 
 class TimekeeperManager:
@@ -668,7 +668,7 @@ class TimekeeperManager:
                         try:
                             message = await dm_channel.fetch_message(self.state_message_id)
                             await message.edit(content=f"```json\n{state_json}\n```")
-                            logger.info("💾 Updated timer state message in bot owner DM")
+                            logger.info("Updated timer state message in bot owner DM")
                             return True
                         except discord.NotFound:
                             self.state_message_id = None
@@ -690,22 +690,22 @@ class TimekeeperManager:
                     # Create new state message in DM (invisible to users!)
                     message = await dm_channel.send(content=f"```json\n{state_json}\n```")
                     self.state_message_id = message.id
-                    logger.info("💾 Created timer state message in bot owner DM (invisible to users)")
+                    logger.info("Created timer state message in bot owner DM (invisible to users)")
                     return True
                 except Exception as e:
-                    logger.warning(f"⚠️ Could not use DM channel for state storage: {e}, falling back to timer channel")
+                    logger.warning(f"Could not use DM channel for state storage: {e}, falling back to timer channel")
                     logger.debug("DM channel error details", exc_info=True)
                     # Continue to fallback below
 
             # Fallback: Use timer's channel (visible but necessary)
             channel_id = state.get('channel_id')
             if not channel_id:
-                logger.error("❌ No channel_id in state - cannot save to Discord")
+                logger.error("No channel_id in state - cannot save to Discord")
                 return False
 
             channel = self.bot.get_channel(channel_id)
             if not channel:
-                logger.error(f"❌ Channel {channel_id} not found - cannot save state")
+                logger.error(f"Channel {channel_id} not found - cannot save state")
                 return False
 
             # Store state as JSON in message content
@@ -717,14 +717,14 @@ class TimekeeperManager:
                     message = await channel.fetch_message(self.state_message_id)
                     # Update existing message (edit is less visible than new message)
                     await message.edit(content=f"```json\n{state_json}\n```")
-                    logger.info("💾 Updated timer state message in Discord channel")
+                    logger.info("Updated timer state message in Discord channel")
                     return True
                 except discord.NotFound:
                     # Message was deleted, create new one
                     logger.debug("State message not found, will create new one")
                     self.state_message_id = None
                 except Exception as e:
-                    logger.warning(f"⚠️ Failed to update state message: {e}, will create new one")
+                    logger.warning(f"Failed to update state message: {e}, will create new one")
                     self.state_message_id = None
 
             # Clean up old state messages from this bot to avoid clutter
@@ -738,7 +738,7 @@ class TimekeeperManager:
                         # Delete old state messages to keep channel clean
                         try:
                             await message.delete()
-                            logger.debug("🗑️ Deleted old timer state message")
+                            logger.debug("Deleted old timer state message")
                         except Exception:
                             pass  # Ignore if we can't delete
             except Exception as e:
@@ -752,14 +752,14 @@ class TimekeeperManager:
                 )
                 self.state_message_id = message.id
                 self.state_channel_id = channel_id
-                logger.info(f"💾 Created timer state message in #{channel.name} (fallback - visible to users)")
+                logger.info(f"Created timer state message in #{channel.name} (fallback - visible to users)")
                 return True
             except Exception as e:
-                logger.error(f"❌ Failed to create state message in channel: {e}")
+                logger.error(f"Failed to create state message in channel: {e}")
                 return False
 
         except Exception as e:
-            logger.error(f"❌ Failed to save timer state to Discord: {e}")
+            logger.error(f"Failed to save timer state to Discord: {e}")
             logger.exception("Full error details:")
             return False
 
@@ -767,17 +767,17 @@ class TimekeeperManager:
         """Load timer state from Discord (DM channel first, then public channels)"""
         try:
             # First, try to get state from bot owner's DM channel (preferred, invisible)
-            logger.info("🔍 Checking bot owner DM channel for timer state...")
+            logger.info("Checking bot owner DM channel for timer state...")
             try:
                 app_info = await self.bot.application_info()
                 bot_owner_id = app_info.owner.id if app_info.owner else None
 
                 if bot_owner_id:
-                    logger.info(f"📧 Bot owner ID: {bot_owner_id}")
+                    logger.info(f"Bot owner ID: {bot_owner_id}")
                     try:
                         bot_owner = await self.bot.fetch_user(bot_owner_id)
                     except Exception as e:
-                        logger.warning(f"⚠️ Could not fetch bot owner: {e}")
+                        logger.warning(f"Could not fetch bot owner: {e}")
                         raise  # Will fall back to public channels
 
                     try:
@@ -786,11 +786,11 @@ class TimekeeperManager:
                             # Try to create DM channel (may fail if user hasn't interacted with bot)
                             dm_channel = await bot_owner.create_dm()
                     except Exception as e:
-                        logger.warning(f"⚠️ Could not create/access DM channel: {e}")
-                        logger.info("💡 Tip: Bot owner needs to have DMs enabled - falling back to public channels")
+                        logger.warning(f"Could not create/access DM channel: {e}")
+                        logger.info("Tip: Bot owner needs to have DMs enabled - falling back to public channels")
                         raise  # Will fall back to public channels
 
-                    logger.info(f"📧 DM channel created/accessed: {dm_channel.id}")
+                    logger.info(f"DM channel created/accessed: {dm_channel.id}")
 
                     # Search DM channel for state messages (search more messages - state could be older)
                     message_count = 0
@@ -825,24 +825,24 @@ class TimekeeperManager:
                             # timer is inactive, stop — don't resurrect an older, stopped timer.
                             self.state_message_id = message.id
                             if 'end_time' not in state or not state.get('is_active', True):
-                                logger.info(f"📧 Newest timer state in DM is inactive (message #{message_count})")
+                                logger.info(f"Newest timer state in DM is inactive (message #{message_count})")
                                 return None
-                            logger.info(f"✅ Found timer state in bot owner DM (message #{message_count})")
+                            logger.info(f"Found timer state in bot owner DM (message #{message_count})")
                             return state
                         except json.JSONDecodeError as e:
                             logger.debug(f"Failed to parse JSON from DM message: {e}")
                             continue
-                    logger.info(f"📧 Searched {message_count} messages in DM, no timer state found")
+                    logger.info(f"Searched {message_count} messages in DM, no timer state found")
                     # If we got here, DM worked but no state found - continue to public channels
                 else:
-                    logger.warning("⚠️ Could not get bot owner ID")
+                    logger.warning("Could not get bot owner ID")
             except Exception as e:
-                logger.warning(f"⚠️ Could not check DM channel: {e}")
+                logger.warning(f"Could not check DM channel: {e}")
                 logger.debug("Full error details", exc_info=True)
                 # Continue to fallback - public channels
 
             # Fallback: Search for state messages in all channels the bot can access
-            logger.info("🔍 Checking public channels for timer state...")
+            logger.info("Checking public channels for timer state...")
             channels_checked = 0
             messages_checked = 0
             for guild in self.bot.guilds:
@@ -872,12 +872,12 @@ class TimekeeperManager:
                                         # Found state in public channel - migrate to DM and delete this one
                                         self.state_message_id = message.id
                                         self.state_channel_id = channel.id
-                                        logger.info(f"📂 Found timer state message in #{channel.name}, will migrate to DM")
+                                        logger.info(f"Found timer state message in #{channel.name}, will migrate to DM")
 
                                         # Delete the visible message after we've loaded it
                                         try:
                                             await message.delete()
-                                            logger.info(f"🗑️ Deleted visible timer state message from #{channel.name}")
+                                            logger.info(f"Deleted visible timer state message from #{channel.name}")
                                         except Exception:
                                             pass  # Ignore delete failures
 
@@ -890,50 +890,50 @@ class TimekeeperManager:
                         logger.debug(f"Error searching channel {channel.name}: {e}")
                         continue
 
-            logger.info(f"📂 Searched {channels_checked} channels, {messages_checked} messages - no timer state found")
+            logger.info(f"Searched {channels_checked} channels, {messages_checked} messages - no timer state found")
 
             return None
 
         except Exception as e:
-            logger.error(f"❌ Failed to load timer state from Discord: {e}")
+            logger.error(f"Failed to load timer state from Discord: {e}")
             logger.exception("Full error details:")
             return None
 
     async def load_saved_state(self):
         """Load and restore any saved timer state from Discord, environment variable, or file"""
-        logger.info("🔄 Attempting to load saved timer state...")
+        logger.info("Attempting to load saved timer state...")
         state = None
 
         # Try loading from Discord first (most reliable for ephemeral file systems)
-        logger.info("📂 Checking Discord for timer state...")
+        logger.info("Checking Discord for timer state...")
         state = await self._load_state_from_discord()
         if state:
-            logger.info("✅ Loaded timer state from Discord")
+            logger.info("Loaded timer state from Discord")
         else:
-            logger.info("📂 No timer state found in Discord")
+            logger.info("No timer state found in Discord")
 
         # Fallback to environment variable (for Render/Railway if manually set)
         if not state and 'TIMER_STATE' in os.environ:
-            logger.info("📂 Checking environment variable for timer state...")
+            logger.info("Checking environment variable for timer state...")
             try:
                 state_json = os.environ['TIMER_STATE']
                 state = json.loads(state_json)
-                logger.info("✅ Loaded timer state from environment variable")
+                logger.info("Loaded timer state from environment variable")
             except Exception as e:
-                logger.warning(f"⚠️ Failed to load timer state from environment variable: {e}")
+                logger.warning(f"Failed to load timer state from environment variable: {e}")
 
         # Fallback to file system (for local development)
         if not state and TIMER_STATE_FILE.exists():
-            logger.info(f"📂 Checking file system for timer state ({TIMER_STATE_FILE})...")
+            logger.info(f"Checking file system for timer state ({TIMER_STATE_FILE})...")
             try:
                 with open(TIMER_STATE_FILE, 'r') as f:
                     state = json.load(f)
-                logger.info("✅ Loaded timer state from file")
+                logger.info("Loaded timer state from file")
             except Exception as e:
-                logger.warning(f"⚠️ Failed to load timer state from file: {e}")
+                logger.warning(f"Failed to load timer state from file: {e}")
 
         if not state:
-            logger.info("📂 No saved timer state found anywhere")
+            logger.info("No saved timer state found anywhere")
 
         await self._load_season_week_state()
 
@@ -952,12 +952,12 @@ class TimekeeperManager:
 
             channel_id = state.get('channel_id')
             if not channel_id:
-                logger.warning("⚠️ Invalid timer state: no channel_id")
+                logger.warning("Invalid timer state: no channel_id")
                 return
 
             channel = self.bot.get_channel(channel_id)
             if not channel:
-                logger.warning(f"⚠️ Could not find channel {channel_id}, clearing saved state")
+                logger.warning(f"Could not find channel {channel_id}, clearing saved state")
                 TIMER_STATE_FILE.unlink(missing_ok=True)
                 return
 
@@ -966,12 +966,12 @@ class TimekeeperManager:
             end_time = datetime.fromisoformat(state['end_time']) if state.get('end_time') else None
 
             if not start_time or not end_time:
-                logger.warning("⚠️ Invalid timer state: missing timestamps")
+                logger.warning("Invalid timer state: missing timestamps")
                 return
 
             # Check if timer already expired
             if end_time < datetime.now():
-                logger.info("⏰ Saved timer already expired, clearing state")
+                logger.info("Saved timer already expired, clearing state")
                 # Clear file
                 if TIMER_STATE_FILE.exists():
                     TIMER_STATE_FILE.unlink()
@@ -1004,10 +1004,10 @@ class TimekeeperManager:
             time_remaining = end_time - datetime.now()
             hours_remaining = time_remaining.total_seconds() / 3600
 
-            logger.info(f"✅ Restored timer for {channel.guild.name} (ID: {channel.guild.id}) - #{channel.name}")
-            logger.info(f"⏰ Season {self.season}, Week {self.week}")
-            logger.info(f"⏰ Time remaining: {hours_remaining:.1f} hours")
-            logger.info(f"⏰ End time: {end_time}")
+            logger.info(f"Restored timer for {channel.guild.name} (ID: {channel.guild.id}) - #{channel.name}")
+            logger.info(f"Season {self.season}, Week {self.week}")
+            logger.info(f"Time remaining: {hours_remaining:.1f} hours")
+            logger.info(f"End time: {end_time}")
 
             # Store restore info for combined startup notification
             self._restored_timer_info = {
@@ -1023,11 +1023,11 @@ class TimekeeperManager:
             }
 
         except Exception as e:
-            logger.error(f"❌ Failed to load timer state: {e}")
+            logger.error(f"Failed to load timer state: {e}")
             # Clear corrupted state file
             if TIMER_STATE_FILE.exists():
                 TIMER_STATE_FILE.unlink()
-                logger.info("💾 Cleared corrupted timer state file")
+                logger.info("Cleared corrupted timer state file")
 
     @staticmethod
     def side_key(name: str) -> str:
@@ -1112,7 +1112,7 @@ class TimekeeperManager:
             restored += 1
 
         if restored:
-            logger.info(f"⏱️ Restored {restored} side-league timer(s)")
+            logger.info(f"Restored {restored} side-league timer(s)")
         return restored
 
     def is_duplicate_advance(self, window_minutes: int = 3) -> bool:
@@ -1138,7 +1138,7 @@ class TimekeeperManager:
             if timer.label:
                 continue  # side-league timers are independent of the dynasty week
             if timer.is_active and await timer.stop_countdown():
-                logger.info(f"⏹️ Stopped timer in channel {key}")
+                logger.info(f"Stopped timer in channel {key}")
                 stopped += 1
         return stopped
 
@@ -1201,7 +1201,7 @@ class TimekeeperManager:
         self.season = season
         self.week = week
         await self._save_season_week_state()
-        logger.info(f"📅 Season/Week set to Season {season}, {get_week_name(week)} (step {week})")
+        logger.info(f"Season/Week set to Season {season}, {get_week_name(week)} (step {week})")
         return True
 
     async def increment_week(self) -> bool:
@@ -1210,7 +1210,7 @@ class TimekeeperManager:
         Automatically rolls over to a new season after Training Results (step 27).
         """
         if self.week is None:
-            logger.warning("⚠️ Cannot increment week - week not set")
+            logger.warning("Cannot increment week - week not set")
             return False
 
         old_week = self.week
@@ -1223,10 +1223,10 @@ class TimekeeperManager:
                 self.season += 1  # Increment season
             else:
                 self.season = 1  # Default to season 1 if not set
-            logger.info(f"🎉 NEW SEASON! {old_week_name} → Season {self.season}, {get_week_name(self.week)}")
+            logger.info(f"NEW SEASON! {old_week_name} → Season {self.season}, {get_week_name(self.week)}")
         else:
             self.week += 1
-            logger.info(f"📅 Week incremented: {old_week_name} → {get_week_name(self.week)}")
+            logger.info(f"Week incremented: {old_week_name} → {get_week_name(self.week)}")
 
         await self._save_season_week_state()
         return True
@@ -1241,7 +1241,7 @@ class TimekeeperManager:
 
         dm_channel = await get_owner_dm(self.bot)
         if not dm_channel:
-            logger.warning(f"⚠️ No owner DM — {type_name} state not saved")
+            logger.warning(f"No owner DM — {type_name} state not saved")
             return False
 
         content = f"```json\n{json.dumps({**state, 'type': type_name})}\n```"
@@ -1252,14 +1252,14 @@ class TimekeeperManager:
                         and message.content.startswith("```json")
                         and marker in message.content):
                     await message.edit(content=content)
-                    logger.info(f"💾 Updated {type_name} state in DM")
+                    logger.info(f"Updated {type_name} state in DM")
                     return True
 
             await dm_channel.send(content=content)
-            logger.info(f"💾 Created {type_name} state in DM")
+            logger.info(f"Created {type_name} state in DM")
             return True
         except Exception as e:
-            logger.warning(f"⚠️ Could not save {type_name} state to DM: {e}")
+            logger.warning(f"Could not save {type_name} state to DM: {e}")
             return False
 
     async def _load_typed_state(self, type_name: str, legacy_key: Optional[str] = None) -> Optional[Dict]:
@@ -1323,12 +1323,12 @@ class TimekeeperManager:
             legacy_week = self.week
             self.week = migrate_legacy_week(legacy_week)
             logger.warning(
-                f"⚠️ Migrated legacy week index {legacy_week} → step {self.week} "
+                f"Migrated legacy week index {legacy_week} → step {self.week} "
                 f"({get_week_name(self.week) if self.week else '?'}). Verify with /league week."
             )
             await self._save_season_week_state()
 
-        logger.info(f"✅ Loaded season/week: Season {self.season}, Week {self.week}")
+        logger.info(f"Loaded season/week: Season {self.season}, Week {self.week}")
 
     async def _save_settings_state(self):
         """Save bot settings (notification channel, etc.) to Discord"""
@@ -1345,7 +1345,7 @@ class TimekeeperManager:
         if saved_channel:
             self.notification_channel_id = saved_channel
             NOTIFICATION_CHANNEL_ID = saved_channel
-            logger.info(f"✅ Loaded notification channel: {saved_channel}")
+            logger.info(f"Loaded notification channel: {saved_channel}")
 
     async def _save_league_staff_state(self):
         """Save league staff state to Discord"""
@@ -1367,7 +1367,7 @@ class TimekeeperManager:
         self.co_commish_id = state.get('co_commish_id')
         self.co_commish_name = state.get('co_commish_name')
         logger.info(
-            f"✅ Loaded league staff: Owner={self.league_owner_name}, Co-Commish={self.co_commish_name}"
+            f"Loaded league staff: Owner={self.league_owner_name}, Co-Commish={self.co_commish_name}"
         )
 
 
@@ -1390,10 +1390,10 @@ class TimekeeperManager:
             self.league_owner_id = user.id
             self.league_owner_name = user.display_name
             await self._save_league_staff_state()
-            logger.info(f"👑 League owner set to {user.display_name} (ID: {user.id})")
+            logger.info(f"League owner set to {user.display_name} (ID: {user.id})")
             return True
         except Exception as e:
-            logger.error(f"❌ Failed to set league owner: {e}")
+            logger.error(f"Failed to set league owner: {e}")
             return False
 
     async def set_co_commish(self, user: Optional[discord.User] = None, no_co_commish: bool = False) -> bool:
@@ -1408,20 +1408,20 @@ class TimekeeperManager:
             if no_co_commish:
                 self.co_commish_id = None
                 self.co_commish_name = self.NO_CO_COMMISH
-                logger.info(f"👤 Co-commish set to: {self.NO_CO_COMMISH}")
+                logger.info(f"Co-commish set to: {self.NO_CO_COMMISH}")
             elif user:
                 self.co_commish_id = user.id
                 self.co_commish_name = user.display_name
-                logger.info(f"👤 Co-commish set to {user.display_name} (ID: {user.id})")
+                logger.info(f"Co-commish set to {user.display_name} (ID: {user.id})")
             else:
                 self.co_commish_id = None
                 self.co_commish_name = None
-                logger.info("👤 Co-commish cleared")
+                logger.info("Co-commish cleared")
 
             await self._save_league_staff_state()
             return True
         except Exception as e:
-            logger.error(f"❌ Failed to set co-commish: {e}")
+            logger.error(f"Failed to set co-commish: {e}")
             return False
 
     async def set_notification_channel(self, channel_id: int) -> bool:
@@ -1431,10 +1431,10 @@ class TimekeeperManager:
             self.notification_channel_id = channel_id
             NOTIFICATION_CHANNEL_ID = channel_id  # Update module-level constant
             await self._save_settings_state()
-            logger.info(f"📢 Notification channel set to {channel_id}")
+            logger.info(f"Notification channel set to {channel_id}")
             return True
         except Exception as e:
-            logger.error(f"❌ Failed to set notification channel: {e}")
+            logger.error(f"Failed to set notification channel: {e}")
             return False
 
     def get_notification_channel_id(self) -> int:
@@ -1455,18 +1455,18 @@ class TimekeeperManager:
             interval_minutes: How often to nag (default 5 minutes)
         """
         if not self.league_owner_id:
-            logger.warning("⚠️ Cannot nag - no league owner set!")
+            logger.warning("Cannot nag - no league owner set!")
             return False
 
         if self.nag_active:
-            logger.warning("⚠️ Already nagging the owner!")
+            logger.warning("Already nagging the owner!")
             return False
 
         self.nag_active = True
         self.nag_interval_minutes = interval_minutes
         self.nag_message_index = 0
         self.nag_task = asyncio.create_task(self._nag_loop())
-        logger.info(f"😈 Started nagging league owner every {interval_minutes} minutes!")
+        logger.info(f"Started nagging league owner every {interval_minutes} minutes!")
         return True
 
     async def stop_nagging(self) -> bool:
@@ -1488,7 +1488,7 @@ class TimekeeperManager:
         except Exception:
             pass  # Ignore if we can't DM the owner
 
-        logger.info("😇 Stopped nagging the league owner")
+        logger.info("Stopped nagging the league owner")
         return True
 
 
@@ -1508,9 +1508,9 @@ class TimekeeperManager:
                 await self._send_nag_message()
 
         except asyncio.CancelledError:
-            logger.info("😇 Nag task cancelled")
+            logger.info("Nag task cancelled")
         except Exception as e:
-            logger.error(f"❌ Error in nag loop: {e}")
+            logger.error(f"Error in nag loop: {e}")
             self.nag_active = False
 
     async def _send_nag_message(self):
@@ -1534,7 +1534,7 @@ class TimekeeperManager:
                 message += f"\n\n📅 **Season {self.season}, {week_name}**"
 
             await dm_channel.send(message)
-            logger.info(f"📢 Sent nag message #{self.nag_message_index} to league owner")
+            logger.info(f"Sent nag message #{self.nag_message_index} to league owner")
 
         except Exception as e:
-            logger.error(f"❌ Failed to send nag message: {e}")
+            logger.error(f"Failed to send nag message: {e}")

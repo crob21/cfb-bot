@@ -27,9 +27,9 @@ STATIC_DIR = BASE_DIR / "static"
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan - startup and shutdown"""
-    logger.info("🚀 Harry Dashboard starting up...")
+    logger.info("Harry Dashboard starting up...")
     yield
-    logger.info("👋 Harry Dashboard shutting down...")
+    logger.info("Harry Dashboard shutting down...")
 
 
 def create_app() -> FastAPI:

@@ -39,7 +39,7 @@ class AdminCog(commands.Cog):
         self.admin_manager = None
         self.channel_manager = None
         self.timekeeper_manager = None
-        logger.info("🔧 AdminCog initialized")
+        logger.info("AdminCog initialized")
 
     def set_dependencies(self, admin_manager=None, channel_manager=None, timekeeper_manager=None, ai_assistant=None, schedule_manager=None):
         """Set dependencies after bot is ready"""
@@ -1450,17 +1450,17 @@ class AdminCog(commands.Cog):
             embed.set_footer(text="Harry's Schedule Manager 🏈")
             
             await interaction.followup.send(embed=embed, ephemeral=True)
-            logger.info(f"✅ Schedule reloaded by {interaction.user}")
+            logger.info(f"Schedule reloaded by {interaction.user}")
         else:
             await interaction.followup.send(
                 "❌ Failed to reload schedule! Check logs for errors.",
                 ephemeral=True
             )
-            logger.error(f"❌ Schedule reload failed (requested by {interaction.user})")
+            logger.error(f"Schedule reload failed (requested by {interaction.user})")
 
 
 async def setup(bot: commands.Bot):
     """Required setup function for loading cog"""
     cog = AdminCog(bot)
     await bot.add_cog(cog)
-    logger.info("✅ AdminCog loaded")
+    logger.info("AdminCog loaded")
