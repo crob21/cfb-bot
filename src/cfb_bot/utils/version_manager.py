@@ -11,10 +11,27 @@ from typing import Dict, List, Optional
 logger = logging.getLogger('CFB26Bot.Version')
 
 # Current version
-CURRENT_VERSION = "3.14.0"
+CURRENT_VERSION = "3.14.1"
 
 # Changelog - organized by version
 CHANGELOG: Dict[str, Dict] = {
+    "3.14.1": {
+        "date": "2026-10-02",
+        "title": "Timer No Longer Eats a Week ⏰",
+        "emoji": "⏰",
+        "features": [
+            {
+                "category": "Advance Timer",
+                "emoji": "⏰",
+                "changes": [
+                    "FIX: /league timer never advances the week — it only sets the countdown",
+                    "The week moves on '@everyone advanced' or when the countdown runs out",
+                    "The reply now names the week (unchanged) and any timer it replaced",
+                    "The countdown embed posts in the advance channel, wherever you run the command"
+                ]
+            }
+        ]
+    },
     "3.14.0": {
         "date": "2026-09-19",
         "title": "Code Scrub & Charter Persistence 🧹",

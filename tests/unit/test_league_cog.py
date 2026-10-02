@@ -434,3 +434,54 @@ class TestLeagueNag:
         mock_interaction.user.id = 7
         await owner_cog.stop_nag.callback(owner_cog, mock_interaction)
         owner_cog.timekeeper_manager.stop_nagging.assert_awaited_once()
+
+
+class TestTimerNeverAdvances:
+    """Setting the clock must not advance the week (it silently cost the league a week)"""
+
+    @pytest.fixture
+    def admin_cog(self, mock_timekeeper, mock_server_config):
+        from cfb_bot.cogs.league import LeagueCog
+        cog = LeagueCog(MagicMock())
+        cog.admin_manager = MagicMock()
+        cog.admin_manager.admin_ids = {42}
+        cog.timekeeper_manager = mock_timekeeper
+        mock_timekeeper.get_advance_channel = MagicMock(return_value=MagicMock(id=555, send=AsyncMock()))
+        return cog
+
+    @pytest.mark.asyncio
+    async def test_restarting_a_running_timer_keeps_the_week(self, admin_cog, mock_interaction, mock_server_config):
+        admin_cog.timekeeper_manager.get_all_active_timers.return_value = [
+            {'channel_id': 1, 'channel_name': 'general', 'hours': 12, 'minutes': 30}
+        ]
+        mock_interaction.user.id = 42
+        with patch('cfb_bot.cogs.league.server_config', mock_server_config):
+            await admin_cog.timer.callback(admin_cog, mock_interaction, hours=6)
+
+        admin_cog.timekeeper_manager.increment_week.assert_not_called()
+        admin_cog.timekeeper_manager.stop_all_timers.assert_awaited_once()
+        admin_cog.timekeeper_manager.start_timer.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_reply_names_the_replaced_timer_and_unchanged_week(self, admin_cog, mock_interaction, mock_server_config):
+        admin_cog.timekeeper_manager.get_all_active_timers.return_value = [
+            {'channel_id': 1, 'channel_name': 'general', 'hours': 12, 'minutes': 30}
+        ]
+        mock_interaction.user.id = 42
+        with patch('cfb_bot.cogs.league.server_config', mock_server_config):
+            await admin_cog.timer.callback(admin_cog, mock_interaction, hours=6)
+
+        reply = mock_interaction.followup.send.call_args[0][0]
+        assert "week unchanged" in reply
+        assert "#general" in reply and "12h 30m" in reply
+
+    @pytest.mark.asyncio
+    async def test_no_running_timer_starts_cleanly(self, admin_cog, mock_interaction, mock_server_config):
+        admin_cog.timekeeper_manager.get_all_active_timers.return_value = []
+        mock_interaction.user.id = 42
+        with patch('cfb_bot.cogs.league.server_config', mock_server_config):
+            await admin_cog.timer.callback(admin_cog, mock_interaction, hours=48)
+
+        admin_cog.timekeeper_manager.increment_week.assert_not_called()
+        admin_cog.timekeeper_manager.stop_all_timers.assert_not_awaited()
+        assert "Replaced" not in mock_interaction.followup.send.call_args[0][0]
