@@ -89,9 +89,9 @@ python main.py
 | `ZYTE_DASHBOARD_API_KEY` | No | Zyte dashboard API key (for `/admin zyte` official stats) |
 | `ZYTE_ORG_ID` | No | Zyte org ID from dashboard URL (`app.zyte.com/o/123456` → `123456`) |
 | `ZYTE_SPEND_LIMIT` | No | Cap in USD (e.g. `20`); Zyte API calls stop when monthly spend reaches this (0 = no cap) |
-| `SENTRY_DSN` | No | Error tracking |
 | `BOT_ADMIN_IDS` | No | Comma-separated Discord user IDs for bot admins |
-| `STORAGE_BACKEND` | No | `discord` (default) or `supabase` |
+| `TIMER_CHANNEL_ID` | No | Default advance/timer channel until `/league timer_channel` is set |
+| `DEV_CHANNEL_ID` | No | Channel for Harry's startup status post |
 
 See `config/env.example` for the full list (charter URL, dashboard, budgets, etc.).
 
@@ -136,7 +136,6 @@ cfb-bot/
 │   │   └── fun.py          # /fun (admin-only)
 │   ├── ai/                 # AI integration (OpenAI, Anthropic)
 │   ├── utils/              # Storage, config, timekeeper, cache, cfb_data, scrapers
-│   ├── monitoring/         # Sentry, performance metrics
 │   └── services/           # Checks, embeds
 ├── src/dashboard/          # Optional web dashboard (FastAPI)
 ├── config/
@@ -182,8 +181,7 @@ python run_dashboard.py
 
 ## Storage
 
-- **Discord (default)** – Config and state in bot owner DMs. Good for small deployments.
-- **Supabase** – Set `STORAGE_BACKEND=supabase` and add Supabase env vars for larger or multi-server setups.
+Config and state live as messages in the bot owner's DMs — free, and they survive redeploys. Each namespace is one Discord message (2,000 characters); if one outgrows that, Harry DMs the owner instead of silently losing the change.
 
 ---
 

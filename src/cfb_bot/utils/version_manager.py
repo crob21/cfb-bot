@@ -11,10 +11,27 @@ from typing import Dict, List, Optional
 logger = logging.getLogger('CFB26Bot.Version')
 
 # Current version
-CURRENT_VERSION = "3.15.1"
+CURRENT_VERSION = "3.15.2"
 
 # Changelog - organized by version
 CHANGELOG: Dict[str, Dict] = {
+    "3.15.2": {
+        "date": "2026-10-02",
+        "title": "Loose Ends 🧹",
+        "emoji": "🧹",
+        "features": [
+            {
+                "category": "Cleanup",
+                "emoji": "🧹",
+                "changes": [
+                    "Advance and dev channels can be set with TIMER_CHANNEL_ID / DEV_CHANNEL_ID",
+                    "Removed the Supabase storage stub — the docs walked people through setting it up, but it never worked",
+                    "Removed the unused performance-metrics module, data/penalties.json, and leftover Sentry docs",
+                    "Schedule season now matches the league (Season 4)"
+                ]
+            }
+        ]
+    },
     "3.15.1": {
         "date": "2026-10-02",
         "title": "Settings Save Guard 💾",
