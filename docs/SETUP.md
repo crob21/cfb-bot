@@ -137,33 +137,6 @@ Harry supports two storage backends:
 - **Cons**: ~10-20 server limit
 - **Config**: No extra setup needed!
 
-### Supabase Storage (For Scaling)
-
-When you need to support more servers:
-
-1. **Create Supabase Project**
-   - Go to [supabase.com](https://supabase.com)
-   - Create a new project (free tier works!)
-
-2. **Create Table**
-   ```sql
-   CREATE TABLE configs (
-     namespace TEXT NOT NULL,
-     key TEXT NOT NULL,
-     data JSONB NOT NULL,
-     PRIMARY KEY (namespace, key)
-   );
-   ```
-
-3. **Configure Environment**
-   ```env
-   STORAGE_BACKEND=supabase
-   SUPABASE_URL=https://your-project.supabase.co
-   SUPABASE_KEY=your-anon-key
-   ```
-
-4. **Deploy** - Data auto-migrates!
-
 ## 🚀 Step 5: Deploy to Render
 
 ### 5.1 Connect to Render
@@ -276,7 +249,6 @@ Enable/disable features:
 
 ### Storage issues
 - For Discord storage: Check bot can DM the owner
-- For Supabase: Verify URL and key are correct
 
 ## 🌐 Web Dashboard
 

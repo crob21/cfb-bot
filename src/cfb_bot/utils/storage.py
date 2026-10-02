@@ -251,74 +251,6 @@ class DiscordDMStorage(StorageBackend):
         return True
 
 
-class SupabaseStorage(StorageBackend):
-    """
-    Store data in Supabase (PostgreSQL).
-    
-    PLACEHOLDER - Implement when ready to scale.
-    
-    Setup:
-    1. Create Supabase project (free tier)
-    2. Create table: configs (namespace TEXT, key TEXT, data JSONB, PRIMARY KEY (namespace, key))
-    3. Set SUPABASE_URL and SUPABASE_KEY env vars
-    """
-    
-    def __init__(self):
-        self.url = os.getenv('SUPABASE_URL')
-        self.key = os.getenv('SUPABASE_KEY')
-        self._client = None
-        
-        if self.url and self.key:
-            logger.info("✅ Supabase credentials found")
-            # TODO: Initialize Supabase client
-            # from supabase import create_client
-            # self._client = create_client(self.url, self.key)
-        else:
-            logger.warning("⚠️ Supabase not configured (SUPABASE_URL/SUPABASE_KEY missing)")
-    
-    @property
-    def is_available(self) -> bool:
-        return self._client is not None
-    
-    async def save(self, namespace: str, key: str, data: Dict[str, Any]) -> bool:
-        """Save data to Supabase"""
-        if not self.is_available:
-            logger.error("Supabase not available")
-            return False
-        
-        # TODO: Implement
-        # await self._client.table('configs').upsert({
-        #     'namespace': namespace,
-        #     'key': key,
-        #     'data': data
-        # }).execute()
-        raise NotImplementedError("Supabase storage not yet implemented")
-    
-    async def load(self, namespace: str, key: str) -> Optional[Dict[str, Any]]:
-        """Load data from Supabase"""
-        if not self.is_available:
-            return None
-        
-        # TODO: Implement
-        raise NotImplementedError("Supabase storage not yet implemented")
-    
-    async def load_all(self, namespace: str) -> Dict[str, Dict[str, Any]]:
-        """Load all data for a namespace from Supabase"""
-        if not self.is_available:
-            return {}
-        
-        # TODO: Implement
-        raise NotImplementedError("Supabase storage not yet implemented")
-    
-    async def delete(self, namespace: str, key: str) -> bool:
-        """Delete data from Supabase"""
-        if not self.is_available:
-            return False
-        
-        # TODO: Implement
-        raise NotImplementedError("Supabase storage not yet implemented")
-
-
 # ==================== FACTORY ====================
 
 # Active storage backend (change this to swap storage)
@@ -335,15 +267,10 @@ def get_storage() -> StorageBackend:
     
     if _storage_instance is None:
         backend = os.getenv('STORAGE_BACKEND', 'discord').lower()
-        
-        if backend == 'supabase':
-            _storage_instance = SupabaseStorage()
-            if not _storage_instance.is_available:
-                logger.warning("⚠️ Supabase not available, falling back to Discord")
-                _storage_instance = DiscordDMStorage()
-        else:
-            _storage_instance = DiscordDMStorage()
-        
+        if backend != 'discord':
+            logger.warning(f"⚠️ STORAGE_BACKEND={backend} isn't supported — using Discord DM storage")
+        _storage_instance = DiscordDMStorage()
+
         logger.info(f"📦 Using storage backend: {type(_storage_instance).__name__}")
     
     return _storage_instance

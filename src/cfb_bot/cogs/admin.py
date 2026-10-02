@@ -1375,7 +1375,7 @@ class AdminCog(commands.Cog):
             inline=False
         )
 
-        embed.set_footer(text="💡 Resets monthly • Same storage as bot config (Discord/Supabase)")
+        embed.set_footer(text="💡 Resets monthly • Same storage as bot config (owner DM)")
         await interaction.followup.send(embed=embed, ephemeral=True)
 
     @admin_group.command(name="digest", description="View or send weekly summary digest")

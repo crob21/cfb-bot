@@ -251,7 +251,8 @@ TIMER_STATE_FILE = Path(__file__).parent.parent.parent.parent / "data" / "timer_
 NOTIFICATION_THRESHOLDS = (24, 12, 6, 1)
 
 # Channel ID for timer notifications (defaults to #general, can be changed)
-NOTIFICATION_CHANNEL_ID = 1261662233109205146  # #general
+# Fallback until /league timer_channel is saved; override per deployment with TIMER_CHANNEL_ID
+NOTIFICATION_CHANNEL_ID = int(os.getenv('TIMER_CHANNEL_ID', '1261662233109205146'))  # #general
 
 class AdvanceTimer:
     """Manages advance countdown timers with custom durations"""

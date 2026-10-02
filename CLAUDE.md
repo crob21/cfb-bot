@@ -40,7 +40,7 @@ Copy `config/env.example` to `.env`. Only `DISCORD_BOT_TOKEN` is required. All o
 - `CFB_DATA_API_KEY` — enables `/cfb` commands (CollegeFootballData.com)
 - `ZYTE_API_KEY` — enables recruiting scraping with Cloudflare bypass
 - `BOT_ADMIN_IDS` — comma-separated Discord user IDs for bot admins
-- `STORAGE_BACKEND` — `discord` (default) or `supabase`
+- `TIMER_CHANNEL_ID` / `DEV_CHANNEL_ID` — override the hardcoded default channels
 
 ## Architecture
 
@@ -55,9 +55,7 @@ Every command group maps to a `FeatureModule` enum in `utils/server_config.py`. 
 Every cog command must call `check_module_enabled()` or `check_module_enabled_deferred()` from `services/checks.py` before executing.
 
 ### Storage
-`StorageBackend` in `utils/storage.py` has two backends:
-- **Discord DMs** (default): JSON stored as edited messages in a DM to the bot owner. Free, ~1900 chars per namespace, survives redeploys.
-- **Supabase**: Set `STORAGE_BACKEND=supabase`. Currently a stub (`NotImplementedError`).
+`DiscordDMStorage` in `utils/storage.py`: JSON stored as edited messages in a DM to the bot owner. Free, survives redeploys, one Discord message (2,000 chars) per namespace — oversize saves are refused and DM the owner. `utils/owner_dm.py` is the one place that opens that DM.
 
 ### Key singletons
 - `server_config` (`utils/server_config.py`) — per-guild feature flags and settings

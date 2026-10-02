@@ -282,7 +282,7 @@ async def send_startup_notification():
 
     # ONLY send to dev channel
     DEV_SERVER_ID = 780882032867803168
-    DEV_CHANNEL_ID = 1417732043936108564
+    DEV_CHANNEL_ID = int(os.getenv('DEV_CHANNEL_ID', '1417732043936108564'))
 
     dev_channel = bot.get_channel(DEV_CHANNEL_ID)
     if not dev_channel:
