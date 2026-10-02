@@ -192,9 +192,7 @@ class LeagueCog(commands.Cog):
         # can't expire later and advance the week a second time.
         advance_channel = self.timekeeper_manager.get_advance_channel(interaction.channel)
 
-        # Setting the clock never advances the week — that happens on an "@everyone
-        # advanced" post or when the countdown runs out. Restarting a timer used to
-        # advance silently, which cost the league a week.
+        # Setting the clock never advances the week; only an "@everyone advanced" post does.
         replaced = self.timekeeper_manager.get_advance_timers()
         if replaced:
             await self.timekeeper_manager.stop_all_timers()
@@ -645,7 +643,6 @@ class LeagueCog(commands.Cog):
             await interaction.followup.send("❌ Schedule manager not available", ephemeral=True)
             return
 
-        # Get week data
         week_data = self.schedule_manager.get_week_schedule(target_week)
         week_info = {'name': f"Week {target_week}"}
 

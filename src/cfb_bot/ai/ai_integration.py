@@ -5,7 +5,6 @@ This module handles AI-powered responses about the league charter
 """
 
 import asyncio
-import json
 import logging
 import os
 from typing import Optional
@@ -21,7 +20,6 @@ from ..config import GAME_NAME
 # Load environment variables
 load_dotenv()
 
-# Set up logging
 logger = logging.getLogger('CFBBot.AI')
 
 class AICharterAssistant:
@@ -80,7 +78,7 @@ class AICharterAssistant:
                 'total_requests': self.total_requests
             }
             await self._storage.save("ai_usage", "global", data)
-            logger.debug(f"💾 Saved AI usage stats")
+            logger.debug("💾 Saved AI usage stats")
         except Exception as e:
             logger.error(f"❌ Failed to save AI usage stats: {e}")
 
@@ -117,9 +115,7 @@ class AICharterAssistant:
         """Get schedule context for AI queries, including current week info"""
         context_parts = []
 
-        # Try to get current week/season from the bot's timekeeper_manager.
-        # NOTE: read from bot_main (the live cog-based entry point) — the legacy
-        # monolith bot.py is never run, so its timekeeper_manager stays None.
+        # Current week/season from the live timekeeper in bot_main
         try:
             from .. import bot_main as bot_module
             if hasattr(bot_module, 'timekeeper_manager') and bot_module.timekeeper_manager:
@@ -168,7 +164,7 @@ class AICharterAssistant:
         if cache_key in self._response_cache:
             cached_response, timestamp = self._response_cache[cache_key]
             if time.time() - timestamp < self._cache_ttl:
-                logger.info(f"💾 Cache hit for question (saved ~$0.001)")
+                logger.info("💾 Cache hit for question (saved ~$0.001)")
                 return cached_response
             else:
                 # Expired, remove from cache
@@ -299,7 +295,7 @@ class AICharterAssistant:
                         total_tokens = usage.get('total_tokens', 0)
 
                         # Log detailed usage information
-                        logger.info(f"✅ OpenAI response received")
+                        logger.info("✅ OpenAI response received")
                         logger.info(f"🔢 Token usage - Prompt: {prompt_tokens}, Completion: {completion_tokens}, Total: {total_tokens}")
 
                         # Log any rate limit information if available
@@ -476,7 +472,7 @@ class AICharterAssistant:
                         request_cost = (total_tokens / 1000) * self.anthropic_cost_per_1k
                         await self._record_ai_cost(request_cost)
 
-                        logger.info(f"✅ Anthropic response received")
+                        logger.info("✅ Anthropic response received")
                         logger.info(f"🔢 Token usage - Input: {input_tokens}, Output: {output_tokens}")
                         logger.info(f"📊 Total Anthropic tokens used: {self.total_anthropic_tokens} (across {self.total_requests} requests)")
 
@@ -598,7 +594,7 @@ class AICharterAssistant:
                 ) as response:
                     if response.status == 200:
                         data = await response.json()
-                        logger.info(f"✅ Retrieved OpenAI usage data")
+                        logger.info("✅ Retrieved OpenAI usage data")
                         return data
                     else:
                         error_text = await response.text()

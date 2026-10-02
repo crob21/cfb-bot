@@ -787,7 +787,7 @@ class AdminCog(commands.Cog):
                         # Display API data
                         embed = discord.Embed(
                             title="🌐 Zyte API Usage (Official)",
-                            description=f"Last 30 days from Zyte Stats API\n*(Includes ALL usage on this API key)*",
+                            description="Last 30 days from Zyte Stats API\n*(Includes ALL usage on this API key)*",
                             color=Colors.PRIMARY
                         )
 
@@ -848,7 +848,7 @@ class AdminCog(commands.Cog):
                 # Show both side by side
                 embed = discord.Embed(
                     title="💰 Zyte Usage Report (Comprehensive)",
-                    description=f"Comparison of bot-tracked vs official API stats",
+                    description="Comparison of bot-tracked vs official API stats",
                     color=Colors.PRIMARY
                 )
 
@@ -866,8 +866,8 @@ class AdminCog(commands.Cog):
                     if api_data:
                         embed.add_field(
                             name="🌐 Zyte API (Last 30 Days)",
-                            value=f"*Official data from Zyte*\n"
-                                  f"Check details with `/admin zyte view:api`",
+                            value="*Official data from Zyte*\n"
+                                  "Check details with `/admin zyte view:api`",
                             inline=True
                         )
                     else:
@@ -948,7 +948,7 @@ class AdminCog(commands.Cog):
             # Show only bot-tracked stats
             embed = discord.Embed(
                 title="🤖 AI Usage Report (Bot Tracked)",
-                description=f"Stats tracked by this bot (all time)",
+                description="Stats tracked by this bot (all time)",
                 color=Colors.PRIMARY
             )
 
@@ -1011,7 +1011,7 @@ class AdminCog(commands.Cog):
                 # Parse API response and display
                 embed = discord.Embed(
                     title="🌐 OpenAI API Usage (Official)",
-                    description=f"Today's usage from OpenAI Usage API\n*(Includes ALL usage on this API key)*",
+                    description="Today's usage from OpenAI Usage API\n*(Includes ALL usage on this API key)*",
                     color=Colors.PRIMARY
                 )
 
@@ -1073,7 +1073,7 @@ class AdminCog(commands.Cog):
             # Show both side by side
             embed = discord.Embed(
                 title="🤖 AI Usage Report (Comprehensive)",
-                description=f"Comparison of bot-tracked vs official API stats",
+                description="Comparison of bot-tracked vs official API stats",
                 color=Colors.PRIMARY
             )
 
@@ -1091,8 +1091,8 @@ class AdminCog(commands.Cog):
             if api_data:
                 embed.add_field(
                     name="🌐 OpenAI API (Today)",
-                    value=f"*Official data from OpenAI*\n"
-                          f"Check details with `/admin ai view:api`",
+                    value="*Official data from OpenAI*\n"
+                          "Check details with `/admin ai view:api`",
                     inline=True
                 )
             else:
@@ -1157,7 +1157,7 @@ class AdminCog(commands.Cog):
 
             embed = discord.Embed(
                 title="📦 Cache Statistics",
-                description=f"Performance and usage statistics",
+                description="Performance and usage statistics",
                 color=Colors.PRIMARY
             )
 
@@ -1411,7 +1411,6 @@ class AdminCog(commands.Cog):
             await digest.send_manual_digest(interaction)
 
         elif action == "send":
-            # Send to all admins
             await digest.send_digest_to_admins()
             await interaction.followup.send(
                 "✅ Weekly digest sent to all admins!",
@@ -1442,7 +1441,7 @@ class AdminCog(commands.Cog):
             
             embed = discord.Embed(
                 title="📅 Schedule Reloaded!",
-                description=f"Successfully reloaded schedule from `data/schedule.json`",
+                description="Successfully reloaded schedule from `data/schedule.json`",
                 color=Colors.SUCCESS
             )
             embed.add_field(name="Season", value=f"Season {season}", inline=True)

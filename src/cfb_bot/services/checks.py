@@ -9,11 +9,12 @@ These functions are used by cogs to verify that:
 """
 
 import logging
-import discord
-from typing import Optional
+from typing import TYPE_CHECKING
 
-# Import will be done at module load time to avoid circular imports
-# from ..utils.server_config import server_config, FeatureModule
+import discord
+
+if TYPE_CHECKING:  # type hints only; a runtime import here would be circular
+    from ..utils.server_config import FeatureModule, ServerConfig
 
 logger = logging.getLogger('CFBBot.Checks')
 
@@ -54,8 +55,8 @@ async def check_module_enabled(
     enabled_channels = server_config.get_enabled_channels(guild_id)
     if enabled_channels and channel_id not in enabled_channels:
         await interaction.response.send_message(
-            f"❌ Commands are not enabled in this channel.\n"
-            f"Ask an admin to whitelist this channel with `/admin channels`",
+            "❌ Commands are not enabled in this channel.\n"
+            "Ask an admin to whitelist this channel with `/admin channels`",
             ephemeral=True
         )
         return False
@@ -99,8 +100,8 @@ async def check_module_enabled_deferred(
     enabled_channels = server_config.get_enabled_channels(guild_id)
     if enabled_channels and channel_id not in enabled_channels:
         await interaction.followup.send(
-            f"❌ Commands are not enabled in this channel.\n"
-            f"Ask an admin to whitelist this channel with `/admin channels`",
+            "❌ Commands are not enabled in this channel.\n"
+            "Ask an admin to whitelist this channel with `/admin channels`",
             ephemeral=True
         )
         return False

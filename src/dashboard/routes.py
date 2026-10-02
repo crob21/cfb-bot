@@ -6,10 +6,9 @@ import os
 import json
 import logging
 from pathlib import Path
-from typing import Optional
 
 from fastapi import APIRouter, Request, HTTPException, Depends
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 from .auth import get_avatar_url, get_guild_icon_url
@@ -107,7 +106,6 @@ async def server_config(request: Request, guild_id: str, user: dict = Depends(re
     """Server configuration page"""
     guilds = request.session.get("guilds", [])
     
-    # Find the guild
     guild = next((g for g in guilds if g["id"] == guild_id), None)
     if not guild:
         raise HTTPException(status_code=403, detail="You don't have admin access to this server")

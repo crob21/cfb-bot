@@ -180,7 +180,6 @@ class DiscordDMStorage(StorageBackend):
                     logger.info(f"✅ Updated {namespace} in Discord DM")
                     return True
             
-            # Create new message
             message = await dm.send(content)
             self._message_ids[namespace] = message.id
             logger.info(f"✅ Created {namespace} in Discord DM")

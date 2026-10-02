@@ -6,7 +6,7 @@ Provides consistent embed formatting across all cogs.
 """
 
 import discord
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Any
 
 from ..config import Colors, Footers
 

@@ -136,7 +136,7 @@ class On3Scraper:
         self._zyte_cost_per_1k = 0.233  # Cost per 1,000 requests
 
         if ZYTE_AVAILABLE:
-            logger.info(f"🔍 Zyte API library available (AsyncZyteAPI imported successfully)")
+            logger.info("🔍 Zyte API library available (AsyncZyteAPI imported successfully)")
             zyte_api_key = os.getenv('ZYTE_API_KEY')
             logger.info(f"🔍 Environment variable check: ZYTE_API_KEY={'SET' if zyte_api_key else 'NOT SET'}")
             if zyte_api_key:
@@ -197,7 +197,7 @@ class On3Scraper:
         """
         if rating >= 98:
             return 5
-        elif rating >= 80:  # Fixed: 4-star starts at 80, not 90
+        elif rating >= 80:  # 4-star starts at 80
             return 4
         elif rating >= 70:
             return 3
@@ -329,10 +329,10 @@ class On3Scraper:
 
                             # Check for blocking
                             if self._check_if_blocked(html):
-                                logger.error(f"🚫 BLOCKED by On3 even with Playwright!")
+                                logger.error("🚫 BLOCKED by On3 even with Playwright!")
                                 return None
 
-                            logger.debug(f"✅ Playwright fetch successful")
+                            logger.debug("✅ Playwright fetch successful")
                             return html
                         elif response and response.status == 404:
                             await page.close()
@@ -356,17 +356,17 @@ class On3Scraper:
                     html = response.text
                     # Check for blocking indicators
                     if self._check_if_blocked(html):
-                        logger.warning(f"⚠️ BLOCKED by On3 with cloudscraper, trying Zyte...")
+                        logger.warning("⚠️ BLOCKED by On3 with cloudscraper, trying Zyte...")
                         # Don't return None yet - fall through to Zyte
                     else:
-                        logger.debug(f"✅ Cloudscraper fetch successful")
+                        logger.debug("✅ Cloudscraper fetch successful")
                         return html
                 elif response.status_code == 403:
-                    logger.warning(f"⚠️ BLOCKED (403 Forbidden) with cloudscraper, trying Zyte...")
+                    logger.warning("⚠️ BLOCKED (403 Forbidden) with cloudscraper, trying Zyte...")
                     self._is_blocked = True
                     # Fall through to Zyte
                 elif response.status_code == 429:
-                    logger.warning(f"⚠️ RATE LIMITED (429) with cloudscraper, trying Zyte...")
+                    logger.warning("⚠️ RATE LIMITED (429) with cloudscraper, trying Zyte...")
                     self._is_blocked = True
                     # Fall through to Zyte
                 elif response.status_code == 404:
@@ -410,7 +410,7 @@ class On3Scraper:
                     html = base64.b64decode(response["httpResponseBody"]).decode('utf-8')
 
                     if html and '<html' in html.lower():
-                        logger.info(f"✅ Zyte API fetch successful (bypassed Cloudflare)")
+                        logger.info("✅ Zyte API fetch successful (bypassed Cloudflare)")
                         self._is_blocked = False  # Clear blocked status
                         # Record cost for spend limit and alerts
                         try:
@@ -421,7 +421,7 @@ class On3Scraper:
                             logger.warning(f"Failed to record Zyte cost (/admin budget will not update): {e}")
                         return html
                     else:
-                        logger.error(f"❌ Zyte returned invalid HTML")
+                        logger.error("❌ Zyte returned invalid HTML")
                         # Fall through to httpx as last resort
 
                 except Exception as e:
@@ -436,16 +436,16 @@ class On3Scraper:
                     if response.status_code == 200:
                         html = response.text
                         if self._check_if_blocked(html):
-                            logger.error(f"🚫 BLOCKED by On3! Install Playwright: pip install playwright && playwright install chromium")
+                            logger.error("🚫 BLOCKED by On3! Install Playwright: pip install playwright && playwright install chromium")
                             return None
-                        logger.debug(f"✅ httpx fetch successful")
+                        logger.debug("✅ httpx fetch successful")
                         return html
                     elif response.status_code == 403:
-                        logger.error(f"🚫 BLOCKED (403 Forbidden)")
+                        logger.error("🚫 BLOCKED (403 Forbidden)")
                         self._is_blocked = True
                         return None
                     elif response.status_code == 429:
-                        logger.error(f"🚫 RATE LIMITED (429)")
+                        logger.error("🚫 RATE LIMITED (429)")
                         self._is_blocked = True
                         return None
                     elif response.status_code == 404:
@@ -546,7 +546,7 @@ class On3Scraper:
             }
 
             logger.info(f"📊 Querying Zyte Stats API (org_id: {org_id}, {days} days)...")
-            logger.debug(f"   API endpoint: https://zyte-api-stats.zyte.com/api/stats")
+            logger.debug("   API endpoint: https://zyte-api-stats.zyte.com/api/stats")
             logger.debug(f"   Params: {params}")
 
             async with httpx.AsyncClient() as client:
@@ -561,7 +561,7 @@ class On3Scraper:
 
                 if response.status_code == 200:
                     data = response.json()
-                    logger.info(f"✅ Retrieved Zyte usage data")
+                    logger.info("✅ Retrieved Zyte usage data")
                     return data
                 elif response.status_code == 401:
                     logger.error("❌ Zyte Stats API: Authentication failed - check ZYTE_DASHBOARD_API_KEY")
@@ -580,7 +580,7 @@ class On3Scraper:
                     return None
 
         except httpx.TimeoutException:
-            logger.error(f"❌ Zyte Stats API timeout (10s)")
+            logger.error("❌ Zyte Stats API timeout (10s)")
             return None
         except Exception as e:
             logger.error(f"❌ Error querying Zyte Stats API: {e}")
@@ -621,9 +621,6 @@ class On3Scraper:
         # Build search strategies:
         # Search BOTH class year and all players to catch both HS recruits and transfer portal
         # Then deduplicate and pick best matches
-        name_parts = name.strip().split()
-        last_name = name_parts[-1] if name_parts else name
-
         search_urls = [
             (self.SEARCH_URL.format(name=quote_plus(name), year=year), f"class {year}", name, False),
             (self.SEARCH_URL_ALL.format(name=quote_plus(name)), "all players (including transfers)", name, True),
@@ -633,7 +630,7 @@ class On3Scraper:
         all_exact_matches = {}  # href -> (link_text, is_transfer)
         all_fuzzy_matches = {}  # href -> (link_text, score, is_transfer)
 
-        for search_url, search_type, search_name, is_transfer_search in search_urls:
+        for search_url, search_type, _, is_transfer_search in search_urls:
             logger.info(f"🔍 Trying search: {search_type}")
             html = await self._fetch_page(search_url)
 
@@ -723,7 +720,6 @@ class On3Scraper:
 
         profile_url = None
         player_name = None
-        is_transfer = False
 
         # Pick best match
         if exact_matches:
@@ -731,7 +727,6 @@ class On3Scraper:
             href, link_text, is_transfer_flag = exact_matches[0]
             profile_url = href
             player_name = link_text
-            is_transfer = is_transfer_flag
             logger.info(f"✅ Using exact match: {player_name}")
         elif fuzzy_matches:
             # Pick best fuzzy match by score
@@ -739,7 +734,6 @@ class On3Scraper:
             href, link_text, score, is_transfer_flag = fuzzy_matches[0]
             profile_url = href
             player_name = link_text
-            is_transfer = is_transfer_flag
             logger.info(f"✅ Using fuzzy match ({score}%): {player_name}")
 
         if profile_url and not profile_url.startswith('http'):
@@ -754,7 +748,7 @@ class On3Scraper:
             total_found = len(exact_matches)
             logger.info(f"🔍 Found {total_found} players named '{name}' - fetching up to 5 profiles")
             candidates = []
-            for href, link_text, is_transfer_flag in exact_matches[:5]:  # Limit to 5 to avoid Discord limits
+            for href, _, _ in exact_matches[:5]:  # Limit to 5 to avoid Discord limits
                 candidate_url = href if href.startswith('http') else self.BASE_URL + href
                 recruit = await self._scrape_player_profile(candidate_url, year)
                 if recruit:
@@ -798,7 +792,7 @@ class On3Scraper:
                 recruit_pos = (recruit.get('position') or '').upper()
                 if recruit_pos != position.upper():
                     logger.warning(f"⚠️ Position mismatch: Found {player_name} but position is {recruit_pos}, not {position}")
-                    logger.info(f"💡 Tip: This might be a different player with the same name")
+                    logger.info("💡 Tip: This might be a different player with the same name")
                     # Still return the recruit, but log the warning
 
             self._set_cached(cache_key, recruit)
@@ -1039,7 +1033,6 @@ class On3Scraper:
                                 recruit['committed_to'] = school_name
                                 break
 
-            # Parse commitment date
             commit_date_match = re.search(r'Commitment Date\s*(\d{1,2}/\d{1,2}/\d{2,4})', page_text)
             if commit_date_match:
                 recruit['commitment_date'] = commit_date_match.group(1)
@@ -1113,7 +1106,6 @@ class On3Scraper:
                             # Clean up school name (remove "Avatar" prefix if present)
                             school_name = re.sub(r'^.*Avatar\s*', '', school_name).strip()
 
-                            # Get date
                             date_cell = cells[1]
                             visit_date = date_cell.get_text(strip=True)
 
@@ -1145,12 +1137,11 @@ class On3Scraper:
             # ==================== TRANSFER PORTAL DETECTION ====================
             # Check for "Transfer Portal" section which indicates a college transfer
             # On3 shows: "Transfer Portal (SHSU)" with previous school, experience years
-            # IMPORTANT: Must find "Transfer Portal" in player's context, not sidebars
+            # Match "Transfer Portal" in the player's own section — sidebars mention it for other players
             # AND must have actual portal-specific data (not just enrollment dates)
 
             is_portal_player = False
             prev_school = None
-            college_exp = None
             portal_rating = None
             portal_entry = None
 
@@ -1254,7 +1245,6 @@ class On3Scraper:
                 if len(recruits) >= limit:
                     break
 
-                # Find player link
                 player_link = row.select_one('a[href*="/rivals/"][href$="/"]')
                 if not player_link:
                     continue
@@ -1294,12 +1284,10 @@ class On3Scraper:
                 if pos_match:
                     recruit['position'] = pos_match.group(1)
 
-                # Extract rating
                 rating_match = re.search(r'\b(\d{2}\.\d{2})\b', row_text)
                 if rating_match:
                     recruit['rating'] = float(rating_match.group(1))
 
-                # Extract stars
                 stars_match = re.search(r'(\d)\s*[Ss]tars?', row_text)
                 if stars_match:
                     recruit['stars'] = int(stars_match.group(1))
@@ -1307,7 +1295,6 @@ class On3Scraper:
                     # Use consistent star thresholds across all methods
                     recruit['stars'] = self._rating_to_stars(recruit['rating'])
 
-                # Extract height/weight
                 height_match = re.search(r'(\d-\d+(?:\.\d)?)', row_text)
                 if height_match:
                     recruit['height'] = height_match.group(1)
@@ -1316,7 +1303,6 @@ class On3Scraper:
                 if weight_match:
                     recruit['weight'] = weight_match.group(1)
 
-                # Extract hometown
                 hometown_match = re.search(r'\(([A-Za-z\s\-\.\']+),\s*([A-Z]{2})\)', row_text)
                 if hometown_match:
                     recruit['city'] = hometown_match.group(1).strip()
@@ -1378,7 +1364,6 @@ class On3Scraper:
 
         try:
             soup = BeautifulSoup(html, 'html.parser')
-            page_text = soup.get_text()
 
             # Find team in rankings
             team_lower = team.lower()
@@ -1528,7 +1513,6 @@ class On3Scraper:
                 logger.info(f"❌ No commits page found for: {team}")
                 return None
 
-            # Fetch the commits page
             commits_html = await self._fetch_page(commits_url)
             if not commits_html:
                 return None
@@ -1548,7 +1532,6 @@ class On3Scraper:
             }
 
             # Get team rank from page
-            rank_elem = commits_soup.select_one('definition:contains("th"), [class*="Rank"]')
             rank_text = commits_soup.get_text()
             rank_match = re.search(r'Current Rank\s*(\d+)', rank_text)
             if rank_match:
@@ -2017,7 +2000,6 @@ class On3Scraper:
             # Location info
             loc = c.get('location', '')
             loc_short = loc.split(',')[0].strip() if loc else ''  # Just city
-            high_school = c.get('high_school', '')
 
             # HS vs Transfer indicator - detected from H.S. year and TR indicator
             is_transfer = c.get('is_transfer', False)
@@ -2038,7 +2020,7 @@ class On3Scraper:
 
         # Show truncation message if needed
         if len(commits) > limit:
-            lines.append(f"")
+            lines.append("")
             lines.append(f"_...and {len(commits) - limit} more commits_")
 
         # Legend

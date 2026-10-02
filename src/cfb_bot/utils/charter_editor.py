@@ -431,7 +431,7 @@ class CharterEditor:
             in_target_section = False
             section_found = False
 
-            for i, line in enumerate(lines):
+            for line in lines:
                 # Check if this is our target section
                 if section_identifier in line and (line.startswith('##') or line.startswith('###')):
                     in_target_section = True
@@ -537,7 +537,6 @@ Just provide the formatted rule text, nothing else."""
                     filepath = os.path.join(self.backup_dir, filename)
                     stat = os.stat(filepath)
 
-                    # Extract timestamp from filename
                     timestamp_str = filename.replace("charter_backup_", "").replace(".txt", "")
 
                     backups.append({
@@ -677,7 +676,7 @@ Just provide the formatted rule text, nothing else."""
         # Log what we're sending to AI for debugging
         logger.info(f"📝 Sending {len(messages)} messages to AI for rule analysis")
         if messages:
-            logger.debug(f"📝 First 3 messages:\n" + "\n".join(messages[:3]))
+            logger.debug("📝 First 3 messages:\n" + "\n".join(messages[:3]))
 
         prompt = f"""You are analyzing a Discord channel called "{channel_name}" for rule changes and votes in a {GAME_NAME} dynasty league.
 
@@ -731,7 +730,6 @@ IMPORTANT: Even if you're not 100% sure, include anything that looks like a rule
                 response = re.sub(r'^```\w*\n?', '', response)
                 response = re.sub(r'\n?```$', '', response)
 
-            # Parse JSON
             changes = json.loads(response)
             logger.info(f"📜 Found {len(changes)} rule changes in {channel_name}")
             # Log details for debugging

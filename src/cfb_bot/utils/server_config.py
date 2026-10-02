@@ -210,7 +210,7 @@ class ServerConfigManager:
     def disable_module(self, guild_id: int, module: FeatureModule) -> bool:
         """Disable a module for a guild"""
         if module == FeatureModule.CORE:
-            logger.warning(f"Cannot disable CORE module")
+            logger.warning("Cannot disable CORE module")
             return False  # Can't disable core
 
         config = self.get_config(guild_id)

@@ -9,7 +9,7 @@ Prevents issues from malicious or overly-long inputs:
 """
 
 from functools import wraps
-from typing import Any, Callable
+from typing import Callable
 import discord
 
 from ..security import MAX_INPUT_LENGTH

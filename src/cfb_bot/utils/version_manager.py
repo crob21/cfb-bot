@@ -5,16 +5,32 @@ Tracks versions and changelog
 """
 
 import logging
-from datetime import datetime
 from typing import Dict, List, Optional
 
 logger = logging.getLogger('CFB26Bot.Version')
 
 # Current version
-CURRENT_VERSION = "3.16.0"
+CURRENT_VERSION = "3.16.1"
 
 # Changelog - organized by version
 CHANGELOG: Dict[str, Dict] = {
+    "3.16.1": {
+        "date": "2026-10-02",
+        "title": "Lint & Tidy 🧽",
+        "emoji": "🧽",
+        "features": [
+            {
+                "category": "Under the Hood",
+                "emoji": "🧽",
+                "changes": [
+                    "Startup opens the owner DM once instead of ~10 times",
+                    "Recruiting lookups no longer extract and discard a full page of text",
+                    "Startup status shows the real version even if the version manager fails to load",
+                    "Removed ~100 unused imports, variables, empty f-strings and comments that restated the code"
+                ]
+            }
+        ]
+    },
     "3.16.0": {
         "date": "2026-10-02",
         "title": "Harry Knows It's CFB 27 🏈",

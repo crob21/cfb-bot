@@ -493,7 +493,7 @@ class AdvanceTimer:
         # More urgent messages and colors for lower time remaining
         if hours <= 1:
             color = 0xff0000  # Red - URGENT
-            description = f"🚨 **FINAL HOUR WARNING!** 🚨\n\nYou've got **ONE BLOODY HOUR** left!\n\nIf your game ain't done, GET IT DONE NOW!"
+            description = "🚨 **FINAL HOUR WARNING!** 🚨\n\nYou've got **ONE BLOODY HOUR** left!\n\nIf your game ain't done, GET IT DONE NOW!"
         elif hours <= 6:
             color = 0xff4500  # Red-orange - Getting serious
             description = f"⚠️ Only **{hours} hours** left until advance time!\n\n**GET YOUR GAMES PLAYED NOW, YA MUPPETS!**"
@@ -661,7 +661,6 @@ class TimekeeperManager:
                         # Try to create DM channel (may fail if user hasn't interacted with bot)
                         dm_channel = await bot_owner.create_dm()
 
-                    # Store state as JSON
                     state_json = json.dumps(state)
 
                     # Try to find existing state message in DM
@@ -739,7 +738,7 @@ class TimekeeperManager:
                         # Delete old state messages to keep channel clean
                         try:
                             await message.delete()
-                            logger.debug(f"🗑️ Deleted old timer state message")
+                            logger.debug("🗑️ Deleted old timer state message")
                         except Exception:
                             pass  # Ignore if we can't delete
             except Exception as e:
@@ -936,10 +935,8 @@ class TimekeeperManager:
         if not state:
             logger.info("📂 No saved timer state found anywhere")
 
-        # Load season/week state
         await self._load_season_week_state()
 
-        # Load league staff state
         await self._load_league_staff_state()
 
         # Load bot settings (notification channel, etc.)
@@ -958,7 +955,6 @@ class TimekeeperManager:
                 logger.warning("⚠️ Invalid timer state: no channel_id")
                 return
 
-            # Get the channel
             channel = self.bot.get_channel(channel_id)
             if not channel:
                 logger.warning(f"⚠️ Could not find channel {channel_id}, clearing saved state")
@@ -975,7 +971,7 @@ class TimekeeperManager:
 
             # Check if timer already expired
             if end_time < datetime.now():
-                logger.info(f"⏰ Saved timer already expired, clearing state")
+                logger.info("⏰ Saved timer already expired, clearing state")
                 # Clear file
                 if TIMER_STATE_FILE.exists():
                     TIMER_STATE_FILE.unlink()
@@ -1204,7 +1200,6 @@ class TimekeeperManager:
             return False
         self.season = season
         self.week = week
-        # Save season/week to state
         await self._save_season_week_state()
         logger.info(f"📅 Season/Week set to Season {season}, {get_week_name(week)} (step {week})")
         return True
@@ -1233,7 +1228,6 @@ class TimekeeperManager:
             self.week += 1
             logger.info(f"📅 Week incremented: {old_week_name} → {get_week_name(self.week)}")
 
-        # Save season/week to state
         await self._save_season_week_state()
         return True
 

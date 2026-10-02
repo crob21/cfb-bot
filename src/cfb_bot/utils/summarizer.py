@@ -6,7 +6,7 @@ Fetches and summarizes channel messages using AI
 
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 import discord
 
@@ -241,7 +241,6 @@ Provide a helpful summary with maximum sarcasm and wit, but don't be a tosser ab
         """
         logger.info(f"📊 Starting summary for #{channel.name} (last {hours} hours)")
 
-        # Fetch messages
         messages = await self.fetch_messages(channel, hours, limit)
 
         if not messages:

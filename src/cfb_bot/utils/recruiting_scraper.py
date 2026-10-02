@@ -275,7 +275,7 @@ class RecruitingScraper:
                 recruit_pos = (recruit.get('position') or '').upper()
                 if recruit_pos != position.upper():
                     logger.warning(f"⚠️ Position mismatch: Found {player_name or name} but position is {recruit_pos}, not {position}")
-                    logger.info(f"💡 Tip: This might be a different player with the same name")
+                    logger.info("💡 Tip: This might be a different player with the same name")
                     # Still return the recruit, but log the warning
 
             self._set_cached(cache_key, recruit)
@@ -329,7 +329,6 @@ class RecruitingScraper:
             try:
                 soup = BeautifulSoup(html, 'html.parser')
 
-                # Find all player links
                 player_links = soup.select('a[href*="/player/"]')
 
                 # Filter out non-player links
@@ -635,7 +634,6 @@ class RecruitingScraper:
                             recruit['status'] = 'Committed'
                         break
 
-            # Parse stats table
             stats_table = soup.select_one('table')
             if stats_table:
                 recruit['stats'] = self._parse_stats_table(stats_table)
@@ -947,11 +945,9 @@ class RecruitingScraper:
         try:
             soup = BeautifulSoup(html, 'html.parser')
 
-            # Find team rows
             team_rows = soup.select('.rankings-page__list-item, .team-rankings-item')
 
             for row in team_rows:
-                # Get team name
                 team_elem = row.select_one('.rankings-page__name-link, .team-name, a.team')
                 if not team_elem:
                     continue
