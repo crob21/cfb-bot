@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-CFB Data Cog for CFB 26 League Bot
+CFB Data Cog for CFB League Bot
 
 Provides commands to look up college football data from CollegeFootballData.com.
 Commands:
@@ -27,7 +27,7 @@ from ..services.checks import check_module_enabled, check_module_enabled_deferre
 from ..utils.server_config import server_config, FeatureModule
 from ..utils.cfb_data import cfb_data
 
-logger = logging.getLogger('CFB26Bot.CFBData')
+logger = logging.getLogger('CFBBot.CFBData')
 
 
 class CFBDataCog(commands.Cog):

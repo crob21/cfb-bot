@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Recruiting Cog for CFB 26 League Bot
+Recruiting Cog for CFB League Bot
 
 Provides commands to look up recruiting data from On3/Rivals or 247Sports.
 Commands:
@@ -30,7 +30,7 @@ from ..utils.recruiting_scraper import recruiting_scraper
 from ..utils.server_config import (FeatureModule, RecruitingSource,
                                    server_config)
 
-logger = logging.getLogger('CFB26Bot.Recruiting')
+logger = logging.getLogger('CFBBot.Recruiting')
 
 
 def get_recruiting_scraper(guild_id: int):

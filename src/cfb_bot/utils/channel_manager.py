@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-Channel Manager for CFB 26 League Bot
+Channel Manager for CFB League Bot
 Manages which channels Harry can make unprompted responses in
 """
 
 import logging
 from typing import Set
 
-logger = logging.getLogger('CFB26Bot.ChannelManager')
+logger = logging.getLogger('CFBBot.ChannelManager')
 
 class ChannelManager:
     """Manages blocked/allowed channels for unprompted responses"""

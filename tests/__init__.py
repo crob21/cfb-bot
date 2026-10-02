@@ -1,5 +1,5 @@
 """
-CFB 26 League Bot Test Suite
+CFB League Bot Test Suite
 
 Test Categories:
 - unit/: Fast tests that mock external dependencies

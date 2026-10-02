@@ -9,7 +9,7 @@ import time
 from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
 
-logger = logging.getLogger('CFB26Bot.Cache')
+logger = logging.getLogger('CFBBot.Cache')
 
 
 class SimpleCache:

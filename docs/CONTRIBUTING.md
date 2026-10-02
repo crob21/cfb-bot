@@ -1,6 +1,6 @@
-# 🤝 Contributing to CFB 26 Rules Bot
+# 🤝 Contributing to CFB 27 Rules Bot
 
-Thank you for your interest in contributing to Harry, the CFB 26 Rules Bot! We welcome contributions from the community.
+Thank you for your interest in contributing to Harry, the CFB 27 Rules Bot! We welcome contributions from the community.
 
 ## 📋 Table of Contents
 
@@ -14,7 +14,7 @@ Thank you for your interest in contributing to Harry, the CFB 26 Rules Bot! We w
 
 ## 📜 Code of Conduct
 
-This project follows the CFB 26 League's code of conduct:
+This project follows the CFB 27 League's code of conduct:
 
 - **Be respectful** and inclusive
 - **Be constructive** in feedback and discussions
@@ -294,7 +294,7 @@ We use semantic versioning: `MAJOR.MINOR.PATCH`
 
 ### Resources
 
-- **Discord**: Join the CFB 26 League Discord
+- **Discord**: Join the CFB 27 League Discord
 - **GitHub Issues**: For bug reports and feature requests
 - **Documentation**: Check README and SETUP guides
 
@@ -312,7 +312,7 @@ Contributors will be recognized in:
 - **Release notes** for significant contributions
 - **League Discord** announcements
 
-Thank you for contributing to the CFB 26 Rules Bot! 🏈
+Thank you for contributing to the CFB 27 Rules Bot! 🏈
 
 ---
 

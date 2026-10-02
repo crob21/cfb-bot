@@ -11,7 +11,6 @@
 ### Getting Started
 - **[SETUP.md](SETUP.md)** - Complete setup guide from scratch
 - **[AI_SETUP.md](AI_SETUP.md)** - AI integration setup (OpenAI/Anthropic)
-- **[GOOGLE_DOCS_SETUP.md](GOOGLE_DOCS_SETUP.md)** - Google Docs integration
 
 ### Features
 - **[NEW_FEATURES.md](NEW_FEATURES.md)** - Complete feature documentation
@@ -165,4 +164,4 @@ python main.py
 
 **Version:** 1.16.2  
 **Last Updated:** January 10, 2026  
-**Made with 🏈 for the CFB 26 League**
+**Made with 🏈 for the CFB 27 League**

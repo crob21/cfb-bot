@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Permission and module check helpers for CFB 26 League Bot
+Permission and module check helpers for CFB League Bot
 
 These functions are used by cogs to verify that:
 1. The required module is enabled for the server
@@ -15,7 +15,7 @@ from typing import Optional
 # Import will be done at module load time to avoid circular imports
 # from ..utils.server_config import server_config, FeatureModule
 
-logger = logging.getLogger('CFB26Bot.Checks')
+logger = logging.getLogger('CFBBot.Checks')
 
 
 async def check_module_enabled(

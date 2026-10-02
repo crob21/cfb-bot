@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Charter Cog for CFB 26 League Bot
+Charter Cog for CFB League Bot
 
 Provides commands to manage and view the league charter.
 Commands:
@@ -26,7 +26,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from ..config import Colors
+from ..config import GAME_NAME, Colors
 from ..services.checks import check_module_enabled
 from ..utils.server_config import server_config, FeatureModule
 
@@ -36,7 +36,7 @@ CHARTER_URL = os.getenv(
     'https://docs.google.com/document/d/1lX28DlMmH0P77aficBA_1Vo9ykEm_bAroSTpwMhWr_8/edit'
 )
 
-logger = logging.getLogger('CFB26Bot.Charter')
+logger = logging.getLogger('CFBBot.Charter')
 
 
 class CharterCog(commands.Cog):
@@ -64,7 +64,7 @@ class CharterCog(commands.Cog):
         description="📜 League charter rules and management"
     )
 
-    @charter_group.command(name="lookup", description="Look up CFB 26 league rules")
+    @charter_group.command(name="lookup", description=f"Look up {GAME_NAME} league rules")
     @app_commands.describe(rule_name="Rule keyword or topic to search for")
     async def lookup(self, interaction: discord.Interaction, rule_name: str):
         """Look up a specific league rule"""
@@ -75,7 +75,7 @@ class CharterCog(commands.Cog):
 
         rule_found = False
         embed = discord.Embed(
-            title=f"CFB 26 League Rule: {rule_name.title()}",
+            title=f"{GAME_NAME} League Rule: {rule_name.title()}",
             color=Colors.PRIMARY
         )
 
@@ -91,7 +91,7 @@ class CharterCog(commands.Cog):
                     break
 
         if not rule_found:
-            embed.description = f"Specific rule '{rule_name}' not found in local data. All CFB 26 league rules are in the official charter."
+            embed.description = f"Specific rule '{rule_name}' not found in local data. All {GAME_NAME} league rules are in the official charter."
 
         embed.add_field(
             name="📖 Full League Charter",
@@ -108,7 +108,7 @@ class CharterCog(commands.Cog):
             return
 
         embed = discord.Embed(
-            title="📋 CFB 26 League Charter",
+            title=f"📋 {GAME_NAME} League Charter",
             description="Official league rules, policies, and guidelines",
             color=Colors.PRIMARY
         )
@@ -125,7 +125,7 @@ class CharterCog(commands.Cog):
             inline=False
         )
 
-        embed.set_footer(text="CFB 26 League Bot - Always check the charter for complete rules")
+        embed.set_footer(text=f"{GAME_NAME} League Bot - Always check the charter for complete rules")
         await interaction.response.send_message(embed=embed)
 
     @charter_group.command(name="scan", description="Scan a channel for rule changes and votes")

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-High School Stats Cog for CFB 26 League Bot
+High School Stats Cog for CFB League Bot
 
 Provides commands to look up high school football player stats from MaxPreps.
 Commands:
@@ -21,7 +21,7 @@ from ..services.checks import check_module_enabled_deferred
 from ..utils.server_config import server_config, FeatureModule
 from ..utils.hs_stats_scraper import hs_stats_scraper
 
-logger = logging.getLogger('CFB26Bot.HSStats')
+logger = logging.getLogger('CFBBot.HSStats')
 
 
 class HSStatsCog(commands.Cog):

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Fun Cog for CFB 26 League Bot
+Fun Cog for CFB League Bot
 
 Secret admin commands for... creative moderation.
 Commands:
@@ -22,7 +22,7 @@ from discord.ext import commands
 
 from ..config import Colors
 
-logger = logging.getLogger('CFB26Bot.Fun')
+logger = logging.getLogger('CFBBot.Fun')
 
 # Ready-made cockney insults hurled at a targeted user.
 # Each entry MUST contain a single "{mention}" placeholder (filled with the user's @mention).

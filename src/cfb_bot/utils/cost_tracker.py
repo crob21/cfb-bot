@@ -10,7 +10,7 @@ from typing import Any, Dict, Optional
 
 from .storage import get_storage
 
-logger = logging.getLogger('CFB26Bot.CostTracker')
+logger = logging.getLogger('CFBBot.CostTracker')
 
 
 class CostTracker:

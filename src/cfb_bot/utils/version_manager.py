@@ -11,10 +11,34 @@ from typing import Dict, List, Optional
 logger = logging.getLogger('CFB26Bot.Version')
 
 # Current version
-CURRENT_VERSION = "3.15.2"
+CURRENT_VERSION = "3.16.0"
 
 # Changelog - organized by version
 CHANGELOG: Dict[str, Dict] = {
+    "3.16.0": {
+        "date": "2026-10-02",
+        "title": "Harry Knows It's CFB 27 🏈",
+        "emoji": "🏈",
+        "features": [
+            {
+                "category": "League",
+                "emoji": "🏈",
+                "changes": [
+                    "Harry's personality, AI prompts, titles and footers now say CFB 27",
+                    "The game name lives in one setting (GAME_NAME) — next year is an env change, not a code change",
+                    "A test fails if anyone hardcodes a game year again"
+                ]
+            },
+            {
+                "category": "Cleanup",
+                "emoji": "🧹",
+                "changes": [
+                    "Logger names are version-free (CFBBot.*) so they never go stale",
+                    "Removed the unused rules-updater script and the Google Docs setup guide for the deleted integration"
+                ]
+            }
+        ]
+    },
     "3.15.2": {
         "date": "2026-10-02",
         "title": "Loose Ends 🧹",

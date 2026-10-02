@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-AI Chat Cog for CFB 26 League Bot
+AI Chat Cog for CFB League Bot
 
 Provides AI-powered chat commands.
 Commands:
@@ -16,11 +16,11 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from ..config import Colors
+from ..config import GAME_NAME, Colors
 from ..utils.server_config import server_config, FeatureModule
 from ..utils.input_validation import sanitize_string, MAX_INPUT_LENGTH
 
-logger = logging.getLogger('CFB26Bot.AIChat')
+logger = logging.getLogger('CFBBot.AIChat')
 
 
 class AIChatCog(commands.Cog):
@@ -94,7 +94,7 @@ class AIChatCog(commands.Cog):
 
                 # Make AI response
                 if league_enabled:
-                    conversational_question = f"{personality} Answer this question about CFB 26 league rules: {question}"
+                    conversational_question = f"{personality} Answer this question about {GAME_NAME} league rules: {question}"
                 else:
                     conversational_question = f"{personality} Answer this question about college football: {question}"
 

@@ -344,7 +344,7 @@ import logging
 from ..services.checks import check_module_enabled
 from ..utils.server_config import FeatureModule
 
-logger = logging.getLogger('CFB26Bot.Example')
+logger = logging.getLogger('CFBBot.Example')
 
 
 class ExampleCog(commands.Cog):

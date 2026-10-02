@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-CFB 26 League Bot - Cog-Based Architecture
+CFB League Bot - Cog-Based Architecture
 
 This is the new modular entry point that loads Discord.py Cogs.
 Each cog handles a specific domain of commands.
@@ -33,7 +33,7 @@ logging.basicConfig(
         logging.StreamHandler(sys.stdout)
     ]
 )
-logger = logging.getLogger('CFB26Bot')
+logger = logging.getLogger('CFBBot')
 
 # Bot configuration
 intents = discord.Intents.default()

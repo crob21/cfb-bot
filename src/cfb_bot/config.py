@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Configuration constants for CFB 26 League Bot
+Configuration constants for CFB League Bot
 
 Contains colors, footers, and shared constants used across all cogs.
 """
@@ -16,6 +16,10 @@ load_dotenv()
 
 # Discord token
 DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
+
+# The game the league plays. Everything Harry says or prompts with reads this, so a new
+# season's game is a GAME_NAME env change on the host — no code change needed.
+GAME_NAME = os.getenv('GAME_NAME', 'CFB 27')
 
 # Admin channel for notifications
 ADMIN_CHANNEL_ID = 1417663211292852244
@@ -52,7 +56,7 @@ class Footers:
     RECRUITING = "Harry's Recruiting 🏈"
     PORTAL = "Harry's Portal Tracker 🔄"
     # League-specific footer (only when LEAGUE module enabled)
-    LEAGUE = "Harry - Your CFB 26 League Assistant 🏈"
+    LEAGUE = f"Harry - Your {GAME_NAME} League Assistant 🏈"
     # Generic footer (when LEAGUE module disabled)
     DEFAULT = "Harry - Your CFB Assistant 🏈"
 

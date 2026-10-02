@@ -3,7 +3,7 @@
 import os
 import logging
 
-logger = logging.getLogger('CFB26Bot.AI')
+logger = logging.getLogger('CFBBot.AI')
 
 # Initialize AI assistant if API keys are available
 ai_assistant = None

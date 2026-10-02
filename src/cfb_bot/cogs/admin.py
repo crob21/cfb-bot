@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Admin Cog for CFB 26 League Bot
+Admin Cog for CFB League Bot
 
 Provides administrative commands for managing the bot.
 Commands:
@@ -27,7 +27,7 @@ from discord.ext import commands
 from ..config import Colors, Footers
 from ..utils.server_config import server_config, FeatureModule
 
-logger = logging.getLogger('CFB26Bot.Admin')
+logger = logging.getLogger('CFBBot.Admin')
 
 
 class AdminCog(commands.Cog):

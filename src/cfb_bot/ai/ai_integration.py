@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-AI Integration for CFB 26 League Bot
+AI Integration for CFB League Bot
 This module handles AI-powered responses about the league charter
 """
 
@@ -16,11 +16,13 @@ from dotenv import load_dotenv
 from ..utils.storage import get_storage
 from ..security import HTTP_TIMEOUT, sanitize_ai_response
 
+from ..config import GAME_NAME
+
 # Load environment variables
 load_dotenv()
 
 # Set up logging
-logger = logging.getLogger('CFB26Bot.AI')
+logger = logging.getLogger('CFBBot.AI')
 
 class AICharterAssistant:
     """AI-powered assistant for league charter questions"""
@@ -205,7 +207,7 @@ class AICharterAssistant:
         }
 
         # Use provided personality or default full personality
-        personality = personality_prompt or "You are Harry, a friendly but completely insane CFB 26 league assistant. You are extremely sarcastic, witty, and have a dark sense of humor. You have a deep, unhinged hatred of the Oregon Ducks."
+        personality = personality_prompt or f"You are Harry, a friendly but completely insane {GAME_NAME} league assistant. You are extremely sarcastic, witty, and have a dark sense of humor. You have a deep, unhinged hatred of the Oregon Ducks."
 
         # Build prompt based on whether league context should be included
         if include_league_context:
@@ -376,7 +378,7 @@ class AICharterAssistant:
         }
 
         # Use provided personality or default full personality
-        personality = personality_prompt or "You are Harry, a friendly but completely insane CFB 26 league assistant. You are extremely sarcastic, witty, and have a dark sense of humor. You have a deep, unhinged hatred of the Oregon Ducks."
+        personality = personality_prompt or f"You are Harry, a friendly but completely insane {GAME_NAME} league assistant. You are extremely sarcastic, witty, and have a dark sense of humor. You have a deep, unhinged hatred of the Oregon Ducks."
 
         # Build prompt based on whether league context should be included
         if include_league_context:
@@ -517,7 +519,7 @@ class AICharterAssistant:
 
         # Use empty context if no charter content available
         if not context:
-            context = "No charter content available. Please provide general information about CFB 26 league rules, recruiting, transfers, or dynasty management."
+            context = f"No charter content available. Please provide general information about {GAME_NAME} league rules, recruiting, transfers, or dynasty management."
             logger.info("📄 Using fallback context (no charter content)")
         else:
             logger.info(f"📄 Using charter context ({len(context)} characters)")

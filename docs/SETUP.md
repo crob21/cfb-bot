@@ -1,6 +1,6 @@
-# 🚀 CFB 26 Rules Bot Setup Guide
+# 🚀 CFB 27 Rules Bot Setup Guide
 
-Complete setup guide for Harry, the CFB 26 Rules Bot.
+Complete setup guide for Harry, the CFB 27 Rules Bot.
 
 **Current Version:** 1.14.0
 
@@ -18,7 +18,7 @@ Complete setup guide for Harry, the CFB 26 Rules Bot.
 
 1. Go to [Discord Developer Portal](https://discord.com/developers/applications)
 2. Click **"New Application"**
-3. Name it (e.g., "CFB 26 Rules Bot" or "Harry")
+3. Name it (e.g., "CFB 27 Rules Bot" or "Harry")
 4. Click **"Create"**
 
 ### 1.2 Create the Bot
@@ -121,7 +121,7 @@ python main.py
 
 You should see:
 ```
-🏈 CFB 26 League Bot v1.13.0 (Harry#1109) has connected to Discord!
+🏈 CFB 27 League Bot v1.13.0 (Harry#1109) has connected to Discord!
 📊 Connected to 1 guilds
 👋 Harry is ready to help with league questions!
 ✅ Synced commands
@@ -270,7 +270,7 @@ Harry is now ready to help your league! Key commands:
 - `/channel enable` - Enable in current channel
 - `/config` - Configure modules
 
-**Welcome to the CFB 26 League! 🏈**
+**Welcome to the CFB 27 League! 🏈**
 
 ---
 

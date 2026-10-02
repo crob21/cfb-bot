@@ -1,5 +1,5 @@
 """
-Services module for CFB 26 League Bot
+Services module for CFB League Bot
 
 Contains shared utilities used across cogs:
 - checks.py: Permission and module checks

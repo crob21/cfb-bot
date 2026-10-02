@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Schedule Manager for CFB 26 League Bot
+Schedule Manager for CFB League Bot
 Manages and queries the league schedule data
 """
 
@@ -10,7 +10,7 @@ import logging
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-logger = logging.getLogger('CFB26Bot.Schedule')
+logger = logging.getLogger('CFBBot.Schedule')
 
 # Schedule data file location
 SCHEDULE_FILE = Path(__file__).parent.parent.parent.parent / "data" / "schedule.json"

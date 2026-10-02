@@ -57,7 +57,7 @@ try:
 except ImportError:
     FUZZY_AVAILABLE = False
 
-logger = logging.getLogger('CFB26Bot.On3Recruiting')
+logger = logging.getLogger('CFBBot.On3Recruiting')
 
 
 class On3Scraper:
