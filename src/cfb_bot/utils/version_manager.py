@@ -11,10 +11,26 @@ from typing import Dict, List, Optional
 logger = logging.getLogger('CFB26Bot.Version')
 
 # Current version
-CURRENT_VERSION = "3.15.0"
+CURRENT_VERSION = "3.15.1"
 
 # Changelog - organized by version
 CHANGELOG: Dict[str, Dict] = {
+    "3.15.1": {
+        "date": "2026-10-02",
+        "title": "Settings Save Guard 💾",
+        "emoji": "💾",
+        "features": [
+            {
+                "category": "Reliability",
+                "emoji": "💾",
+                "changes": [
+                    "Settings too big for one Discord message are no longer sent and lost — Harry DMs the owner instead",
+                    "Any failed settings save now DMs the owner (it used to be a log line nobody saw)",
+                    "18 new tests cover the @everyone advanced flow end to end"
+                ]
+            }
+        ]
+    },
     "3.15.0": {
         "date": "2026-10-02",
         "title": "Side League Timers ⏱️",
