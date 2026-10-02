@@ -89,10 +89,6 @@ def is_valid_week(week: int) -> bool:
     return week in CFB_DYNASTY_WEEKS
 
 
-def get_next_week(week: int) -> int:
-    """Step number that follows week, wrapping Training Results (27) back to Preseason (1)."""
-    return FIRST_WEEK if week >= LAST_WEEK else week + 1
-
 
 def _is_timer_state_message(content: str) -> bool:
     """True for an untyped timer-state JSON message (settings/staff/week messages carry a "type")."""
@@ -260,8 +256,11 @@ NOTIFICATION_CHANNEL_ID = 1261662233109205146  # #general
 class AdvanceTimer:
     """Manages advance countdown timers with custom durations"""
 
-    def __init__(self, channel: discord.TextChannel, bot: discord.Client, manager=None):
+    def __init__(self, channel: discord.TextChannel, bot: discord.Client, manager=None, label: Optional[str] = None):
         self.channel = channel  # Original channel where timer was started
+        # A label makes this a side-league timer (Madden, NBA2K, …): it announces in its
+        # own channel and never touches the dynasty week.
+        self.label = label
         self.bot = bot
         self.manager = manager  # Reference to TimekeeperManager for Discord persistence
         self.start_time: Optional[datetime] = None
@@ -277,7 +276,9 @@ class AdvanceTimer:
         }
 
     def get_notification_channel(self) -> Optional[discord.TextChannel]:
-        """Get the channel where timer notifications should be sent (always #general)"""
+        """Where this timer announces: its own channel for a side league, else #general."""
+        if self.label:
+            return self.channel
         notification_channel = self.bot.get_channel(NOTIFICATION_CHANNEL_ID)
         if notification_channel:
             return notification_channel
@@ -287,6 +288,11 @@ class AdvanceTimer:
 
     async def save_state(self):
         """Save timer state to disk, environment variable, and Discord for persistence"""
+        if self.label:
+            if self.manager:
+                await self.manager.save_side_timers()
+            return
+
         if not self.is_active:
             # Clear saved state if timer is not active
             if TIMER_STATE_FILE.exists():
@@ -469,7 +475,20 @@ class AdvanceTimer:
             logger.error(f"❌ Error in countdown monitoring: {type(e).__name__}: {e}")
 
     async def _send_notification(self, hours: int):
-        """Send a countdown notification to the notification channel (#general)"""
+        """Send a countdown warning to this timer's channel."""
+        if self.label:
+            embed = discord.Embed(
+                title=f"⏰ {hours} Hour{'s' if hours > 1 else ''} Remaining — {self.label}",
+                description=f"**{self.label}**: {hours} hour{'s' if hours > 1 else ''} left on the clock!",
+                color=0xffa500 if hours > 6 else 0xff4500,
+            )
+            embed.set_footer(text=f"Harry's Side Timer ⏱️ | Ends at {format_est_time(self.end_time, '%I:%M %p')}")
+            try:
+                await self.channel.send(embed=embed)
+            except Exception as e:
+                logger.error(f"❌ Failed to send {self.label} notification: {e}")
+            return
+
         # More urgent messages and colors for lower time remaining
         if hours <= 1:
             color = 0xff0000  # Red - URGENT
@@ -502,67 +521,56 @@ class AdvanceTimer:
             logger.error(f"❌ Failed to send notification: {e}")
 
     async def _send_times_up(self):
-        """Send the final TIMES UP message"""
-        # Get season/week info for display
-        season_info = None
-        old_season = None
-        old_week = None
-        old_week_name = None
-        is_new_season = False
+        """
+        Announce that the countdown ran out.
 
+        This never advances the week: the league advances in-game and posts
+        "@everyone advanced", and that post is what moves Harry's week.
+        """
+        if self.label:
+            embed = discord.Embed(
+                title=f"⏰ TIME'S UP — {self.label}! ⏰",
+                description=(
+                    f"RIGHT THEN, TIME'S UP FOR **{self.label}**!\n\n"
+                    "Get your games done, ya muppets!"
+                ),
+                color=0xff0000,
+            )
+            embed.set_footer(text="Harry's Side Timer ⏱️")
+            try:
+                await self.channel.send(content="@everyone", embed=embed)
+                logger.info(f"📢 Sent TIMES UP for side league '{self.label}'")
+            except Exception as e:
+                logger.error(f"❌ Failed to send {self.label} times-up: {e}")
+            if self.manager:
+                await self.manager.save_side_timers()
+            return
+
+        season_text = ""
         if self.manager:
             season_info = self.manager.get_season_week()
-            # Store old values before increment
-            if season_info['season'] and season_info['week'] is not None:
-                old_season = season_info['season']
-                old_week = season_info['week']
-                old_week_name = season_info.get('week_name', f"Week {old_week}")
+            if season_info and season_info['season'] and season_info['week'] is not None:
+                week_name = season_info.get('week_name', f"Week {season_info['week']}")
+                phase = season_info.get('phase', get_week_phase(season_info['week']))
+                season_text = (
+                    f"**Season {season_info['season']}**\n"
+                    f"📍 Still on **{week_name}**\n"
+                    f"🏈 Phase: {phase}\n\n"
+                )
 
-                # Check if this will trigger a new season (advancing from Training Results)
-                is_new_season = old_week >= LAST_WEEK
-
-                # Increment the week. Flag it so the "@everyone advanced" post that follows
-                # doesn't increment a second time.
-                self.manager.advance_pending = True
-                await self.manager.increment_week()
-
-                # Get new week info after increment
-                new_season_info = self.manager.get_season_week()
-                new_week_name = new_season_info.get('week_name', f"Week {new_season_info['week']}")
-                logger.info(f"📅 Advanced from {old_week_name} to {new_week_name}")
-
-        # Build description with season/week if available
-        if is_new_season and self.manager:
-            # NEW SEASON celebration!
-            new_season_info = self.manager.get_season_week()
-            description = "🎉 **NEW SEASON STARTING!** 🎉\n\n"
-            description += "RIGHT THEN, TIME'S UP YA WANKERS!\n\n"
-            description += f"**Season {old_season}** is in the books!\n\n"
-            description += f"🏈 **WELCOME TO SEASON {new_season_info['season']}!** 🏈\n\n"
-            description += f"📍 {old_week_name} → **{new_season_info.get('week_name', 'Preseason')}**\n\n"
-            description += "Time to start fresh! Good luck to all you muppets! 🏈"
-        else:
-            description = "RIGHT THEN, TIME'S UP YA WANKERS!\n\n🏈 **LET'S ADVANCE THE BLOODY LEAGUE!** 🏈\n\n"
-            if season_info and season_info['season'] and old_week is not None:
-                new_season_info = self.manager.get_season_week() if self.manager else None
-                if new_season_info:
-                    new_week_name = new_season_info.get('week_name', f"Week {new_season_info['week']}")
-                    phase = new_season_info.get('phase', get_week_phase(new_season_info['week']))
-                else:
-                    new_week_name = get_week_name(get_next_week(old_week))
-                    phase = get_week_phase(get_next_week(old_week))
-
-                description += f"**Season {season_info['season']}**\n"
-                description += f"📍 {old_week_name} → **{new_week_name}**\n"
-                description += f"🏈 Phase: {phase}\n\n"
-            description += "All games should be done. If they ain't, tough luck mate!"
+        description = (
+            "RIGHT THEN, TIME'S UP YA WANKERS!\n\n"
+            "🏈 **LET'S ADVANCE THE BLOODY LEAGUE!** 🏈\n\n"
+            f"{season_text}"
+            "All games should be done. If they ain't, tough luck mate!\n\n"
+            "_Commish: advance in-game, then post `@everyone advanced` so I can move the week._"
+        )
 
         embed = discord.Embed(
             title="⏰ TIME'S UP! LET'S ADVANCE! ⏰",
             description=description,
             color=0xff0000
         )
-
         embed.set_footer(text="Harry's Advance Timer 🏈")
 
         try:
@@ -570,55 +578,8 @@ class AdvanceTimer:
             # @everyone for TIME'S UP - this is the most important one!
             await notification_channel.send(content="@everyone", embed=embed)
             logger.info(f"📢 Sent TIMES UP message with @everyone ping to #{notification_channel.name}")
-
-            # Send the upcoming week's schedule if we're in regular season
-            await self._send_upcoming_schedule()
-
         except Exception as e:
             logger.error(f"❌ Failed to send times up message: {e}")
-
-    async def _send_upcoming_schedule(self):
-        """Send the upcoming week's schedule after advance (if schedule_announcement setting is enabled)"""
-        try:
-            notification_channel = self.get_notification_channel()
-            if notification_channel and notification_channel.guild:
-                from .server_config import server_config
-                if not server_config.get_setting(notification_channel.guild.id, "schedule_announcement", True):
-                    logger.info("📅 Schedule announcement disabled for this server, skipping")
-                    return
-
-            # Import here to avoid circular imports
-            from .schedule_manager import get_schedule_manager
-
-            if not self.manager:
-                return
-
-            season_info = self.manager.get_season_week()
-            if not season_info or season_info['week'] is None:
-                return
-
-            new_week = get_game_week(season_info['week'])
-
-            # Only send schedule for regular season weeks (Week 0-14)
-            if new_week is None:
-                logger.info(f"📅 {season_info.get('week_name')} is not regular season, skipping schedule announcement")
-                return
-
-            schedule_mgr = get_schedule_manager()
-            if not schedule_mgr:
-                return
-
-            schedule_embed = schedule_mgr.build_week_embed(new_week)
-            if not schedule_embed:
-                logger.warning(f"⚠️ No schedule data for Week {new_week}")
-                return
-
-            notification_channel = self.get_notification_channel()
-            await notification_channel.send(embed=schedule_embed)
-            logger.info(f"📅 Sent Week {new_week} schedule announcement to #{notification_channel.name}")
-
-        except Exception as e:
-            logger.error(f"❌ Failed to send schedule announcement: {e}")
 
 
 class TimekeeperManager:
@@ -667,8 +628,6 @@ class TimekeeperManager:
         self.notification_channel_id: Optional[int] = NOTIFICATION_CHANNEL_ID
         # Restored timer info (for combined startup notification)
         self._restored_timer_info: Optional[Dict] = None
-        # True when a timer expired and already advanced the week, until the next timer starts
-        self.advance_pending: bool = False
         # Serializes "@everyone advanced" handling so simultaneous posts can't double-advance
         self.advance_lock = asyncio.Lock()
         self.last_manual_advance_at: Optional[datetime] = None
@@ -985,6 +944,9 @@ class TimekeeperManager:
         # Load bot settings (notification channel, etc.)
         await self._load_settings_state()
 
+        # Restart any side-league timers that were running
+        await self.restore_side_timers()
+
         if not state:
             return
 
@@ -1070,20 +1032,91 @@ class TimekeeperManager:
                 TIMER_STATE_FILE.unlink()
                 logger.info("💾 Cleared corrupted timer state file")
 
-    def get_timer(self, channel: discord.TextChannel) -> AdvanceTimer:
-        """Get or create a timer for a channel"""
-        if channel.id not in self.timers:
-            self.timers[channel.id] = AdvanceTimer(channel, self.bot, manager=self)
-        return self.timers[channel.id]
+    @staticmethod
+    def side_key(name: str) -> str:
+        """Dict key for a side-league timer (dynasty timers are keyed by channel id)."""
+        return f"side:{name.strip().lower()}"
 
-    async def start_timer(self, channel: discord.TextChannel, hours: int = 48) -> bool:
+    def get_timer(self, channel: discord.TextChannel, label: Optional[str] = None) -> AdvanceTimer:
+        """Get or create a timer: the dynasty countdown for a channel, or a named side league."""
+        key = self.side_key(label) if label else channel.id
+        if key not in self.timers:
+            self.timers[key] = AdvanceTimer(channel, self.bot, manager=self, label=label)
+        else:
+            # A restarted side timer may be set in a different channel than last time
+            self.timers[key].channel = channel
+        return self.timers[key]
+
+    async def start_timer(self, channel: discord.TextChannel, hours: int = 48,
+                          label: Optional[str] = None) -> bool:
         """Start a timer for a channel with custom duration"""
-        timer = self.get_timer(channel)
+        timer = self.get_timer(channel, label=label)
+        if timer.is_active:
+            await timer.stop_countdown()
         started = await timer.start_countdown(hours)
-        if started and self.advance_pending:
-            self.advance_pending = False
-            await self._save_season_week_state()
+        if started and label:
+            await self.save_side_timers()
         return started
+
+    def get_side_timers(self) -> list:
+        """Active side-league timers (Madden, 2K…)."""
+        return [t for t in self.get_all_active_timers() if t['label']]
+
+    def get_advance_timers(self) -> list:
+        """Active dynasty countdowns — the ones an advance stops."""
+        return [t for t in self.get_all_active_timers() if not t['label']]
+
+    async def stop_side_timer(self, name: str) -> bool:
+        """Stop a named side-league timer. Returns False if it wasn't running."""
+        timer = self.timers.get(self.side_key(name))
+        if not timer or not timer.is_active:
+            return False
+        stopped = await timer.stop_countdown()
+        await self.save_side_timers()
+        return stopped
+
+    async def save_side_timers(self) -> bool:
+        """Persist running side timers so they survive a redeploy."""
+        payload = [
+            {
+                'label': t.label,
+                'channel_id': t.channel.id,
+                'end_time': t.end_time.isoformat() if t.end_time else None,
+                'duration_hours': t.duration_hours,
+            }
+            for t in self.timers.values()
+            if t.label and t.is_active and t.end_time
+        ]
+        return await self._save_typed_state('side_timers', {'timers': payload})
+
+    async def restore_side_timers(self) -> int:
+        """Restart side timers saved before a restart, skipping any that already expired."""
+        state = await self._load_typed_state('side_timers')
+        restored = 0
+        for entry in (state or {}).get('timers', []):
+            try:
+                end_time = datetime.fromisoformat(entry['end_time'])
+            except (KeyError, TypeError, ValueError):
+                continue
+            if end_time <= datetime.now():
+                continue
+            channel = self.bot.get_channel(entry.get('channel_id'))
+            if not channel:
+                continue
+
+            timer = AdvanceTimer(channel, self.bot, manager=self, label=entry.get('label'))
+            timer.end_time = end_time
+            timer.duration_hours = entry.get('duration_hours', 24)
+            timer.start_time = end_time - timedelta(hours=timer.duration_hours)
+            timer.is_active = True
+            timer.notifications_sent = {h: h >= timer.duration_hours for h in NOTIFICATION_THRESHOLDS}
+            timer.task = asyncio.create_task(timer._monitor_countdown())
+            self.timers[self.side_key(timer.label)] = timer
+            restored += 1
+
+        if restored:
+            logger.info(f"⏱️ Restored {restored} side-league timer(s)")
+        return restored
 
     def is_duplicate_advance(self, window_minutes: int = 3) -> bool:
         """True if a manual advance was already handled moments ago (e.g. two people posting it)."""
@@ -1092,11 +1125,6 @@ class TimekeeperManager:
             and datetime.now() - self.last_manual_advance_at < timedelta(minutes=window_minutes)
         )
 
-    async def stop_timer(self, channel: discord.TextChannel) -> bool:
-        """Stop a timer for a channel"""
-        if channel.id not in self.timers:
-            return False
-        return await self.timers[channel.id].stop_countdown()
 
     def get_advance_channel(self, fallback: Optional[discord.abc.Messageable] = None):
         """The channel the single league advance timer runs in (the configured notification channel)."""
@@ -1106,13 +1134,14 @@ class TimekeeperManager:
         """
         Stop every active timer in every channel. Returns how many were stopped.
 
-        The league has one advance countdown; a stray timer left running in another
-        channel would expire later and advance the week a second time.
+        Only dynasty countdowns: named side-league timers are left alone.
         """
         stopped = 0
-        for channel_id, timer in list(self.timers.items()):
+        for key, timer in list(self.timers.items()):
+            if timer.label:
+                continue  # side-league timers are independent of the dynasty week
             if timer.is_active and await timer.stop_countdown():
-                logger.info(f"⏹️ Stopped timer in channel {channel_id}")
+                logger.info(f"⏹️ Stopped timer in channel {key}")
                 stopped += 1
         return stopped
 
@@ -1137,8 +1166,9 @@ class TimekeeperManager:
             channel = self.bot.get_channel(channel_id)
             guild = getattr(channel, 'guild', None)
             active.append({
-                'channel_id': channel_id,
-                'channel_name': getattr(channel, 'name', str(channel_id)),
+                'channel_id': timer.channel.id,
+                'label': timer.label,
+                'channel_name': getattr(timer.channel, 'name', str(timer.channel.id)),
                 'guild_name': getattr(guild, 'name', 'Unknown'),
                 'hours': status['hours'],
                 'minutes': status['minutes'],
@@ -1173,7 +1203,6 @@ class TimekeeperManager:
             return False
         self.season = season
         self.week = week
-        self.advance_pending = False
         # Save season/week to state
         await self._save_season_week_state()
         logger.info(f"📅 Season/Week set to Season {season}, {get_week_name(week)} (step {week})")
@@ -1284,7 +1313,6 @@ class TimekeeperManager:
             'season': self.season,
             'week': self.week,
             'scheme': WEEK_SCHEME_VERSION,
-            'advance_pending': self.advance_pending,
         })
 
     async def _load_season_week_state(self):
@@ -1295,7 +1323,6 @@ class TimekeeperManager:
 
         self.season = state.get('season')
         self.week = state.get('week')
-        self.advance_pending = bool(state.get('advance_pending', False))
 
         if state.get('scheme') != WEEK_SCHEME_VERSION:
             legacy_week = self.week
@@ -1469,9 +1496,6 @@ class TimekeeperManager:
         logger.info("😇 Stopped nagging the league owner")
         return True
 
-    def is_nagging(self) -> bool:
-        """Check if currently nagging"""
-        return self.nag_active
 
     async def _nag_loop(self):
         """Background task that sends nag messages"""

@@ -64,14 +64,3 @@ class ChannelManager:
         """Get number of blocked channels"""
         return len(self.blocked_channels)
 
-    def can_respond_unprompted(self, channel_id: int) -> bool:
-        """
-        Check if Harry can make unprompted responses in a channel
-
-        Args:
-            channel_id: The Discord channel ID
-
-        Returns:
-            True if unprompted responses are allowed, False if blocked
-        """
-        return not self.is_channel_blocked(channel_id)

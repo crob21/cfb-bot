@@ -474,23 +474,17 @@ async def _handle_advance(message):
 
         # Stop every running timer (including strays in other channels) so
         # nothing expires later and advances the week a second time
-        had_active_timer = bool(timekeeper_manager.get_all_active_timers())
         await timekeeper_manager.stop_all_timers()
 
-        # Increment the week (manual advance) — unless the timer already expired
-        # and advanced it, in which case this post is just confirming that advance
+        # This post is the only thing that moves the week — a countdown running out
+        # just nags; it never advances.
         season_info = timekeeper_manager.get_season_week()
         if season_info['season'] and season_info['week'] is not None:
-            old_week = season_info['week']
-            old_week_name = season_info.get('week_name', f"Week {old_week}")
-            if timekeeper_manager.advance_pending and not had_active_timer:
-                logger.info(f"📅 Manual advance after timer expiry: already on {old_week_name}, not incrementing again")
-            else:
-                await timekeeper_manager.increment_week()
-                # Refresh season_info after increment
-                season_info = timekeeper_manager.get_season_week()
-                new_week_name = season_info.get('week_name', f"Week {season_info['week']}")
-                logger.info(f"📅 Manual advance: {old_week_name} → {new_week_name}")
+            old_week_name = season_info.get('week_name', f"Week {season_info['week']}")
+            await timekeeper_manager.increment_week()
+            season_info = timekeeper_manager.get_season_week()
+            new_week_name = season_info.get('week_name', f"Week {season_info['week']}")
+            logger.info(f"📅 Manual advance: {old_week_name} → {new_week_name}")
         timekeeper_manager.last_manual_advance_at = datetime.now()
 
         # Start new timer (default 48 hours)

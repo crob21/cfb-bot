@@ -104,23 +104,6 @@ class SimpleCache:
 
         return namespaces
 
-    def cleanup_expired(self):
-        """Remove all expired entries"""
-        now = datetime.now()
-        expired_keys = [
-            key for key, entry in self._cache.items()
-            if now >= entry['expires_at']
-        ]
-
-        for key in expired_keys:
-            del self._cache[key]
-            self._stats['evictions'] += 1
-
-        if expired_keys:
-            logger.info(f"Cache cleanup: removed {len(expired_keys)} expired entries")
-
-        return len(expired_keys)
-
 
 # Global cache instance
 _cache_instance: Optional[SimpleCache] = None

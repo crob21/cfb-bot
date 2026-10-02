@@ -85,46 +85,6 @@ def sanitize_string(text: str, max_length: int = MAX_INPUT_LENGTH) -> str:
     return text
 
 
-def is_safe_integer(value: Any, min_val: int = None, max_val: int = None) -> bool:
-    """
-    Check if a value is a safe integer within bounds
-
-    Args:
-        value: Value to check
-        min_val: Minimum allowed value (optional)
-        max_val: Maximum allowed value (optional)
-
-    Returns:
-        True if value is a safe integer within bounds
-    """
-    try:
-        int_val = int(value)
-
-        if min_val is not None and int_val < min_val:
-            return False
-
-        if max_val is not None and int_val > max_val:
-            return False
-
-        return True
-    except (ValueError, TypeError):
-        return False
-
-
-def validate_discord_mention(mention: str) -> bool:
-    """
-    Validate that a string is a proper Discord mention
-
-    Args:
-        mention: String to validate
-
-    Returns:
-        True if valid Discord mention format
-    """
-    import re
-    # Discord mentions: <@123456789> or <@!123456789>
-    pattern = r'^<@!?\d+>$'
-    return bool(re.match(pattern, mention))
 
 
 # Example usage in commands:

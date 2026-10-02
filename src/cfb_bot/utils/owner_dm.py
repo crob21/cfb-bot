@@ -29,13 +29,3 @@ async def get_owner_dm(bot) -> Optional[object]:
         return None
 
 
-async def get_owner_id(bot) -> Optional[int]:
-    """Return the bot owner's user ID, or None if it can't be determined."""
-    if not bot:
-        return None
-    try:
-        app_info = await bot.application_info()
-        return app_info.owner.id if app_info.owner else None
-    except Exception as e:
-        logger.debug(f"Could not determine bot owner id: {e}")
-        return None

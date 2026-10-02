@@ -10,6 +10,8 @@ Commands:
 - /league timer - Start advance countdown
 - /league timer_status - Check countdown status
 - /league timer_stop - Stop the advance countdown
+- /league side_timer - Countdown for another league (Madden, 2K…)
+- /league side_timer_stop - Stop a side league's countdown
 - /league timers - List all active timers and stop them one by one (admin)
 - /league week - Current week
 - /league weeks - Full schedule
@@ -37,7 +39,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from ..config import Colors, Footers
+from ..config import Colors
 from ..services.checks import check_module_enabled, check_module_enabled_deferred
 from ..utils.server_config import server_config, FeatureModule
 # Week schedule constants and helpers live in one canonical place: utils/timekeeper.py.
@@ -193,7 +195,7 @@ class LeagueCog(commands.Cog):
         # Setting the clock never advances the week — that happens on an "@everyone
         # advanced" post or when the countdown runs out. Restarting a timer used to
         # advance silently, which cost the league a week.
-        replaced = self.timekeeper_manager.get_all_active_timers()
+        replaced = self.timekeeper_manager.get_advance_timers()
         if replaced:
             await self.timekeeper_manager.stop_all_timers()
 
@@ -227,6 +229,84 @@ class LeagueCog(commands.Cog):
             )
         notes.append("_To advance the week, post `@everyone advanced` or let the countdown run out._")
         await interaction.followup.send("\n".join(notes), ephemeral=True)
+
+    @league_group.command(name="side_timer", description="Start a countdown for another league (Madden, 2K…)")
+    @app_commands.describe(
+        league="Name of the side league, e.g. Madden",
+        hours="Number of hours for the countdown (default: 24)",
+    )
+    async def side_timer(self, interaction: discord.Interaction, league: str, hours: int = 24):
+        """Start (or restart) a named countdown that never touches the dynasty week."""
+        if not await check_module_enabled(interaction, FeatureModule.LEAGUE, server_config):
+            return
+
+        if not self._is_league_admin(interaction):
+            await interaction.response.send_message("❌ Only admins can start countdowns!", ephemeral=True)
+            return
+
+        if not self.timekeeper_manager:
+            await interaction.response.send_message("❌ Timekeeper not available", ephemeral=True)
+            return
+
+        name = league.strip()[:40]
+        if not name:
+            await interaction.response.send_message("❌ Give the league a name, mate.", ephemeral=True)
+            return
+        if hours < 1 or hours > 336:
+            await interaction.response.send_message("❌ Hours must be 1-336 (2 weeks).", ephemeral=True)
+            return
+
+        await interaction.response.defer(ephemeral=True)
+
+        existing = next(
+            (t for t in self.timekeeper_manager.get_side_timers()
+             if t['label'].lower() == name.lower()),
+            None,
+        )
+        started = await self.timekeeper_manager.start_timer(interaction.channel, hours, label=name)
+        if not started:
+            await interaction.followup.send("❌ Failed to start that timer!", ephemeral=True)
+            return
+
+        embed = discord.Embed(
+            title=f"⏱️ {name} Countdown Started!",
+            description=(
+                f"🎮 **{hours} HOUR COUNTDOWN** for **{name}**\n\n"
+                "Get your games done, ya muppets!"
+            ),
+            color=Colors.SUCCESS,
+        )
+        embed.set_footer(text="Harry's Side Timer ⏱️ | Doesn't touch the dynasty week")
+        await interaction.channel.send(embed=embed)
+
+        note = f"✅ **{name}** countdown started — {hours}h, announcing in this channel."
+        if existing:
+            note += f"\n⚠️ Replaced the previous **{name}** timer (was {existing['hours']}h {existing['minutes']}m left)."
+        await interaction.followup.send(note, ephemeral=True)
+
+    @league_group.command(name="side_timer_stop", description="Stop a side league's countdown")
+    @app_commands.describe(league="Name of the side league to stop")
+    async def side_timer_stop(self, interaction: discord.Interaction, league: str):
+        """Stop a named side-league countdown."""
+        if not await check_module_enabled(interaction, FeatureModule.LEAGUE, server_config):
+            return
+
+        if not self._is_league_admin(interaction):
+            await interaction.response.send_message("❌ Only admins can stop timers!", ephemeral=True)
+            return
+
+        if not self.timekeeper_manager:
+            await interaction.response.send_message("❌ Timekeeper not available", ephemeral=True)
+            return
+
+        stopped = await self.timekeeper_manager.stop_side_timer(league)
+        if stopped:
+            message = f"⏹️ Stopped the **{league.strip()}** countdown."
+        else:
+            running = self.timekeeper_manager.get_side_timers()
+            names = ", ".join(f"**{t['label']}**" for t in running) if running else "_none_"
+            message = f"⚠️ No **{league.strip()}** countdown running. Active side timers: {names}"
+        await interaction.response.send_message(message, ephemeral=True)
 
     @league_group.command(name="timer_status", description="Check the current advance countdown status")
     async def timer_status(self, interaction: discord.Interaction):
@@ -306,6 +386,17 @@ class LeagueCog(commands.Cog):
                 color=color
             )
 
+        side_timers = self.timekeeper_manager.get_side_timers()
+        if side_timers:
+            embed.add_field(
+                name="🎮 Side Leagues",
+                value="\n".join(
+                    f"**{t['label']}** — {t['hours']}h {t['minutes']}m left (#{t['channel_name']})"
+                    for t in side_timers
+                ),
+                inline=False,
+            )
+
         embed.set_footer(text="Harry's Advance Timer 🏈")
         await interaction.followup.send(embed=embed)
 
@@ -362,7 +453,7 @@ class LeagueCog(commands.Cog):
             )
             for t in active:
                 embed.add_field(
-                    name=f"#{t['channel_name']} — {t['guild_name']}",
+                    name=f"{t.get('label') or 'Dynasty'} · #{t['channel_name']}",
                     value=f"⏳ {t['hours']}h {t['minutes']}m remaining",
                     inline=False,
                 )
@@ -375,7 +466,7 @@ class LeagueCog(commands.Cog):
                 placeholder="Choose a timer to stop...",
                 options=[
                     discord.SelectOption(
-                        label=f"#{t['channel_name']}"[:100],
+                        label=f"{t.get('label') or 'Dynasty'} · #{t['channel_name']}"[:100],
                         description=f"{t['guild_name']} · {t['hours']}h {t['minutes']}m left"[:100],
                         value=str(t['channel_id']),
                     )
@@ -436,7 +527,11 @@ class LeagueCog(commands.Cog):
             description=f"**Season {season_info['season']}**\n\n📍 **{week_info['name']}**\n🏈 Phase: {week_info['phase']}",
             color=Colors.SUCCESS
         )
-        embed.set_footer(text="Harry's Week Tracker 🏈")
+        if week_info.get('actions'):
+            embed.add_field(name="📋 This Step", value=week_info['actions'], inline=False)
+        if week_info.get('notes'):
+            embed.add_field(name="ℹ️ Note", value=week_info['notes'], inline=False)
+        embed.set_footer(text=f"Harry's Week Tracker 🏈 | Step {season_info['week']} of {LAST_WEEK}")
         await interaction.response.send_message(embed=embed)
 
     @league_group.command(name="weeks", description="View the full CFB 26 Dynasty week schedule")
@@ -611,11 +706,9 @@ class LeagueCog(commands.Cog):
         if team:
             resolved = self.schedule_manager.find_team(team) or team
             lines = []
-            for week in range(MAX_GAME_WEEK + 1):
-                game = self.schedule_manager.get_team_game(resolved, week)
+            for game in self.schedule_manager.get_team_full_schedule(resolved):
+                week = game['week']
                 marker = "**►**" if week == current_game_week else "  "
-                if not game:
-                    continue
                 if game.get('bye'):
                     lines.append(f"{marker} `W{week:<2}` 😴 BYE")
                 elif game.get('location') == 'home':
@@ -1126,10 +1219,17 @@ class LeagueCog(commands.Cog):
             logger.error(f"❌ Error in pick_commish: {e}", exc_info=True)
             await interaction.followup.send(f"❌ Error: {str(e)}")
 
-    @league_group.command(name="nag", description="Start spamming the league owner to advance (Bot Owner only)")
-    @app_commands.describe(interval="How often to nag in minutes (default: 5)")
-    async def nag(self, interaction: discord.Interaction, interval: int = 5):
-        """Start nagging the league owner"""
+    @league_group.command(name="nag", description="Nag the league owner to advance (Bot Owner only)")
+    @app_commands.describe(
+        action="start or stop the nagging",
+        interval="How often to nag in minutes (default: 5)",
+    )
+    @app_commands.choices(action=[
+        app_commands.Choice(name="start - DM the owner until they advance", value="start"),
+        app_commands.Choice(name="stop - give the owner a break", value="stop"),
+    ])
+    async def nag(self, interaction: discord.Interaction, action: str = "start", interval: int = 5):
+        """Start or stop nagging the league owner."""
         try:
             app_info = await self.bot.application_info()
             bot_owner_id = app_info.owner.id if app_info.owner else None
@@ -1143,6 +1243,17 @@ class LeagueCog(commands.Cog):
         if not self.timekeeper_manager:
             await interaction.response.send_message("❌ Timekeeper not available", ephemeral=True)
             return
+
+        if action == "stop":
+            stopped = await self.timekeeper_manager.stop_nagging()
+            embed = discord.Embed(
+                title="🔕 Nag Mode Deactivated",
+                description="The owner gets a break... for now." if stopped else "Wasn't nagging anyone, mate.",
+                color=Colors.SUCCESS
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+
         if interval < 1 or interval > 1440:
             await interaction.response.send_message("❌ Interval must be 1-1440 minutes.", ephemeral=True)
             return
@@ -1157,7 +1268,7 @@ class LeagueCog(commands.Cog):
         started = await self.timekeeper_manager.start_nagging(interval)
         if not started:
             await interaction.response.send_message(
-                "⚠️ Already nagging — use `/league stop_nag` first.", ephemeral=True
+                "⚠️ Already nagging — use `/league nag action:stop` first.", ephemeral=True
             )
             return
 
@@ -1165,34 +1276,9 @@ class LeagueCog(commands.Cog):
             title="🔔 Nag Mode Activated",
             description=(
                 f"DMing **{staff.get('owner_name') or 'the league owner'}** every "
-                f"{interval} minute{'s' if interval != 1 else ''} until `/league stop_nag`."
+                f"{interval} minute{'s' if interval != 1 else ''} until you stop it."
             ),
             color=Colors.WARNING
-        )
-        await interaction.response.send_message(embed=embed, ephemeral=True)
-
-    @league_group.command(name="stop_nag", description="Stop spamming the league owner (Bot Owner only)")
-    async def stop_nag(self, interaction: discord.Interaction):
-        """Stop nagging the league owner"""
-        try:
-            app_info = await self.bot.application_info()
-            bot_owner_id = app_info.owner.id if app_info.owner else None
-        except Exception:
-            bot_owner_id = None
-
-        if not bot_owner_id or interaction.user.id != bot_owner_id:
-            await interaction.response.send_message("❌ Only the bot owner can use this!", ephemeral=True)
-            return
-
-        if not self.timekeeper_manager:
-            await interaction.response.send_message("❌ Timekeeper not available", ephemeral=True)
-            return
-
-        stopped = await self.timekeeper_manager.stop_nagging()
-        embed = discord.Embed(
-            title="🔕 Nag Mode Deactivated",
-            description="The owner gets a break... for now." if stopped else "Wasn't nagging anyone, mate.",
-            color=Colors.SUCCESS
         )
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
