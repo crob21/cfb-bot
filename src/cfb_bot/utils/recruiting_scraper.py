@@ -22,7 +22,7 @@ from urllib.parse import quote_plus
 import httpx
 from bs4 import BeautifulSoup
 
-logger = logging.getLogger('CFB26Bot.Recruiting')
+logger = logging.getLogger('CFBBot.Recruiting')
 
 
 class RecruitingScraper:

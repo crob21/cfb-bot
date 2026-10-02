@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Charter Editor Module for CFB 26 League Bot
+Charter Editor Module for CFB League Bot
 Handles editing and updating the league charter with interactive AI updates
 Supports Discord-based persistence for charter content across deployments
 """
@@ -12,8 +12,10 @@ import re
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
+from ..config import GAME_NAME
 
-logger = logging.getLogger('CFB26Bot.CharterEditor')
+
+logger = logging.getLogger('CFBBot.CharterEditor')
 
 # Discord message limit is 2000 chars, so we chunk the charter
 DISCORD_CHUNK_SIZE = 1900  # Leave room for markers
@@ -499,7 +501,7 @@ class CharterEditor:
         try:
             context_text = f"\n\nContext: {context}" if context else ""
 
-            prompt = f"""You are Harry, helping to format a new league rule for the CFB 26 League Charter.
+            prompt = f"""You are Harry, helping to format a new league rule for the {GAME_NAME} League Charter.
 
 Given this rule summary: {rule_summary}{context_text}
 
@@ -677,7 +679,7 @@ Just provide the formatted rule text, nothing else."""
         if messages:
             logger.debug(f"📝 First 3 messages:\n" + "\n".join(messages[:3]))
 
-        prompt = f"""You are analyzing a Discord channel called "{channel_name}" for rule changes and votes in a CFB 26 dynasty league.
+        prompt = f"""You are analyzing a Discord channel called "{channel_name}" for rule changes and votes in a {GAME_NAME} dynasty league.
 
 MESSAGES FROM THE CHANNEL:
 {messages_text}

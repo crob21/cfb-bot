@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Pytest configuration and shared fixtures for CFB 26 League Bot tests.
+Pytest configuration and shared fixtures for CFB League Bot tests.
 
 This file provides:
 - Mock Discord objects (Bot, Interaction, User, Guild, Channel)

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Embed builder utilities for CFB 26 League Bot
+Embed builder utilities for CFB League Bot
 
 Provides consistent embed formatting across all cogs.
 """

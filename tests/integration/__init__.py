@@ -1,5 +1,5 @@
 """
-Integration tests for CFB 26 League Bot
+Integration tests for CFB League Bot
 
 These tests make REAL HTTP requests to external services:
 - On3.com for recruiting data

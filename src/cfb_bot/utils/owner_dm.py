@@ -10,7 +10,7 @@ of this lookup; they all call here now.
 import logging
 from typing import Optional
 
-logger = logging.getLogger('CFB26Bot.OwnerDM')
+logger = logging.getLogger('CFBBot.OwnerDM')
 
 
 async def get_owner_dm(bot) -> Optional[object]:

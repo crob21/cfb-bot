@@ -1,5 +1,5 @@
 """
-Cogs module for CFB 26 League Bot
+Cogs module for CFB League Bot
 
 Discord.py Cogs are modular extensions that group related commands together.
 Each cog can be loaded/unloaded independently using bot.load_extension().

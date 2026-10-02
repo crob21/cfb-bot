@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-League Cog for CFB 26 League Bot
+League Cog for CFB League Bot
 
 Provides commands for league management, timers, schedules, and staff.
 Commands:
@@ -39,20 +39,20 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from ..config import Colors
+from ..config import GAME_NAME, Colors
 from ..services.checks import check_module_enabled, check_module_enabled_deferred
 from ..utils.server_config import server_config, FeatureModule
 # Week schedule constants and helpers live in one canonical place: utils/timekeeper.py.
 # That module also drives advance/increment and season rollover, so reusing it here
 # guarantees the week names/phases shown by /league match the timer's internal week
-# numbering. (CFB 26 dynasties run 27 steps: Preseason, Weeks 0-14, Postseason, Offseason.)
+# numbering. (A dynasty season runs 27 steps: Preseason, Weeks 0-14, Postseason, Offseason.)
 from ..utils.timekeeper import (CFB_DYNASTY_WEEKS, FIRST_WEEK, LAST_WEEK,
                                 get_game_week, get_week_info, get_week_name,
                                 is_valid_week)
 
 MAX_GAME_WEEK = 14  # Regular season schedule weeks are 0-14
 
-logger = logging.getLogger('CFB26Bot.League')
+logger = logging.getLogger('CFBBot.League')
 
 
 class LeagueCog(commands.Cog):
@@ -92,7 +92,7 @@ class LeagueCog(commands.Cog):
         await interaction.response.defer()
 
         embed = discord.Embed(
-            title=f"CFB 26 Recruiting: {topic.title()}",
+            title=f"{GAME_NAME} Recruiting: {topic.title()}",
             color=0x32cd32
         )
 
@@ -136,7 +136,7 @@ class LeagueCog(commands.Cog):
         await interaction.response.defer()
 
         embed = discord.Embed(
-            title=f"CFB 26 Dynasty: {topic.title()}",
+            title=f"{GAME_NAME} Dynasty: {topic.title()}",
             color=0xff6b6b
         )
 
@@ -534,7 +534,7 @@ class LeagueCog(commands.Cog):
         embed.set_footer(text=f"Harry's Week Tracker 🏈 | Step {season_info['week']} of {LAST_WEEK}")
         await interaction.response.send_message(embed=embed)
 
-    @league_group.command(name="weeks", description="View the full CFB 26 Dynasty week schedule")
+    @league_group.command(name="weeks", description=f"View the full {GAME_NAME} Dynasty week schedule")
     async def weeks(self, interaction: discord.Interaction):
         """View the full week schedule"""
         current_week = None
@@ -553,7 +553,7 @@ class LeagueCog(commands.Cog):
         description += "**Week Schedule:**\n"
 
         embed = discord.Embed(
-            title="📅 CFB 26 Dynasty Week Schedule",
+            title=f"📅 {GAME_NAME} Dynasty Week Schedule",
             description=description,
             color=Colors.SUCCESS
         )

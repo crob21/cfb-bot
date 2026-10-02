@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Test suite for CFB 26 Rules Bot
+Test suite for CFB Rules Bot
 
 This module contains basic tests for the bot functionality.
 """
@@ -34,14 +34,14 @@ class MockGuild:
         self.name = name
 
 class TestCFBRulesBot:
-    """Test cases for CFB 26 Rules Bot functionality"""
+    """Test cases for CFB Rules Bot functionality"""
     
     def test_rivalry_keywords(self):
         """Test that rivalry keywords are properly configured"""
         rivalry_keywords = {
             'oregon': 'Fuck Oregon! 🦆💩',
             'ducks': 'Ducks are assholes! 🦆💩',
-            'rules': 'Here are the CFB 26 league rules! 📋\n\n[📖 **Full League Charter**](https://docs.google.com/document/d/1lX28DlMmH0P77aficBA_1Vo9ykEm_bAroSTpwMhWr_8/edit)'
+            'rules': 'Here are the CFB 27 league rules! 📋\n\n[📖 **Full League Charter**](https://docs.google.com/document/d/1lX28DlMmH0P77aficBA_1Vo9ykEm_bAroSTpwMhWr_8/edit)'
         }
         
         # Test Oregon keyword
@@ -54,7 +54,7 @@ class TestCFBRulesBot:
         
         # Test rules keyword
         assert 'rules' in rivalry_keywords
-        assert 'CFB 26 league rules' in rivalry_keywords['rules']
+        assert 'CFB 27 league rules' in rivalry_keywords['rules']
     
     def test_league_keywords(self):
         """Test that league keywords are properly configured"""

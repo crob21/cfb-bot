@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Core Cog for CFB 26 League Bot
+Core Cog for CFB League Bot
 
 Provides always-available commands that don't require module checks.
 Commands:
@@ -22,7 +22,7 @@ from ..config import Colors
 from ..utils.server_config import server_config, FeatureModule
 from ..utils.version_manager import VersionManager
 
-logger = logging.getLogger('CFB26Bot.Core')
+logger = logging.getLogger('CFBBot.Core')
 
 
 class CoreCog(commands.Cog):

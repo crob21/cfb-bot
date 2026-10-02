@@ -16,7 +16,7 @@ import aiohttp
 
 from ..security import API_RETRY_ATTEMPTS, API_RETRY_BACKOFF, HTTP_TIMEOUT
 
-logger = logging.getLogger('CFB26Bot.APIRetry')
+logger = logging.getLogger('CFBBot.APIRetry')
 
 
 class APIRetryError(Exception):

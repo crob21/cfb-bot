@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Admin Management for CFB 26 League Bot
+Admin Management for CFB League Bot
 Handles admin permission checks
 """
 
@@ -9,7 +9,7 @@ import logging
 from typing import Set
 import discord
 
-logger = logging.getLogger('CFB26Bot.Admin')
+logger = logging.getLogger('CFBBot.Admin')
 
 class AdminManager:
     """Manages bot admin permissions"""

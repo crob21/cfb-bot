@@ -383,7 +383,7 @@ Costs are recorded automatically when the bot uses AI or Zyte. Use **Reconcile**
 **Usage:** `/league week`
 
 ### `/league weeks`
-**Description:** View the full CFB 26 Dynasty week schedule  
+**Description:** View the full CFB 27 Dynasty week schedule  
 **Usage:** `/league weeks`
 
 ### `/league timer`

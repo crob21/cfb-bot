@@ -1,6 +1,6 @@
 # 🤖 AI Integration Setup Guide
 
-This guide will help you add AI capabilities to your CFB 26 League Bot, allowing users to ask natural language questions about your league charter.
+This guide will help you add AI capabilities to your CFB 27 League Bot, allowing users to ask natural language questions about your league charter.
 
 ## What AI Integration Adds
 

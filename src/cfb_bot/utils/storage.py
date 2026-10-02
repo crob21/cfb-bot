@@ -22,7 +22,7 @@ from typing import Any, Dict, Optional
 DISCORD_MESSAGE_LIMIT = 2000
 SAVE_WARN_THRESHOLD = 1700
 
-logger = logging.getLogger('CFB26Bot.Storage')
+logger = logging.getLogger('CFBBot.Storage')
 
 
 class StorageBackend(ABC):

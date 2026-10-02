@@ -1,5 +1,5 @@
 """
-Unit tests for CFB 26 League Bot
+Unit tests for CFB League Bot
 
 These tests use mocked dependencies and run quickly.
 They test individual components in isolation.

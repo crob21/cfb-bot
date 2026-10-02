@@ -41,6 +41,7 @@ Copy `config/env.example` to `.env`. Only `DISCORD_BOT_TOKEN` is required. All o
 - `ZYTE_API_KEY` — enables recruiting scraping with Cloudflare bypass
 - `BOT_ADMIN_IDS` — comma-separated Discord user IDs for bot admins
 - `TIMER_CHANNEL_ID` / `DEV_CHANNEL_ID` — override the hardcoded default channels
+- `GAME_NAME` — the game the league plays (default `CFB 27`); every prompt and title reads it from `config.py`
 
 ## Architecture
 

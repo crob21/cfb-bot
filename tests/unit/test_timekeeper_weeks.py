@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Unit tests for the CFB 26 dynasty week table in utils/timekeeper.py
+Unit tests for the dynasty week table in utils/timekeeper.py
 """
 
 from unittest.mock import AsyncMock

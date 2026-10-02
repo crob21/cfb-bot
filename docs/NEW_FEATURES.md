@@ -1,6 +1,6 @@
 # Harry's Features 🏈
 
-This document outlines all features of Harry, the CFB 26 League Bot.
+This document outlines all features of Harry, the CFB 27 League Bot.
 
 **Current Version:** 3.7.0
 **Last Updated:** January 22, 2026

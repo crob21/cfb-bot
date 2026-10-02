@@ -19,7 +19,7 @@ from typing import Dict, Optional
 
 from ..security import sanitize_ai_response
 
-logger = logging.getLogger('CFB26Bot.ErrorReporter')
+logger = logging.getLogger('CFBBot.ErrorReporter')
 
 # One DM per identical error per window; further hits are counted, not sent
 DEDUPE_WINDOW = timedelta(minutes=15)

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Timekeeper Module for CFB 26 League Bot
+Timekeeper Module for CFB League Bot
 Manages advance countdown timers with notifications
 Includes persistence to survive restarts/deployments
 """
@@ -25,9 +25,9 @@ except ImportError:
     except ImportError:
         ZoneInfo = None
 
-logger = logging.getLogger('CFB26Bot.Timekeeper')
+logger = logging.getLogger('CFBBot.Timekeeper')
 
-# CFB 26 Dynasty Season Week Structure
+# Dynasty Season Week Structure
 # A full online-dynasty season is exactly 27 sequential advances, keyed by step number (1-27):
 #   Preseason (1), Regular Season Weeks 0-14 (2-16), Postseason (17-22), Offseason (23-27).
 # Advancing past step 27 rolls over to step 1 (Preseason) of the next season.
@@ -1187,7 +1187,7 @@ class TimekeeperManager:
         return self.timers[channel.id].get_status()
 
     def get_season_week(self) -> Dict:
-        """Get current season and week with proper CFB 26 week names"""
+        """Get current season and week with dynasty week names"""
         week_info = get_week_info(self.week) if self.week is not None else None
         return {
             'season': self.season,

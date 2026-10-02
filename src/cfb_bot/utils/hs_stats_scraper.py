@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 from urllib.parse import quote_plus
 
-logger = logging.getLogger('CFB26Bot.HSStats')
+logger = logging.getLogger('CFBBot.HSStats')
 
 # Try to import scraping libraries
 try:

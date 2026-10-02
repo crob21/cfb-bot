@@ -33,7 +33,7 @@ async def test_openai_api():
         data = {
             'model': 'gpt-3.5-turbo',
             'messages': [
-                {'role': 'user', 'content': 'Say "CFB 26 League Bot AI test successful!"'}
+                {'role': 'user', 'content': 'Say "CFB League Bot AI test successful!"'}
             ],
             'max_tokens': 50
         }
@@ -97,7 +97,7 @@ async def test_ai_integration():
 
 async def main():
     """Main test function"""
-    print("🏈 CFB 26 League Bot - AI Integration Test")
+    print("🏈 CFB League Bot - AI Integration Test")
     print("=" * 50)
     
     # Test 1: Basic API connection

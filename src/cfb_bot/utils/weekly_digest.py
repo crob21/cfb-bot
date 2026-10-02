@@ -12,7 +12,7 @@ import discord
 from .storage import get_storage
 from .cache import get_cache
 
-logger = logging.getLogger('CFB26Bot.WeeklyDigest')
+logger = logging.getLogger('CFBBot.WeeklyDigest')
 
 
 class WeeklyDigest:
