@@ -18,6 +18,10 @@ import os
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional
 
+# One namespace = one Discord message, and Discord caps a message at 2000 characters
+DISCORD_MESSAGE_LIMIT = 2000
+SAVE_WARN_THRESHOLD = 1700
+
 logger = logging.getLogger('CFB26Bot.Storage')
 
 
@@ -139,9 +143,21 @@ class DiscordDMStorage(StorageBackend):
             all_data = self._cache.get(namespace, {})
             json_data = json.dumps(all_data)
             content = f"{namespace.upper()}:{json_data}"
-            
-            # Check Discord message limit
-            if len(content) > 1900:
+
+            # A namespace lives in ONE Discord message. Past the limit the save fails and
+            # the change is lost on the next restart, so say so loudly instead of warning.
+            if len(content) > DISCORD_MESSAGE_LIMIT:
+                logger.error(
+                    f"❌ {namespace} is {len(content)} chars — too big for one Discord message "
+                    f"(limit {DISCORD_MESSAGE_LIMIT}). NOT saved; changes will be lost on restart."
+                )
+                await self._warn_owner(
+                    f"⚠️ **Settings not saved — `{namespace}` is too big**",
+                    f"{len(content)} chars vs the {DISCORD_MESSAGE_LIMIT} limit for one Discord message.\n"
+                    f"Recent changes to `{namespace}` will be lost when Harry restarts.",
+                )
+                return False
+            if len(content) > SAVE_WARN_THRESHOLD:
                 logger.warning(f"⚠️ {namespace} data approaching Discord limit: {len(content)} chars")
             
             # Find existing message or create new
@@ -172,7 +188,19 @@ class DiscordDMStorage(StorageBackend):
             
         except Exception as e:
             logger.error(f"❌ Failed to save {namespace} to Discord: {e}")
+            await self._warn_owner(
+                f"⚠️ **Settings not saved — `{namespace}`**",
+                f"`{e}`\nRecent changes to `{namespace}` will be lost when Harry restarts.",
+            )
             return False
+
+    async def _warn_owner(self, title: str, body: str) -> None:
+        """Tell the bot owner a save failed — a silent failure reverts on the next restart."""
+        try:
+            from .error_reporter import get_error_reporter
+            await get_error_reporter(self.bot).send_notice(title, body)
+        except Exception as e:
+            logger.debug(f"Could not warn owner about save failure: {e}")
     
     async def load(self, namespace: str, key: str) -> Optional[Dict[str, Any]]:
         """Load data from Discord DM"""
