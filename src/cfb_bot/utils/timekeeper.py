@@ -89,10 +89,6 @@ def is_valid_week(week: int) -> bool:
     return week in CFB_DYNASTY_WEEKS
 
 
-def get_next_week(week: int) -> int:
-    """Step number that follows week, wrapping Training Results (27) back to Preseason (1)."""
-    return FIRST_WEEK if week >= LAST_WEEK else week + 1
-
 
 def _is_timer_state_message(content: str) -> bool:
     """True for an untyped timer-state JSON message (settings/staff/week messages carry a "type")."""
@@ -1063,22 +1059,12 @@ class TimekeeperManager:
         return started
 
     def get_side_timers(self) -> list:
-        """Active side-league timers, newest state first."""
-        out = []
-        for timer in self.timers.values():
-            if not timer.label or not timer.is_active:
-                continue
-            status = timer.get_status()
-            if status.get('active'):
-                out.append({
-                    'label': timer.label,
-                    'channel_id': timer.channel.id,
-                    'channel_name': getattr(timer.channel, 'name', str(timer.channel.id)),
-                    'hours': status['hours'],
-                    'minutes': status['minutes'],
-                    'end_time': status.get('end_time'),
-                })
-        return out
+        """Active side-league timers (Madden, 2K…)."""
+        return [t for t in self.get_all_active_timers() if t['label']]
+
+    def get_advance_timers(self) -> list:
+        """Active dynasty countdowns — the ones an advance stops."""
+        return [t for t in self.get_all_active_timers() if not t['label']]
 
     async def stop_side_timer(self, name: str) -> bool:
         """Stop a named side-league timer. Returns False if it wasn't running."""
@@ -1139,11 +1125,6 @@ class TimekeeperManager:
             and datetime.now() - self.last_manual_advance_at < timedelta(minutes=window_minutes)
         )
 
-    async def stop_timer(self, channel: discord.TextChannel) -> bool:
-        """Stop a timer for a channel"""
-        if channel.id not in self.timers:
-            return False
-        return await self.timers[channel.id].stop_countdown()
 
     def get_advance_channel(self, fallback: Optional[discord.abc.Messageable] = None):
         """The channel the single league advance timer runs in (the configured notification channel)."""
@@ -1185,9 +1166,9 @@ class TimekeeperManager:
             channel = self.bot.get_channel(channel_id)
             guild = getattr(channel, 'guild', None)
             active.append({
-                'channel_id': timer.channel.id if timer.label else channel_id,
+                'channel_id': timer.channel.id,
                 'label': timer.label,
-                'channel_name': getattr(channel or timer.channel, 'name', str(channel_id)),
+                'channel_name': getattr(timer.channel, 'name', str(timer.channel.id)),
                 'guild_name': getattr(guild, 'name', 'Unknown'),
                 'hours': status['hours'],
                 'minutes': status['minutes'],
@@ -1515,9 +1496,6 @@ class TimekeeperManager:
         logger.info("😇 Stopped nagging the league owner")
         return True
 
-    def is_nagging(self) -> bool:
-        """Check if currently nagging"""
-        return self.nag_active
 
     async def _nag_loop(self):
         """Background task that sends nag messages"""

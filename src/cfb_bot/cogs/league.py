@@ -39,7 +39,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from ..config import Colors, Footers
+from ..config import Colors
 from ..services.checks import check_module_enabled, check_module_enabled_deferred
 from ..utils.server_config import server_config, FeatureModule
 # Week schedule constants and helpers live in one canonical place: utils/timekeeper.py.
@@ -195,7 +195,7 @@ class LeagueCog(commands.Cog):
         # Setting the clock never advances the week — that happens on an "@everyone
         # advanced" post or when the countdown runs out. Restarting a timer used to
         # advance silently, which cost the league a week.
-        replaced = self.timekeeper_manager.get_all_active_timers()
+        replaced = self.timekeeper_manager.get_advance_timers()
         if replaced:
             await self.timekeeper_manager.stop_all_timers()
 
@@ -527,7 +527,11 @@ class LeagueCog(commands.Cog):
             description=f"**Season {season_info['season']}**\n\n📍 **{week_info['name']}**\n🏈 Phase: {week_info['phase']}",
             color=Colors.SUCCESS
         )
-        embed.set_footer(text="Harry's Week Tracker 🏈")
+        if week_info.get('actions'):
+            embed.add_field(name="📋 This Step", value=week_info['actions'], inline=False)
+        if week_info.get('notes'):
+            embed.add_field(name="ℹ️ Note", value=week_info['notes'], inline=False)
+        embed.set_footer(text=f"Harry's Week Tracker 🏈 | Step {season_info['week']} of {LAST_WEEK}")
         await interaction.response.send_message(embed=embed)
 
     @league_group.command(name="weeks", description="View the full CFB 26 Dynasty week schedule")
@@ -702,11 +706,9 @@ class LeagueCog(commands.Cog):
         if team:
             resolved = self.schedule_manager.find_team(team) or team
             lines = []
-            for week in range(MAX_GAME_WEEK + 1):
-                game = self.schedule_manager.get_team_game(resolved, week)
+            for game in self.schedule_manager.get_team_full_schedule(resolved):
+                week = game['week']
                 marker = "**►**" if week == current_game_week else "  "
-                if not game:
-                    continue
                 if game.get('bye'):
                     lines.append(f"{marker} `W{week:<2}` 😴 BYE")
                 elif game.get('location') == 'home':

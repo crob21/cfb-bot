@@ -39,6 +39,15 @@ CHANGELOG: Dict[str, Dict] = {
                     "They survive redeploys and show in /league timer_status and /league timers",
                     "/league nag and stop_nag merged into /league nag action:start|stop (Discord caps a group at 25 commands)"
                 ]
+            },
+            {
+                "category": "Polish",
+                "emoji": "🧼",
+                "changes": [
+                    "/league week now shows what the step is for (portal opens, signing day, etc.)",
+                    "FIX: /league timer no longer claims it replaced side-league timers it leaves running",
+                    "Dropped another ~120 lines of unreferenced helpers"
+                ]
             }
         ]
     },

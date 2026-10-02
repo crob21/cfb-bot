@@ -125,6 +125,8 @@ def mock_timekeeper():
     manager.stop_timer = AsyncMock()
     manager.stop_all_timers = AsyncMock(return_value=0)
     manager.get_all_active_timers = MagicMock(return_value=[])
+    manager.get_advance_timers = MagicMock(return_value=[])
+    manager.get_side_timers = MagicMock(return_value=[])
     manager.increment_week = AsyncMock()
     return manager
 
@@ -451,8 +453,8 @@ class TestTimerNeverAdvances:
 
     @pytest.mark.asyncio
     async def test_restarting_a_running_timer_keeps_the_week(self, admin_cog, mock_interaction, mock_server_config):
-        admin_cog.timekeeper_manager.get_all_active_timers.return_value = [
-            {'channel_id': 1, 'channel_name': 'general', 'hours': 12, 'minutes': 30}
+        admin_cog.timekeeper_manager.get_advance_timers.return_value = [
+            {'channel_id': 1, 'channel_name': 'general', 'label': None, 'hours': 12, 'minutes': 30}
         ]
         mock_interaction.user.id = 42
         with patch('cfb_bot.cogs.league.server_config', mock_server_config):
@@ -464,8 +466,8 @@ class TestTimerNeverAdvances:
 
     @pytest.mark.asyncio
     async def test_reply_names_the_replaced_timer_and_unchanged_week(self, admin_cog, mock_interaction, mock_server_config):
-        admin_cog.timekeeper_manager.get_all_active_timers.return_value = [
-            {'channel_id': 1, 'channel_name': 'general', 'hours': 12, 'minutes': 30}
+        admin_cog.timekeeper_manager.get_advance_timers.return_value = [
+            {'channel_id': 1, 'channel_name': 'general', 'label': None, 'hours': 12, 'minutes': 30}
         ]
         mock_interaction.user.id = 42
         with patch('cfb_bot.cogs.league.server_config', mock_server_config):
@@ -477,7 +479,7 @@ class TestTimerNeverAdvances:
 
     @pytest.mark.asyncio
     async def test_no_running_timer_starts_cleanly(self, admin_cog, mock_interaction, mock_server_config):
-        admin_cog.timekeeper_manager.get_all_active_timers.return_value = []
+        admin_cog.timekeeper_manager.get_advance_timers.return_value = []
         mock_interaction.user.id = 42
         with patch('cfb_bot.cogs.league.server_config', mock_server_config):
             await admin_cog.timer.callback(admin_cog, mock_interaction, hours=48)

@@ -9,7 +9,6 @@ import pytest
 
 from cfb_bot.utils.timekeeper import (CFB_DYNASTY_WEEKS, FIRST_WEEK, LAST_WEEK,
                                       TOTAL_WEEKS_PER_SEASON, get_game_week,
-                                      get_next_week,
                                       get_week_name, get_week_phase,
                                       is_valid_week, migrate_legacy_week)
 
@@ -45,11 +44,6 @@ class TestWeekTable:
         assert get_game_week(16) == 14
         assert all(get_game_week(s) is None for s in range(17, 28))
         assert get_game_week(None) is None
-
-    def test_next_week_wraps(self):
-        assert get_next_week(1) == 2
-        assert get_next_week(26) == 27
-        assert get_next_week(27) == 1
 
     def test_is_valid_week(self):
         assert not is_valid_week(0)
