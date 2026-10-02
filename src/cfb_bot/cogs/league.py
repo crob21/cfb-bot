@@ -190,33 +190,43 @@ class LeagueCog(commands.Cog):
         # can't expire later and advance the week a second time.
         advance_channel = self.timekeeper_manager.get_advance_channel(interaction.channel)
 
-        # Stop any running timer(s) and increment week ONLY if a timer was manually stopped
-        # (If timer expired naturally, week was already incremented in _send_times_up)
-        should_increment = bool(self.timekeeper_manager.get_all_active_timers())
-        if should_increment:
+        # Setting the clock never advances the week — that happens on an "@everyone
+        # advanced" post or when the countdown runs out. Restarting a timer used to
+        # advance silently, which cost the league a week.
+        replaced = self.timekeeper_manager.get_all_active_timers()
+        if replaced:
             await self.timekeeper_manager.stop_all_timers()
 
-        # Only increment week if we manually stopped an active timer
         season_info = self.timekeeper_manager.get_season_week()
-        if should_increment and season_info['season'] and season_info['week'] is not None:
-            await self.timekeeper_manager.increment_week()
-            season_info = self.timekeeper_manager.get_season_week()
-
         success = await self.timekeeper_manager.start_timer(advance_channel, hours)
 
-        if success:
-            current_step = season_info.get('week')
-            week_name = get_week_name(current_step) if current_step is not None else "Week not set"
-            embed = discord.Embed(
-                title="⏰ Advance Countdown Started!",
-                description=f"🏈 **{hours} HOUR COUNTDOWN STARTED** 🏈\n\n**Season {season_info.get('season', '?')}** - {week_name}\n\nYou have **{hours} hours** to get your games done!",
-                color=Colors.SUCCESS
-            )
-            embed.set_footer(text="Harry's Advance Timer 🏈 | Use /league timer_status to check")
-            where = f" in <#{advance_channel.id}>" if advance_channel.id != interaction.channel.id else ""
-            await interaction.followup.send(f"✅ Timer started{where}!", ephemeral=True)
-        else:
+        if not success:
             await interaction.followup.send("❌ Failed to start timer!", ephemeral=True)
+            return
+
+        current_step = season_info.get('week')
+        week_name = get_week_name(current_step) if current_step is not None else "Week not set"
+        embed = discord.Embed(
+            title="⏰ Advance Countdown Started!",
+            description=(
+                f"🏈 **{hours} HOUR COUNTDOWN STARTED** 🏈\n\n"
+                f"**Season {season_info.get('season', '?')}** - {week_name}\n\n"
+                f"You have **{hours} hours** to get your games done!"
+            ),
+            color=Colors.SUCCESS
+        )
+        embed.set_footer(text="Harry's Advance Timer 🏈 | Use /league timer_status to check")
+        await advance_channel.send(embed=embed)
+
+        notes = [f"✅ Countdown restarted in <#{advance_channel.id}> — {hours}h"]
+        notes.append(f"📍 Still **Season {season_info.get('season', '?')}** · {week_name} (week unchanged)")
+        for timer in replaced:
+            notes.append(
+                f"⚠️ Replaced a running timer in #{timer['channel_name']} "
+                f"(was {timer['hours']}h {timer['minutes']}m left)"
+            )
+        notes.append("_To advance the week, post `@everyone advanced` or let the countdown run out._")
+        await interaction.followup.send("\n".join(notes), ephemeral=True)
 
     @league_group.command(name="timer_status", description="Check the current advance countdown status")
     async def timer_status(self, interaction: discord.Interaction):
