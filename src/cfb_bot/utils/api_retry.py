@@ -57,18 +57,18 @@ def with_retry(
                     last_exception = e
 
                     if attempt == max_attempts:
-                        logger.error(f"❌ {func.__name__} failed after {max_attempts} attempts: {e}")
+                        logger.error(f"{func.__name__} failed after {max_attempts} attempts: {e}")
                         raise APIRetryError(f"Failed after {max_attempts} attempts") from e
 
                     # Calculate backoff delay: 2^attempt seconds (2s, 4s, 8s...)
                     delay = backoff_factor ** attempt
-                    logger.warning(f"⚠️ {func.__name__} attempt {attempt}/{max_attempts} failed: {e}. Retrying in {delay}s...")
+                    logger.warning(f"{func.__name__} attempt {attempt}/{max_attempts} failed: {e}. Retrying in {delay}s...")
 
                     await asyncio.sleep(delay)
 
                 except Exception as e:
                     # Don't retry on unexpected exceptions
-                    logger.error(f"❌ {func.__name__} failed with unexpected error: {e}", exc_info=True)
+                    logger.error(f"{func.__name__} failed with unexpected error: {e}", exc_info=True)
                     raise
 
             # Should never reach here, but just in case

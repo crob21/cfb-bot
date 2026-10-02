@@ -67,7 +67,7 @@ class LeagueCog(commands.Cog):
         self.channel_summarizer = None
         self.ai_assistant = None
         self.AI_AVAILABLE = False
-        logger.info("🏆 LeagueCog initialized")
+        logger.info("LeagueCog initialized")
 
     def set_dependencies(self, timekeeper_manager=None, admin_manager=None, schedule_manager=None,
                          channel_summarizer=None, ai_assistant=None, AI_AVAILABLE=False):
@@ -1213,7 +1213,7 @@ class LeagueCog(commands.Cog):
             await interaction.followup.send(embed=embed)
 
         except Exception as e:
-            logger.error(f"❌ Error in pick_commish: {e}", exc_info=True)
+            logger.error(f"Error in pick_commish: {e}", exc_info=True)
             await interaction.followup.send(f"❌ Error: {str(e)}")
 
     @league_group.command(name="nag", description="Nag the league owner to advance (Bot Owner only)")
@@ -1284,4 +1284,4 @@ async def setup(bot: commands.Bot):
     """Required setup function for loading cog"""
     cog = LeagueCog(bot)
     await bot.add_cog(cog)
-    logger.info("✅ LeagueCog loaded")
+    logger.info("LeagueCog loaded")

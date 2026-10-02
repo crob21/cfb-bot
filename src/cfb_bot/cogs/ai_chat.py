@@ -32,7 +32,7 @@ class AIChatCog(commands.Cog):
         self.ai_assistant = None
         self.channel_summarizer = None
         self.AI_AVAILABLE = False
-        logger.info("💬 AIChatCog initialized")
+        logger.info("AIChatCog initialized")
 
     def set_dependencies(self, ai_assistant=None, channel_summarizer=None, AI_AVAILABLE=False):
         """Set dependencies after bot is ready"""
@@ -87,7 +87,7 @@ class AIChatCog(commands.Cog):
             try:
                 await interaction.response.send_message("🤔 Harry is thinking...", ephemeral=True)
 
-                logger.info(f"🎯 /harry from {interaction.user}: '{question}'")
+                logger.info(f"/harry from {interaction.user}: '{question}'")
 
                 personality = server_config.get_personality_prompt(guild_id)
 
@@ -164,7 +164,7 @@ class AIChatCog(commands.Cog):
             try:
                 await interaction.response.send_message("🤔 Thinking...", ephemeral=True)
 
-                logger.info(f"🎯 /ask from {interaction.user}: '{question}'")
+                logger.info(f"/ask from {interaction.user}: '{question}'")
 
                 personality = server_config.get_personality_prompt(guild_id)
                 response = await self.ai_assistant.ask_ai(
@@ -248,7 +248,7 @@ class AIChatCog(commands.Cog):
             await interaction.followup.send(embed=embed)
 
             # Generate the summary
-            logger.info(f"📊 Summary requested by {interaction.user} for #{interaction.channel.name} ({hours} hours)")
+            logger.info(f"Summary requested by {interaction.user} for #{interaction.channel.name} ({hours} hours)")
             summary = await self.channel_summarizer.get_channel_summary(
                 interaction.channel,
                 hours=hours,
@@ -280,7 +280,7 @@ class AIChatCog(commands.Cog):
             )
             await interaction.followup.send(embed=embed)
         except Exception as e:
-            logger.error(f"❌ Error generating summary: {e}")
+            logger.error(f"Error generating summary: {e}")
             embed = discord.Embed(
                 title="❌ Summary Failed",
                 description=f"Something went wrong: `{str(e)}`",
@@ -293,5 +293,5 @@ async def setup(bot: commands.Bot):
     """Required setup function for loading cog"""
     cog = AIChatCog(bot)
     await bot.add_cog(cog)
-    logger.info("✅ AIChatCog loaded")
+    logger.info("AIChatCog loaded")
 

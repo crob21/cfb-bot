@@ -16,10 +16,10 @@ try:
     if os.getenv('OPENAI_API_KEY') or os.getenv('ANTHROPIC_API_KEY'):
         ai_assistant = AICharterAssistant()
         AI_AVAILABLE = True
-        logger.info("✅ AI assistant initialized")
+        logger.info("AI assistant initialized")
     else:
-        logger.info("ℹ️ AI keys not configured (OPENAI_API_KEY or ANTHROPIC_API_KEY)")
+        logger.info("AI keys not configured (OPENAI_API_KEY or ANTHROPIC_API_KEY)")
 except Exception as e:
-    logger.warning(f"⚠️ Could not initialize AI assistant: {e}")
+    logger.warning(f"Could not initialize AI assistant: {e}")
 
 __all__ = ['ai_assistant', 'AI_AVAILABLE', 'AICharterAssistant']

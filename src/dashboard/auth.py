@@ -161,7 +161,7 @@ async def callback(request: Request, code: str = None, state: str = None, error:
     request.session["access_token"] = access_token
     request.session["guilds"] = admin_guilds
     
-    logger.info(f"✅ User {user_info['username']} logged in with {len(admin_guilds)} admin guilds")
+    logger.info(f"User {user_info['username']} logged in with {len(admin_guilds)} admin guilds")
     
     return RedirectResponse(url="/dashboard")
 

@@ -136,22 +136,22 @@ class On3Scraper:
         self._zyte_cost_per_1k = 0.233  # Cost per 1,000 requests
 
         if ZYTE_AVAILABLE:
-            logger.info("🔍 Zyte API library available (AsyncZyteAPI imported successfully)")
+            logger.info("Zyte API library available (AsyncZyteAPI imported successfully)")
             zyte_api_key = os.getenv('ZYTE_API_KEY')
-            logger.info(f"🔍 Environment variable check: ZYTE_API_KEY={'SET' if zyte_api_key else 'NOT SET'}")
+            logger.info(f"Environment variable check: ZYTE_API_KEY={'SET' if zyte_api_key else 'NOT SET'}")
             if zyte_api_key:
                 try:
                     self._zyte_client = ZyteAPIClient(api_key=zyte_api_key)
-                    logger.info("✅ Zyte API initialized (premium Cloudflare bypass available)")
+                    logger.info("Zyte API initialized (premium Cloudflare bypass available)")
                 except Exception as e:
-                    logger.error(f"❌ Failed to initialize Zyte API: {e}", exc_info=True)
+                    logger.error(f"Failed to initialize Zyte API: {e}", exc_info=True)
             else:
-                logger.warning("⚠️ ZYTE_API_KEY environment variable not set - premium bypass unavailable")
+                logger.warning("ZYTE_API_KEY environment variable not set - premium bypass unavailable")
         else:
             if ZYTE_IMPORT_ERROR:
-                logger.warning(f"⚠️ zyte-api import failed: {ZYTE_IMPORT_ERROR}")
+                logger.warning(f"zyte-api import failed: {ZYTE_IMPORT_ERROR}")
             else:
-                logger.warning("⚠️ zyte-api library not installed - premium bypass unavailable")
+                logger.warning("zyte-api library not installed - premium bypass unavailable")
 
         # HTTP headers for fallback httpx client
         # Rotate user agents to reduce detection
@@ -171,11 +171,11 @@ class On3Scraper:
 
         # Log scraping method
         if PLAYWRIGHT_AVAILABLE:
-            logger.info("✅ Playwright available - will use headless browser for Cloudflare bypass")
+            logger.info("Playwright available - will use headless browser for Cloudflare bypass")
         elif CLOUDSCRAPER_AVAILABLE:
-            logger.info("⚠️ Using cloudscraper (Playwright not available)")
+            logger.info("Using cloudscraper (Playwright not available)")
         else:
-            logger.warning("⚠️ Using httpx only - may encounter Cloudflare blocks")
+            logger.warning("Using httpx only - may encounter Cloudflare blocks")
 
     def _get_current_recruiting_year(self) -> int:
         """Get the current recruiting class year"""
@@ -228,10 +228,10 @@ class On3Scraper:
                 viewport={'width': 1920, 'height': 1080},
                 user_agent='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
             )
-            logger.info("🌐 Playwright browser initialized")
+            logger.info("Playwright browser initialized")
             return True
         except Exception as e:
-            logger.error(f"❌ Failed to initialize Playwright: {e}")
+            logger.error(f"Failed to initialize Playwright: {e}")
             return False
 
     async def _close_browser(self):
@@ -243,9 +243,9 @@ class On3Scraper:
                 await self._browser.close()
             if self._playwright:
                 await self._playwright.stop()
-            logger.info("🌐 Playwright browser closed")
+            logger.info("Playwright browser closed")
         except Exception as e:
-            logger.warning(f"⚠️ Error closing browser: {e}")
+            logger.warning(f"Error closing browser: {e}")
         finally:
             self._browser = None
             self._browser_context = None
@@ -262,7 +262,7 @@ class On3Scraper:
         # If we were recently blocked, add extra delay
         if self._is_blocked:
             delay += random.uniform(2.0, 5.0)
-            logger.info(f"⏳ Adding extra delay due to previous block ({delay:.1f}s)")
+            logger.info(f"Adding extra delay due to previous block ({delay:.1f}s)")
 
         if elapsed < delay:
             await asyncio.sleep(delay - elapsed)
@@ -294,7 +294,7 @@ class On3Scraper:
         for key in expired_keys:
             del self._cache[key]
         if expired_keys:
-            logger.debug(f"🧹 Cleaned up {len(expired_keys)} expired cache entries")
+            logger.debug(f"Cleaned up {len(expired_keys)} expired cache entries")
 
     async def _fetch_page(self, url: str) -> Optional[str]:
         """Fetch a page with rate limiting and Cloudflare bypass (Playwright > Cloudscraper > httpx)"""
@@ -305,7 +305,7 @@ class On3Scraper:
         self._headers['User-Agent'] = self._user_agents[self._user_agent_index]
 
         try:
-            logger.info(f"🔍 Fetching: {url}")
+            logger.info(f"Fetching: {url}")
 
             # PRIORITY 1: Use Playwright (best for Cloudflare)
             if PLAYWRIGHT_AVAILABLE:
@@ -329,22 +329,22 @@ class On3Scraper:
 
                             # Check for blocking
                             if self._check_if_blocked(html):
-                                logger.error("🚫 BLOCKED by On3 even with Playwright!")
+                                logger.error("BLOCKED by On3 even with Playwright!")
                                 return None
 
-                            logger.debug("✅ Playwright fetch successful")
+                            logger.debug("Playwright fetch successful")
                             return html
                         elif response and response.status == 404:
                             await page.close()
-                            logger.warning(f"⚠️ Page not found: {url}")
+                            logger.warning(f"Page not found: {url}")
                             return None
                         else:
                             await page.close()
                             status = response.status if response else "unknown"
-                            logger.warning(f"⚠️ Playwright returned status {status}, trying fallback...")
+                            logger.warning(f"Playwright returned status {status}, trying fallback...")
                             # Fall through to cloudscraper
                     except Exception as e:
-                        logger.warning(f"⚠️ Playwright error: {e}, trying fallback...")
+                        logger.warning(f"Playwright error: {e}, trying fallback...")
                         # Fall through to cloudscraper
 
             # PRIORITY 2: Use cloudscraper if Playwright failed/unavailable
@@ -356,24 +356,24 @@ class On3Scraper:
                     html = response.text
                     # Check for blocking indicators
                     if self._check_if_blocked(html):
-                        logger.warning("⚠️ BLOCKED by On3 with cloudscraper, trying Zyte...")
+                        logger.warning("BLOCKED by On3 with cloudscraper, trying Zyte...")
                         # Don't return None yet - fall through to Zyte
                     else:
-                        logger.debug("✅ Cloudscraper fetch successful")
+                        logger.debug("Cloudscraper fetch successful")
                         return html
                 elif response.status_code == 403:
-                    logger.warning("⚠️ BLOCKED (403 Forbidden) with cloudscraper, trying Zyte...")
+                    logger.warning("BLOCKED (403 Forbidden) with cloudscraper, trying Zyte...")
                     self._is_blocked = True
                     # Fall through to Zyte
                 elif response.status_code == 429:
-                    logger.warning("⚠️ RATE LIMITED (429) with cloudscraper, trying Zyte...")
+                    logger.warning("RATE LIMITED (429) with cloudscraper, trying Zyte...")
                     self._is_blocked = True
                     # Fall through to Zyte
                 elif response.status_code == 404:
-                    logger.warning(f"⚠️ Page not found: {url}")
+                    logger.warning(f"Page not found: {url}")
                     return None
                 else:
-                    logger.warning(f"⚠️ HTTP {response.status_code} with cloudscraper, trying Zyte...")
+                    logger.warning(f"HTTP {response.status_code} with cloudscraper, trying Zyte...")
                     # Fall through to Zyte
 
             # PRIORITY 3: Use Zyte API (premium, guaranteed bypass)
@@ -384,7 +384,7 @@ class On3Scraper:
                     from .cost_tracker import get_cost_tracker
                     if await get_cost_tracker().is_zyte_over_limit():
                         use_zyte = False
-                        logger.warning("🛑 Zyte API disabled for this billing period (spend limit reached)")
+                        logger.warning("Zyte API disabled for this billing period (spend limit reached)")
                 except Exception as e:
                     logger.debug(f"Cost tracker check failed: {e}")
 
@@ -395,8 +395,8 @@ class On3Scraper:
                     cost_per_request = self._zyte_cost_per_1k / 1000
                     estimated_cost = (self._zyte_request_count * self._zyte_cost_per_1k) / 1000
 
-                    logger.info(f"💰 Using Zyte API for: {url}")
-                    logger.info(f"💳 Zyte usage: {self._zyte_request_count} requests | Est. cost: ${estimated_cost:.4f}")
+                    logger.info(f"Using Zyte API for: {url}")
+                    logger.info(f"Zyte usage: {self._zyte_request_count} requests | Est. cost: ${estimated_cost:.4f}")
 
                     # Make async request to Zyte
                     response = await self._zyte_client.get({
@@ -410,22 +410,22 @@ class On3Scraper:
                     html = base64.b64decode(response["httpResponseBody"]).decode('utf-8')
 
                     if html and '<html' in html.lower():
-                        logger.info("✅ Zyte API fetch successful (bypassed Cloudflare)")
+                        logger.info("Zyte API fetch successful (bypassed Cloudflare)")
                         self._is_blocked = False  # Clear blocked status
                         # Record cost for spend limit and alerts
                         try:
                             from .cost_tracker import get_cost_tracker
                             await get_cost_tracker().record_cost('zyte', cost_per_request)
-                            logger.info(f"💰 Recorded ${cost_per_request:.4f} Zyte cost for /admin budget")
+                            logger.info(f"Recorded ${cost_per_request:.4f} Zyte cost for /admin budget")
                         except Exception as e:
                             logger.warning(f"Failed to record Zyte cost (/admin budget will not update): {e}")
                         return html
                     else:
-                        logger.error("❌ Zyte returned invalid HTML")
+                        logger.error("Zyte returned invalid HTML")
                         # Fall through to httpx as last resort
 
                 except Exception as e:
-                    logger.error(f"❌ Zyte API error: {e}")
+                    logger.error(f"Zyte API error: {e}")
                     # Fall through to httpx as last resort
 
             # PRIORITY 4: Fallback to httpx (will likely be blocked; runs when Zyte skipped or unavailable)
@@ -436,27 +436,27 @@ class On3Scraper:
                     if response.status_code == 200:
                         html = response.text
                         if self._check_if_blocked(html):
-                            logger.error("🚫 BLOCKED by On3! Install Playwright: pip install playwright && playwright install chromium")
+                            logger.error("BLOCKED by On3! Install Playwright: pip install playwright && playwright install chromium")
                             return None
-                        logger.debug("✅ httpx fetch successful")
+                        logger.debug("httpx fetch successful")
                         return html
                     elif response.status_code == 403:
-                        logger.error("🚫 BLOCKED (403 Forbidden)")
+                        logger.error("BLOCKED (403 Forbidden)")
                         self._is_blocked = True
                         return None
                     elif response.status_code == 429:
-                        logger.error("🚫 RATE LIMITED (429)")
+                        logger.error("RATE LIMITED (429)")
                         self._is_blocked = True
                         return None
                     elif response.status_code == 404:
-                        logger.warning(f"⚠️ Page not found: {url}")
+                        logger.warning(f"Page not found: {url}")
                         return None
                     else:
-                        logger.error(f"❌ HTTP {response.status_code}")
+                        logger.error(f"HTTP {response.status_code}")
                         return None
 
         except Exception as e:
-            logger.error(f"❌ Error fetching {url}: {e}")
+            logger.error(f"Error fetching {url}: {e}")
             return None
 
     def _check_if_blocked(self, html: str) -> bool:
@@ -475,7 +475,7 @@ class On3Scraper:
         html_lower = html.lower()
         for indicator in block_indicators:
             if indicator in html_lower:
-                logger.warning(f"⚠️ Block indicator found: '{indicator}'")
+                logger.warning(f"Block indicator found: '{indicator}'")
                 self._is_blocked = True  # Set flag for increased delays
                 return True
 
@@ -520,12 +520,12 @@ class On3Scraper:
         org_id = os.getenv('ZYTE_ORG_ID')
 
         if not dashboard_api_key:
-            logger.debug("⚠️ Zyte Stats API not configured - ZYTE_DASHBOARD_API_KEY missing")
+            logger.debug("Zyte Stats API not configured - ZYTE_DASHBOARD_API_KEY missing")
             logger.debug("   Get your dashboard API key from: https://app.zyte.com/o/YOUR_ORG_ID/settings/apikeys")
             return None
 
         if not org_id:
-            logger.debug("⚠️ Zyte Stats API not configured - ZYTE_ORG_ID missing")
+            logger.debug("Zyte Stats API not configured - ZYTE_ORG_ID missing")
             return None
 
         try:
@@ -545,7 +545,7 @@ class On3Scraper:
                 'end_time': end_time.strftime('%Y-%m-%dT%H:%M:%SZ')
             }
 
-            logger.info(f"📊 Querying Zyte Stats API (org_id: {org_id}, {days} days)...")
+            logger.info(f"Querying Zyte Stats API (org_id: {org_id}, {days} days)...")
             logger.debug("   API endpoint: https://zyte-api-stats.zyte.com/api/stats")
             logger.debug(f"   Params: {params}")
 
@@ -561,29 +561,29 @@ class On3Scraper:
 
                 if response.status_code == 200:
                     data = response.json()
-                    logger.info("✅ Retrieved Zyte usage data")
+                    logger.info("Retrieved Zyte usage data")
                     return data
                 elif response.status_code == 401:
-                    logger.error("❌ Zyte Stats API: Authentication failed - check ZYTE_DASHBOARD_API_KEY")
+                    logger.error("Zyte Stats API: Authentication failed - check ZYTE_DASHBOARD_API_KEY")
                     from .log_utils import sanitize_for_log
                     logger.error(f"   Response: {sanitize_for_log(response.text)}")
                     return None
                 elif response.status_code == 404:
-                    logger.error(f"❌ Zyte Stats API: Organization not found - check ZYTE_ORG_ID ({org_id})")
+                    logger.error(f"Zyte Stats API: Organization not found - check ZYTE_ORG_ID ({org_id})")
                     from .log_utils import sanitize_for_log
                     logger.error(f"   Response: {sanitize_for_log(response.text)}")
                     return None
                 else:
-                    logger.warning(f"⚠️ Zyte Stats API error: {response.status_code}")
+                    logger.warning(f"Zyte Stats API error: {response.status_code}")
                     from .log_utils import sanitize_for_log
                     logger.warning(f"   Response: {sanitize_for_log(response.text)}")
                     return None
 
         except httpx.TimeoutException:
-            logger.error("❌ Zyte Stats API timeout (10s)")
+            logger.error("Zyte Stats API timeout (10s)")
             return None
         except Exception as e:
-            logger.error(f"❌ Error querying Zyte Stats API: {e}")
+            logger.error(f"Error querying Zyte Stats API: {e}")
             logger.exception("Full traceback:")
             return None
 
@@ -613,10 +613,10 @@ class On3Scraper:
         cache_key = f"on3:recruit:{name.lower()}:{year}"
         cached = self._get_cached(cache_key)
         if cached:
-            logger.info(f"📦 Cache hit for '{name}' (year {year})")
+            logger.info(f"Cache hit for '{name}' (year {year})")
             return cached
 
-        logger.info(f"🔍 Searching On3 for: '{name}' (default year: {year})")
+        logger.info(f"Searching On3 for: '{name}' (default year: {year})")
 
         # Build search strategies:
         # Search BOTH class year and all players to catch both HS recruits and transfer portal
@@ -631,11 +631,11 @@ class On3Scraper:
         all_fuzzy_matches = {}  # href -> (link_text, score, is_transfer)
 
         for search_url, search_type, _, is_transfer_search in search_urls:
-            logger.info(f"🔍 Trying search: {search_type}")
+            logger.info(f"Trying search: {search_type}")
             html = await self._fetch_page(search_url)
 
             if not html:
-                logger.warning(f"⚠️ No HTML returned for {search_type} search")
+                logger.warning(f"No HTML returned for {search_type} search")
                 continue
 
             try:
@@ -651,7 +651,7 @@ class On3Scraper:
                 name_lower = name.lower()
                 name_parts = name_lower.split()
 
-                logger.info(f"📋 Checking {len(player_links)} player links from {search_type}")
+                logger.info(f"Checking {len(player_links)} player links from {search_type}")
 
                 for link in player_links:
                     link_text = link.get_text(strip=True)
@@ -666,7 +666,7 @@ class On3Scraper:
                         continue
 
                     # Log each candidate link for debugging
-                    logger.debug(f"  📎 Candidate: '{link_text}' -> {href}")
+                    logger.debug(f" Candidate: '{link_text}' -> {href}")
 
                     link_text_lower = link_text.lower()
 
@@ -680,7 +680,7 @@ class On3Scraper:
                         # Add to global exact matches (dedupe by href)
                         if href not in all_exact_matches:
                             all_exact_matches[href] = (link_text, is_transfer_search)
-                            logger.debug(f"✅ Exact match: {link_text} -> {href} ({search_type})")
+                            logger.debug(f"Exact match: {link_text} -> {href} ({search_type})")
 
                     # Fuzzy matching for typos (e.g., "Daylon" vs "Daylan")
                     elif FUZZY_AVAILABLE:
@@ -705,14 +705,14 @@ class On3Scraper:
                                     # Add to global fuzzy matches (keep best score for each href)
                                     if href not in all_fuzzy_matches or score > all_fuzzy_matches[href][1]:
                                         all_fuzzy_matches[href] = (link_text, score, is_transfer_search)
-                                        logger.debug(f"🔍 Fuzzy match: {link_text} (first:{first_score}%, last:{last_score}%, avg:{score}%)")
+                                        logger.debug(f"Fuzzy match: {link_text} (first:{first_score}%, last:{last_score}%, avg:{score}%)")
 
             except Exception as e:
-                logger.error(f"❌ Error parsing {search_type} search results: {e}")
+                logger.error(f"Error parsing {search_type} search results: {e}")
                 continue
 
         # After searching all URLs, process collected matches
-        logger.info(f"🔍 Total unique exact matches: {len(all_exact_matches)}, fuzzy matches: {len(all_fuzzy_matches)}")
+        logger.info(f"Total unique exact matches: {len(all_exact_matches)}, fuzzy matches: {len(all_fuzzy_matches)}")
 
         # Convert dicts to lists for processing
         exact_matches = [(href, text, is_transfer) for href, (text, is_transfer) in all_exact_matches.items()]
@@ -727,26 +727,26 @@ class On3Scraper:
             href, link_text, is_transfer_flag = exact_matches[0]
             profile_url = href
             player_name = link_text
-            logger.info(f"✅ Using exact match: {player_name}")
+            logger.info(f"Using exact match: {player_name}")
         elif fuzzy_matches:
             # Pick best fuzzy match by score
             fuzzy_matches.sort(key=lambda x: x[2], reverse=True)
             href, link_text, score, is_transfer_flag = fuzzy_matches[0]
             profile_url = href
             player_name = link_text
-            logger.info(f"✅ Using fuzzy match ({score}%): {player_name}")
+            logger.info(f"Using fuzzy match ({score}%): {player_name}")
 
         if profile_url and not profile_url.startswith('http'):
             profile_url = self.BASE_URL + profile_url
 
         if not profile_url:
-            logger.info(f"❌ No profile found for {name} ({year})")
+            logger.info(f"No profile found for {name} ({year})")
             return None
 
         # If we have multiple exact matches, fetch all their profiles and return as list
         if len(exact_matches) > 1:
             total_found = len(exact_matches)
-            logger.info(f"🔍 Found {total_found} players named '{name}' - fetching up to 5 profiles")
+            logger.info(f"Found {total_found} players named '{name}' - fetching up to 5 profiles")
             candidates = []
             for href, _, _ in exact_matches[:5]:  # Limit to 5 to avoid Discord limits
                 candidate_url = href if href.startswith('http') else self.BASE_URL + href
@@ -761,10 +761,10 @@ class On3Scraper:
                 position_upper = position.upper()
                 filtered = [c for c in candidates if (c.get('position') or '').upper() == position_upper]
                 if filtered:
-                    logger.info(f"🎯 Filtered to {len(filtered)} candidate(s) with position {position}")
+                    logger.info(f"Filtered to {len(filtered)} candidate(s) with position {position}")
                     candidates = filtered
                 else:
-                    logger.warning(f"⚠️ No candidates found with position {position}, showing all")
+                    logger.warning(f"No candidates found with position {position}, showing all")
 
             if len(candidates) > 1:
                 # Return multiple candidates for user to choose
@@ -791,8 +791,8 @@ class On3Scraper:
             if position:
                 recruit_pos = (recruit.get('position') or '').upper()
                 if recruit_pos != position.upper():
-                    logger.warning(f"⚠️ Position mismatch: Found {player_name} but position is {recruit_pos}, not {position}")
-                    logger.info("💡 Tip: This might be a different player with the same name")
+                    logger.warning(f"Position mismatch: Found {player_name} but position is {recruit_pos}, not {position}")
+                    logger.info("Tip: This might be a different player with the same name")
                     # Still return the recruit, but log the warning
 
             self._set_cached(cache_key, recruit)
@@ -991,7 +991,7 @@ class On3Scraper:
                         recruit['committed_to'] = school_from_news
                         recruit['status'] = 'Committed'
                         commitment_found = True
-                        logger.info(f"✅ Found commitment from news: {school_from_news}")
+                        logger.info(f"Found commitment from news: {school_from_news}")
                         break
 
             # Try to find committed school from college links ONLY if we confirmed commitment
@@ -1184,11 +1184,11 @@ class On3Scraper:
                     if prev_match2:
                         recruit['previous_school'] = prev_match2.group(1).strip()
 
-            logger.info(f"✅ Scraped profile: {recruit['name']} ({recruit['position']}) - {recruit['stars']}⭐ | {len(recruit['offers'])} offers, {len(recruit['visits'])} visits" + (" | 🌀 PORTAL" if recruit.get('is_transfer') else ""))
+            logger.info(f"Scraped profile: {recruit['name']} ({recruit['position']}) - {recruit['stars']} | {len(recruit['offers'])} offers, {len(recruit['visits'])} visits" + (" | PORTAL" if recruit.get('is_transfer') else ""))
             return recruit
 
         except Exception as e:
-            logger.error(f"❌ Error parsing player profile: {e}", exc_info=True)
+            logger.error(f"Error parsing player profile: {e}", exc_info=True)
             return None
 
     async def get_top_recruits(
@@ -1326,11 +1326,11 @@ class On3Scraper:
                 recruits.append(recruit)
 
             self._set_cached(cache_key, recruits)
-            logger.info(f"✅ Found {len(recruits)} top recruits from On3")
+            logger.info(f"Found {len(recruits)} top recruits from On3")
             return recruits[:limit]
 
         except Exception as e:
-            logger.error(f"❌ Error parsing top recruits: {e}", exc_info=True)
+            logger.error(f"Error parsing top recruits: {e}", exc_info=True)
             return []
 
     async def get_team_recruiting_class(
@@ -1446,14 +1446,14 @@ class On3Scraper:
                         team_data['avg_rating'] = float(avg_match.group(1))
 
                 self._set_cached(cache_key, team_data)
-                logger.info(f"✅ Found team class: {team_data['team']} (Rank #{team_data['rank']})")
+                logger.info(f"Found team class: {team_data['team']} (Rank #{team_data['rank']})")
                 return team_data
 
-            logger.info(f"❌ Team not found: {team}")
+            logger.info(f"Team not found: {team}")
             return None
 
         except Exception as e:
-            logger.error(f"❌ Error parsing team class: {e}", exc_info=True)
+            logger.error(f"Error parsing team class: {e}", exc_info=True)
             return None
 
     async def get_team_commits(
@@ -1506,11 +1506,11 @@ class On3Scraper:
                     team_name_found = link_text
                     if not commits_url.startswith('http'):
                         commits_url = self.BASE_URL + commits_url
-                    logger.info(f"✅ Found commits URL for {team_name_found}: {commits_url}")
+                    logger.info(f"Found commits URL for {team_name_found}: {commits_url}")
                     break
 
             if not commits_url:
-                logger.info(f"❌ No commits page found for: {team}")
+                logger.info(f"No commits page found for: {team}")
                 return None
 
             commits_html = await self._fetch_page(commits_url)
@@ -1696,11 +1696,11 @@ class On3Scraper:
             result['commits'].sort(key=lambda x: x.get('rating') or 0, reverse=True)
 
             self._set_cached(cache_key, result)
-            logger.info(f"✅ Found {len(result['commits'])} commits for {result['team']}")
+            logger.info(f"Found {len(result['commits'])} commits for {result['team']}")
             return result
 
         except Exception as e:
-            logger.error(f"❌ Error getting team commits: {e}", exc_info=True)
+            logger.error(f"Error getting team commits: {e}", exc_info=True)
             return None
 
     async def get_team_rankings(self, year: Optional[int] = None, limit: int = 25) -> List[Dict[str, Any]]:
@@ -1782,11 +1782,11 @@ class On3Scraper:
                 teams.append(team_data)
 
             self._set_cached(cache_key, teams)
-            logger.info(f"✅ Found {len(teams)} team rankings from On3")
+            logger.info(f"Found {len(teams)} team rankings from On3")
             return teams[:limit]
 
         except Exception as e:
-            logger.error(f"❌ Error parsing team rankings: {e}", exc_info=True)
+            logger.error(f"Error parsing team rankings: {e}", exc_info=True)
             return []
 
     def format_recruit(self, recruit: Dict[str, Any]) -> str:
@@ -2061,7 +2061,7 @@ class On3Scraper:
         """Cleanup when object is destroyed"""
         # Note: Can't use async in __del__, so just log
         if self._browser:
-            logger.warning("⚠️ On3Scraper deleted without cleanup - browser may still be running")
+            logger.warning("On3Scraper deleted without cleanup - browser may still be running")
 
 
 # Global instance

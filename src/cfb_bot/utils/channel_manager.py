@@ -22,7 +22,7 @@ class ChannelManager:
             # Add default blocked channels here if needed
         ])
 
-        logger.info(f"✅ Channel manager initialized ({len(self.blocked_channels)} blocked channels)")
+        logger.info(f"Channel manager initialized ({len(self.blocked_channels)} blocked channels)")
 
     def is_channel_blocked(self, channel_id: int) -> bool:
         """Check if unprompted responses are blocked in a channel"""
@@ -39,7 +39,7 @@ class ChannelManager:
             return False
 
         self.blocked_channels.add(channel_id)
-        logger.info(f"🔇 Blocked channel: {channel_id}")
+        logger.info(f"Blocked channel: {channel_id}")
         return True
 
     def unblock_channel(self, channel_id: int) -> bool:
@@ -53,7 +53,7 @@ class ChannelManager:
             return False
 
         self.blocked_channels.remove(channel_id)
-        logger.info(f"🔊 Unblocked channel: {channel_id}")
+        logger.info(f"Unblocked channel: {channel_id}")
         return True
 
     def get_blocked_channels(self) -> list:

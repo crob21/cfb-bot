@@ -23,7 +23,7 @@ try:
     HS_SCRAPER_AVAILABLE = True
 except ImportError:
     HS_SCRAPER_AVAILABLE = False
-    logger.warning("⚠️ httpx or beautifulsoup4 not installed - HS stats scraper disabled")
+    logger.warning("httpx or beautifulsoup4 not installed - HS stats scraper disabled")
     logger.warning("   Install with: pip install httpx beautifulsoup4")
 
 
@@ -95,7 +95,7 @@ class HSStatsScraper:
         self._client: Optional[httpx.AsyncClient] = None
 
         if not self.is_available:
-            logger.warning("⚠️ HS Stats scraper not available - missing dependencies")
+            logger.warning("HS Stats scraper not available - missing dependencies")
 
     def _normalize_state(self, state: str) -> tuple[str, str]:
         """
@@ -128,7 +128,7 @@ class HSStatsScraper:
                 return code, name.title()
 
         # Return as-is if not recognized (user might have typo)
-        logger.warning(f"⚠️ Unrecognized state: {state}")
+        logger.warning(f"Unrecognized state: {state}")
         return None, state
 
     async def _get_client(self) -> httpx.AsyncClient:
@@ -163,7 +163,7 @@ class HSStatsScraper:
         if cache_key in self._cache:
             cached = self._cache[cache_key]
             if datetime.now().timestamp() - cached.get('timestamp', 0) < self.CACHE_TTL:
-                logger.info(f"📦 Cache hit for {cache_key}")
+                logger.info(f"Cache hit for {cache_key}")
                 return cached.get('data')
         return None
 
@@ -209,23 +209,23 @@ class HSStatsScraper:
             if state_name:
                 search_query += f" {state_name}"
 
-            logger.info(f"🔍 Searching MaxPreps for: {search_query}")
+            logger.info(f"Searching MaxPreps for: {search_query}")
 
             # Try multiple search URL patterns (MaxPreps updates their site frequently)
             response = None
             for pattern in self.SEARCH_PATTERNS:
                 search_url = self.BASE_URL + pattern.format(query=quote_plus(search_query))
-                logger.debug(f"🔍 Trying search URL: {search_url}")
+                logger.debug(f"Trying search URL: {search_url}")
 
                 try:
                     response = await client.get(search_url)
                     if response.status_code == 200:
-                        logger.info(f"✅ Search URL worked: {search_url}")
+                        logger.info(f"Search URL worked: {search_url}")
                         break
                     else:
-                        logger.debug(f"❌ Search URL returned {response.status_code}")
+                        logger.debug(f"Search URL returned {response.status_code}")
                 except Exception as e:
-                    logger.debug(f"❌ Search URL failed: {e}")
+                    logger.debug(f"Search URL failed: {e}")
                     continue
 
             if not response or response.status_code != 200:
@@ -233,7 +233,7 @@ class HSStatsScraper:
                 # MaxPreps URLs: /la/new-orleans/newman-greenies/athletes/arch-manning/football/
                 slug_name = name.lower().replace(' ', '-').replace("'", "")
                 direct_url = f"{self.BASE_URL}/athletes/{slug_name}/football/"
-                logger.info(f"🔍 Trying direct URL: {direct_url}")
+                logger.info(f"Trying direct URL: {direct_url}")
 
                 try:
                     response = await client.get(direct_url)
@@ -247,7 +247,7 @@ class HSStatsScraper:
                 except Exception:
                     pass
 
-                logger.warning(f"❌ All search methods failed for: {search_query}")
+                logger.warning(f"All search methods failed for: {search_query}")
                 return []
 
             soup = BeautifulSoup(response.text, 'html.parser')
@@ -333,14 +333,14 @@ class HSStatsScraper:
                     logger.debug(f"Error parsing search result: {e}")
                     continue
 
-            logger.info(f"✅ Found {len(results)} search results for {name}")
+            logger.info(f"Found {len(results)} search results for {name}")
             return results
 
         except httpx.HTTPError as e:
-            logger.error(f"❌ HTTP error searching MaxPreps: {e}")
+            logger.error(f"HTTP error searching MaxPreps: {e}")
             return []
         except Exception as e:
-            logger.error(f"❌ Error searching MaxPreps: {e}", exc_info=True)
+            logger.error(f"Error searching MaxPreps: {e}", exc_info=True)
             return []
 
     async def get_player_stats(self, profile_url: str) -> Optional[Dict[str, Any]]:
@@ -362,7 +362,7 @@ class HSStatsScraper:
 
             # Validate URL before proceeding
             if not profile_url or '/athletes/' not in profile_url:
-                logger.error(f"❌ Invalid profile URL: {profile_url}")
+                logger.error(f"Invalid profile URL: {profile_url}")
                 return None
 
             # Handle query parameters (e.g., ?careerid=xxx)
@@ -384,7 +384,7 @@ class HSStatsScraper:
             # Re-add query string
             profile_url += query_string
 
-            logger.info(f"🔍 Fetching stats from: {profile_url}")
+            logger.info(f"Fetching stats from: {profile_url}")
 
             response = await client.get(profile_url)
             response.raise_for_status()
@@ -607,14 +607,14 @@ class HSStatsScraper:
                 career_total['defense']['solo_tackles'] = top_stats.get('solo_tackles', '')
                 career_total['defense']['total_tackles'] = top_stats.get('total_tackles', '')
 
-            logger.info(f"✅ Scraped stats for {player_data.get('name', 'Unknown')}")
+            logger.info(f"Scraped stats for {player_data.get('name', 'Unknown')}")
             return player_data
 
         except httpx.HTTPError as e:
-            logger.error(f"❌ HTTP error fetching stats: {e}")
+            logger.error(f"HTTP error fetching stats: {e}")
             return None
         except Exception as e:
-            logger.error(f"❌ Error fetching stats: {e}", exc_info=True)
+            logger.error(f"Error fetching stats: {e}", exc_info=True)
             return None
 
     def _parse_stats_table(self, table, table_type: str = None) -> List[Dict[str, Any]]:
@@ -855,7 +855,7 @@ class HSStatsScraper:
         results = await self.search_player(name, state)
 
         if not results:
-            logger.info(f"❌ No results found for {name}")
+            logger.info(f"No results found for {name}")
             return None
 
         # If school specified, try to match

@@ -49,7 +49,7 @@ class CharterCog(commands.Cog):
         self.channel_summarizer = None
         self.ai_assistant = None
         self.admin_manager = None
-        logger.info("📜 CharterCog initialized")
+        logger.info("CharterCog initialized")
 
     def set_dependencies(self, charter_editor, channel_summarizer=None, ai_assistant=None, admin_manager=None):
         """Set dependencies after bot is ready"""
@@ -245,7 +245,7 @@ class CharterCog(commands.Cog):
             await interaction.followup.send(embed=embed)
 
         except Exception as e:
-            logger.error(f"❌ Error scanning rules: {e}", exc_info=True)
+            logger.error(f"Error scanning rules: {e}", exc_info=True)
             await interaction.followup.send(f"❌ Error scanning for rules: {str(e)}")
 
     @charter_group.command(name="import", description="Import the charter from its Google Doc (Admin only)")
@@ -428,7 +428,7 @@ class CharterCog(commands.Cog):
                 await interaction.followup.send(f"❌ Failed: {result['message']}", ephemeral=True)
 
         except Exception as e:
-            logger.error(f"❌ Error adding rule: {e}")
+            logger.error(f"Error adding rule: {e}")
             await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
 
     @charter_group.command(name="update", description="Update an existing rule (Admin only)")
@@ -472,7 +472,7 @@ class CharterCog(commands.Cog):
                 await interaction.followup.send(f"❌ Failed: {result['message']}", ephemeral=True)
 
         except Exception as e:
-            logger.error(f"❌ Error updating rule: {e}")
+            logger.error(f"Error updating rule: {e}")
             await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
 
     @charter_group.command(name="backups", description="View available backups (Admin only)")
@@ -516,7 +516,7 @@ class CharterCog(commands.Cog):
             await interaction.response.send_message(embed=embed, ephemeral=True)
 
         except Exception as e:
-            logger.error(f"❌ Error viewing backups: {e}")
+            logger.error(f"Error viewing backups: {e}")
             await interaction.response.send_message(f"❌ Error: {str(e)}", ephemeral=True)
 
     @charter_group.command(name="restore", description="Restore from backup (Admin only)")
@@ -543,12 +543,12 @@ class CharterCog(commands.Cog):
                     color=Colors.SUCCESS
                 )
                 await interaction.followup.send(embed=embed)
-                logger.info(f"✅ Charter restored by {interaction.user} from {backup_filename}")
+                logger.info(f"Charter restored by {interaction.user} from {backup_filename}")
             else:
                 await interaction.followup.send("❌ Failed to restore. Check the filename.", ephemeral=True)
 
         except Exception as e:
-            logger.error(f"❌ Error restoring backup: {e}")
+            logger.error(f"Error restoring backup: {e}")
             await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
 
 
@@ -556,5 +556,5 @@ async def setup(bot: commands.Bot):
     """Required setup function for loading cog"""
     cog = CharterCog(bot)
     await bot.add_cog(cog)
-    logger.info("✅ CharterCog loaded")
+    logger.info("CharterCog loaded")
 

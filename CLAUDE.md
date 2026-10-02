@@ -76,7 +76,7 @@ Every cog command must call `check_module_enabled()` or `check_module_enabled_de
 
 **Recruiting scraper fallback chain**: Playwright (headless Chromium) → cloudscraper → plain httpx. On Render, Playwright's Chromium must be installed separately.
 
-**Version tracking**: Version is defined in both `src/cfb_bot/__init__.py` (`__version__`) and `utils/version_manager.py` (`CURRENT_VERSION`). Update both when bumping, and add a changelog entry in `version_manager.py`.
+**Version tracking**: Version is defined in both `src/cfb_bot/__init__.py` (`__version__`) and `utils/version_manager.py` (`CURRENT_VERSION`). Update both when bumping, and add the changelog entry to the top of `CHANGELOG` in `version_manager.py` (keeps the last ~10 releases for `/changelog`) and to `docs/CHANGELOG.md` (full history; a test checks they agree). Log messages are plain text — emoji go in embeds only (also tested).
 
 **Harry's personality**: Core prompt defined as `HARRY_PERSONALITY` in `utils/server_config.py`. `sanitize_ai_response()` in `security.py` redacts key/token-like strings from all AI output before Discord delivery.
 

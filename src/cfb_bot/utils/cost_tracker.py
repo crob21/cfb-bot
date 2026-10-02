@@ -56,7 +56,7 @@ class CostTracker:
             return False
         costs = await self.get_monthly_costs()
         if costs['zyte'] >= self.zyte_spend_limit:
-            logger.info(f"🛑 Zyte spend limit reached: ${costs['zyte']:.2f} >= ${self.zyte_spend_limit:.2f} (calls disabled)")
+            logger.info(f"Zyte spend limit reached: ${costs['zyte']:.2f} >= ${self.zyte_spend_limit:.2f} (calls disabled)")
             return True
         return False
 
@@ -87,7 +87,7 @@ class CostTracker:
         # Save updated data
         await self._storage.save("cost_tracker", current_month, data)
 
-        logger.debug(f"💰 Recorded ${amount:.4f} for {service} (total this month: ${data['total_cost']:.4f})")
+        logger.debug(f"Recorded ${amount:.4f} for {service} (total this month: ${data['total_cost']:.4f})")
 
         # Check if alerts should be sent
         await self._check_alerts(current_ai, current_zyte, current_ai + current_zyte)
@@ -112,7 +112,7 @@ class CostTracker:
         data['last_updated'] = datetime.now().isoformat()
         data['last_reconciled'] = datetime.now().isoformat()
         await self._storage.save("cost_tracker", current_month, data)
-        logger.info(f"💰 Set monthly costs: AI=${data.get('ai_cost', 0):.4f}, Zyte=${data.get('zyte_cost', 0):.4f}")
+        logger.info(f"Set monthly costs: AI=${data.get('ai_cost', 0):.4f}, Zyte=${data.get('zyte_cost', 0):.4f}")
         return {
             'ai': data.get('ai_cost', 0.0),
             'zyte': data.get('zyte_cost', 0.0),
@@ -224,7 +224,7 @@ def get_cost_tracker() -> CostTracker:
 
     if _cost_tracker is None:
         _cost_tracker = CostTracker()
-        logger.info("💰 Cost tracker initialized")
+        logger.info("Cost tracker initialized")
 
     return _cost_tracker
 

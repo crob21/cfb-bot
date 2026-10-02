@@ -148,7 +148,7 @@ class DiscordDMStorage(StorageBackend):
             # the change is lost on the next restart, so say so loudly instead of warning.
             if len(content) > DISCORD_MESSAGE_LIMIT:
                 logger.error(
-                    f"❌ {namespace} is {len(content)} chars — too big for one Discord message "
+                    f"{namespace} is {len(content)} chars — too big for one Discord message "
                     f"(limit {DISCORD_MESSAGE_LIMIT}). NOT saved; changes will be lost on restart."
                 )
                 await self._warn_owner(
@@ -158,7 +158,7 @@ class DiscordDMStorage(StorageBackend):
                 )
                 return False
             if len(content) > SAVE_WARN_THRESHOLD:
-                logger.warning(f"⚠️ {namespace} data approaching Discord limit: {len(content)} chars")
+                logger.warning(f"{namespace} data approaching Discord limit: {len(content)} chars")
             
             # Find existing message or create new
             msg_id = self._message_ids.get(namespace)
@@ -167,7 +167,7 @@ class DiscordDMStorage(StorageBackend):
                 try:
                     message = await dm.fetch_message(msg_id)
                     await message.edit(content=content)
-                    logger.info(f"✅ Updated {namespace} in Discord DM")
+                    logger.info(f"Updated {namespace} in Discord DM")
                     return True
                 except Exception:
                     pass  # Message not found, create new
@@ -177,16 +177,16 @@ class DiscordDMStorage(StorageBackend):
                 if message.author == self.bot.user and message.content.startswith(f"{namespace.upper()}:"):
                     await message.edit(content=content)
                     self._message_ids[namespace] = message.id
-                    logger.info(f"✅ Updated {namespace} in Discord DM")
+                    logger.info(f"Updated {namespace} in Discord DM")
                     return True
             
             message = await dm.send(content)
             self._message_ids[namespace] = message.id
-            logger.info(f"✅ Created {namespace} in Discord DM")
+            logger.info(f"Created {namespace} in Discord DM")
             return True
             
         except Exception as e:
-            logger.error(f"❌ Failed to save {namespace} to Discord: {e}")
+            logger.error(f"Failed to save {namespace} to Discord: {e}")
             await self._warn_owner(
                 f"⚠️ **Settings not saved — `{namespace}`**",
                 f"`{e}`\nRecent changes to `{namespace}` will be lost when Harry restarts.",
@@ -230,16 +230,16 @@ class DiscordDMStorage(StorageBackend):
                     data = json.loads(json_str)
                     self._cache[namespace] = data
                     self._message_ids[namespace] = message.id
-                    logger.info(f"✅ Loaded {namespace} from Discord ({len(data)} entries)")
+                    logger.info(f"Loaded {namespace} from Discord ({len(data)} entries)")
                     return True
             
             # Not found, initialize empty
             self._cache[namespace] = {}
-            logger.info(f"📝 No existing {namespace} found in Discord")
+            logger.info(f"No existing {namespace} found in Discord")
             return True
             
         except Exception as e:
-            logger.error(f"❌ Failed to load {namespace} from Discord: {e}")
+            logger.error(f"Failed to load {namespace} from Discord: {e}")
             return False
     
     async def delete(self, namespace: str, key: str) -> bool:
@@ -267,10 +267,10 @@ def get_storage() -> StorageBackend:
     if _storage_instance is None:
         backend = os.getenv('STORAGE_BACKEND', 'discord').lower()
         if backend != 'discord':
-            logger.warning(f"⚠️ STORAGE_BACKEND={backend} isn't supported — using Discord DM storage")
+            logger.warning(f"STORAGE_BACKEND={backend} isn't supported — using Discord DM storage")
         _storage_instance = DiscordDMStorage()
 
-        logger.info(f"📦 Using storage backend: {type(_storage_instance).__name__}")
+        logger.info(f"Using storage backend: {type(_storage_instance).__name__}")
     
     return _storage_instance
 

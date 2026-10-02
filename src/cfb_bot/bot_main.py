@@ -71,9 +71,9 @@ async def load_cogs():
     for extension in COG_EXTENSIONS:
         try:
             await bot.load_extension(extension)
-            logger.info(f"✅ Loaded cog: {extension}")
+            logger.info(f"Loaded cog: {extension}")
         except Exception as e:
-            logger.error(f"❌ Failed to load cog {extension}: {e}", exc_info=True)
+            logger.error(f"Failed to load cog {extension}: {e}", exc_info=True)
 
 
 # Global references for dependencies (set in on_ready)
@@ -92,7 +92,7 @@ async def setup_dependencies():
     """
     global timekeeper_manager, charter_editor, version_manager, schedule_manager
 
-    logger.info("⚙️ Setting up cog dependencies...")
+    logger.info("Setting up cog dependencies...")
 
     # Import optional dependencies
     ai_assistant = None
@@ -108,61 +108,61 @@ async def setup_dependencies():
         ai_assistant = _ai
         AI_AVAILABLE = _ai_avail
         if AI_AVAILABLE:
-            logger.info("✅ AI assistant available")
+            logger.info("AI assistant available")
         else:
-            logger.info("ℹ️ AI assistant not configured")
+            logger.info("AI assistant not configured")
     except ImportError as e:
-        logger.warning(f"⚠️ AI assistant not available: {e}")
+        logger.warning(f"AI assistant not available: {e}")
 
     try:
         from .utils.error_reporter import get_error_reporter
         get_error_reporter(bot)
-        logger.info("📩 Error reporting to bot owner DM enabled")
+        logger.info("Error reporting to bot owner DM enabled")
     except ImportError:
-        logger.warning("⚠️ Error reporter not available")
+        logger.warning("Error reporter not available")
 
     try:
         from .utils.charter_editor import CharterEditor
         charter_editor = CharterEditor(ai_assistant if AI_AVAILABLE else None, bot=bot)
         # Restore the Discord-persisted charter into the local file (survives redeploys)
         await charter_editor.restore_from_discord()
-        logger.info("✅ Charter editor initialized and loaded from Discord")
+        logger.info("Charter editor initialized and loaded from Discord")
     except ImportError:
-        logger.warning("⚠️ Charter editor not available")
+        logger.warning("Charter editor not available")
 
     try:
         from .utils.summarizer import ChannelSummarizer
         channel_summarizer = ChannelSummarizer(ai_assistant if AI_AVAILABLE else None)
-        logger.info("✅ Channel summarizer initialized")
+        logger.info("Channel summarizer initialized")
     except ImportError as e:
-        logger.warning("⚠️ Channel summarizer not available: %s", e)
+        logger.warning("Channel summarizer not available: %s", e)
 
     try:
         from .utils.admin_check import AdminManager
         admin_manager = AdminManager()
-        logger.info(f"✅ Admin manager initialized ({admin_manager.get_admin_count()} admins)")
+        logger.info(f"Admin manager initialized ({admin_manager.get_admin_count()} admins)")
     except ImportError as e:
-        logger.warning(f"⚠️ Admin manager not available: {e}")
+        logger.warning(f"Admin manager not available: {e}")
 
     try:
         from .utils.channel_manager import ChannelManager
         channel_manager = ChannelManager()
-        logger.info("✅ Channel manager initialized")
+        logger.info("Channel manager initialized")
     except ImportError:
-        logger.warning("⚠️ Channel manager not available")
+        logger.warning("Channel manager not available")
 
     try:
         from .utils.timekeeper import TimekeeperManager
         timekeeper_manager = TimekeeperManager(bot)
-        logger.info("⏰ Timekeeper manager initialized")
+        logger.info("Timekeeper manager initialized")
         # Restore the timer, week, staff and settings from the owner DM
         try:
             await timekeeper_manager.load_saved_state()
-            logger.info("✅ Timer state loaded from Discord")
+            logger.info("Timer state loaded from Discord")
         except Exception as e:
-            logger.error(f"❌ Failed to load timer state: {e}")
+            logger.error(f"Failed to load timer state: {e}")
     except ImportError:
-        logger.warning("⚠️ Timekeeper not available")
+        logger.warning("Timekeeper not available")
 
     try:
         from .utils.schedule_manager import ScheduleManager
@@ -172,17 +172,17 @@ async def setup_dependencies():
         try:
             await schedule_manager.load_from_discord()
         except Exception as e:
-            logger.error(f"❌ Failed to restore schedule from Discord: {e}")
-        logger.info(f"✅ Schedule manager initialized ({len(schedule_manager.teams)} teams)")
+            logger.error(f"Failed to restore schedule from Discord: {e}")
+        logger.info(f"Schedule manager initialized ({len(schedule_manager.teams)} teams)")
     except ImportError:
-        logger.warning("⚠️ Schedule manager not available")
+        logger.warning("Schedule manager not available")
 
     try:
         from .utils.version_manager import VersionManager
         version_manager = VersionManager()
-        logger.info("✅ Version manager initialized")
+        logger.info("Version manager initialized")
     except ImportError:
-        logger.warning("⚠️ Version manager not available")
+        logger.warning("Version manager not available")
 
     # Set dependencies on cogs
     for cog_name, cog in bot.cogs.items():
@@ -202,9 +202,9 @@ async def setup_dependencies():
             elif cog_name == 'RecruitingCog':
                 if hasattr(cog, 'admin_manager'):
                     cog.admin_manager = admin_manager
-            logger.info(f"  ✓ Dependencies set for {cog_name}")
+            logger.info(f"  Dependencies set for {cog_name}")
 
-    logger.info("✅ All dependencies configured")
+    logger.info("All dependencies configured")
 
 
 # ==================== BOT EVENTS ====================
@@ -213,21 +213,21 @@ async def setup_dependencies():
 async def on_ready():
     """Called when the bot is ready"""
     global _startup_complete
-    logger.info(f"🏈 {bot.user} is online!")
-    logger.info(f"📊 Connected to {len(bot.guilds)} server(s)")
+    logger.info(f"{bot.user} is online!")
+    logger.info(f"Connected to {len(bot.guilds)} server(s)")
 
     # discord.py calls on_ready again after a reconnect. Re-running setup would build a
     # second TimekeeperManager and restore the timer again while the old countdown task
     # keeps running — duplicate warnings, duplicate TIME'S UP, and a double week advance.
     if _startup_complete:
-        logger.info("🔁 Reconnected — startup already done, skipping re-initialization")
+        logger.info("Reconnected — startup already done, skipping re-initialization")
         return
     _startup_complete = True
 
     # Initialize server config with bot (needed for Discord storage)
     server_config.set_bot(bot)
     await server_config.load_from_discord()
-    logger.info(f"⚙️ Server config loaded ({len(server_config._configs)} servers)")
+    logger.info(f"Server config loaded ({len(server_config._configs)} servers)")
 
     # Setup dependencies (includes loading timer state, charter, etc.)
     await setup_dependencies()
@@ -237,13 +237,13 @@ async def on_ready():
         for guild in bot.guilds:
             bot.tree.copy_global_to(guild=guild)
             synced = await bot.tree.sync(guild=guild)
-            logger.info(f"✅ Synced {len(synced)} command(s) to {guild.name}")
+            logger.info(f"Synced {len(synced)} command(s) to {guild.name}")
 
         # Global sync (takes up to 1 hour for other servers)
         global_synced = await bot.tree.sync()
-        logger.info(f"✅ Synced {len(global_synced)} command(s) globally")
+        logger.info(f"Synced {len(global_synced)} command(s) globally")
     except Exception as e:
-        logger.error(f"❌ Failed to sync commands: {e}")
+        logger.error(f"Failed to sync commands: {e}")
 
     # Send startup notification to admin channels
     await send_startup_notification()
@@ -251,7 +251,7 @@ async def on_ready():
     # Start background tasks
     if not check_weekly_digest.is_running():
         check_weekly_digest.start()
-        logger.info("📊 Weekly digest task started")
+        logger.info("Weekly digest task started")
 
 
 @tasks.loop(hours=24)
@@ -262,10 +262,10 @@ async def check_weekly_digest():
         digest = get_weekly_digest(bot)
 
         if await digest.should_send_digest():
-            logger.info("📧 Sending weekly digest...")
+            logger.info("Sending weekly digest...")
             await digest.send_digest_to_admins()
     except Exception as e:
-        logger.error(f"❌ Error in weekly digest task: {e}")
+        logger.error(f"Error in weekly digest task: {e}")
 
 
 @check_weekly_digest.before_loop
@@ -285,7 +285,7 @@ async def send_startup_notification():
 
     dev_channel = bot.get_channel(DEV_CHANNEL_ID)
     if not dev_channel:
-        logger.warning(f"⚠️ Could not find dev channel {DEV_CHANNEL_ID}")
+        logger.warning(f"Could not find dev channel {DEV_CHANNEL_ID}")
         return
 
     from . import __version__
@@ -388,7 +388,7 @@ async def send_startup_notification():
                     value=timer_text,
                     inline=False
                 )
-                logger.info(f"📊 Timer restored: {guild_name} (ID: {guild_id}) - S{season}W{week}")
+                logger.info(f"Timer restored: {guild_name} (ID: {guild_id}) - S{season}W{week}")
             else:
                 embed.add_field(
                     name="⏰ League Timer",
@@ -396,15 +396,15 @@ async def send_startup_notification():
                     inline=False
                 )
         except Exception as e:
-            logger.warning(f"⚠️ Could not get timer info: {e}")
+            logger.warning(f"Could not get timer info: {e}")
 
     embed.set_footer(text="Harry Development Status 🛠️ | This message only appears in dev channel")
 
     try:
         await dev_channel.send(embed=embed)
-        logger.info("📢 Sent detailed startup status to dev channel")
+        logger.info("Sent detailed startup status to dev channel")
     except Exception as e:
-        logger.warning(f"⚠️ Could not send startup to dev channel: {e}")
+        logger.warning(f"Could not send startup to dev channel: {e}")
 
 
 @bot.tree.error
@@ -420,7 +420,7 @@ async def on_app_command_error(interaction: discord.Interaction, error):
                           app_commands.CheckFailure)):
         message = f"❌ {error}"
     else:
-        logger.error(f"❌ Error in /{command_name}: {original}", exc_info=original)
+        logger.error(f"Error in /{command_name}: {original}", exc_info=original)
         from .utils.error_reporter import get_error_reporter
         await get_error_reporter().report(original, f"/{command_name}")
         message = "❌ That went wrong, mate. The bot owner's been told."
@@ -439,7 +439,7 @@ async def on_error(event_method, *args, **kwargs):
     """Catch errors raised inside event handlers (on_message and friends)."""
     import sys
     error = sys.exc_info()[1]
-    logger.error(f"❌ Error in {event_method}", exc_info=True)
+    logger.error(f"Error in {event_method}", exc_info=True)
     if error is not None:
         from .utils.error_reporter import get_error_reporter
         await get_error_reporter().report(error, f"event {event_method}")
@@ -448,14 +448,14 @@ async def on_error(event_method, *args, **kwargs):
 @bot.event
 async def on_guild_join(guild):
     """Called when the bot joins a new guild"""
-    logger.info(f"🎉 Joined new guild: {guild.name} (ID: {guild.id})")
+    logger.info(f"Joined new guild: {guild.name} (ID: {guild.id})")
 
     # Sync commands to new guild
     try:
         synced = await bot.tree.sync(guild=guild)
-        logger.info(f"✅ Synced {len(synced)} command(s) to {guild.name}")
+        logger.info(f"Synced {len(synced)} command(s) to {guild.name}")
     except Exception as e:
-        logger.error(f"❌ Failed to sync to {guild.name}: {e}")
+        logger.error(f"Failed to sync to {guild.name}: {e}")
 
 
 async def _handle_advance(message):
@@ -463,7 +463,7 @@ async def _handle_advance(message):
     # Serialize advances so two people posting "advanced" at once can't double-advance
     async with timekeeper_manager.advance_lock:
         if timekeeper_manager.is_duplicate_advance():
-            logger.info(f"🔁 Ignoring duplicate advance from {message.author} (already advanced moments ago)")
+            logger.info(f"Ignoring duplicate advance from {message.author} (already advanced moments ago)")
             await message.reply(
                 "Already got it, mate — the week was just advanced. "
                 "If that really was a second advance, an admin can fix it with `/league set_week`.",
@@ -483,7 +483,7 @@ async def _handle_advance(message):
             await timekeeper_manager.increment_week()
             season_info = timekeeper_manager.get_season_week()
             new_week_name = season_info.get('week_name', f"Week {season_info['week']}")
-            logger.info(f"📅 Manual advance: {old_week_name} → {new_week_name}")
+            logger.info(f"Manual advance: {old_week_name} → {new_week_name}")
         timekeeper_manager.last_manual_advance_at = datetime.now()
 
         # Start new timer (default 48 hours)
@@ -522,27 +522,27 @@ async def _handle_advance(message):
 
             # Send to message channel (usually #general)
             await message.channel.send(content="@everyone", embed=embed)
-            logger.info(f"⏰ Timer restarted by {message.author} via @everyone + 'advanced'")
+            logger.info(f"Timer restarted by {message.author} via @everyone + 'advanced'")
 
             # Send schedule for the new week (if schedule_announcement enabled).
             # Every skip is logged — a silent miss here is hard to debug from Discord.
             from .utils.timekeeper import get_game_week
             week_num = get_game_week(season_info.get('week')) if season_info else None
             if not server_config.get_setting(message.guild.id, "schedule_announcement", True):
-                logger.info("📅 Schedule announcement disabled for this server, skipping")
+                logger.info("Schedule announcement disabled for this server, skipping")
             elif not schedule_manager:
-                logger.warning("⚠️ No schedule manager — can't announce this week's matchups")
+                logger.warning("No schedule manager — can't announce this week's matchups")
             elif season_info.get('week') is None:
-                logger.warning("⚠️ Season/week not set — can't announce this week's matchups")
+                logger.warning("Season/week not set — can't announce this week's matchups")
             elif week_num is None:
-                logger.info(f"📅 {season_info.get('week_name')} has no regular-season games, skipping matchups")
+                logger.info(f"{season_info.get('week_name')} has no regular-season games, skipping matchups")
             else:
                 schedule_embed = schedule_manager.build_week_embed(week_num)
                 if not schedule_embed:
-                    logger.warning(f"⚠️ No schedule data for Week {week_num} — nothing to announce")
+                    logger.warning(f"No schedule data for Week {week_num} — nothing to announce")
                 else:
                     await message.channel.send(embed=schedule_embed)
-                    logger.info(f"📅 Sent Week {week_num} schedule")
+                    logger.info(f"Sent Week {week_num} schedule")
         else:
             from .config import Colors
             embed = discord.Embed(
@@ -551,7 +551,7 @@ async def _handle_advance(message):
                 color=Colors.ERROR
             )
             await message.channel.send(embed=embed)
-            logger.error(f"❌ Failed to restart timer for {message.author}")
+            logger.error(f"Failed to restart timer for {message.author}")
 
 
 @bot.event
@@ -573,10 +573,10 @@ async def on_message(message):
     )
 
     if is_advance_trigger(message, advance_channel_id):
-        logger.info(f"🔄 @everyone/@channel + 'advanced' detected from {message.author} - advancing week")
+        logger.info(f"@everyone/@channel + 'advanced' detected from {message.author} - advancing week")
 
         if not timekeeper_manager:
-            logger.warning("⚠️ Timekeeper manager not available for advance")
+            logger.warning("Timekeeper manager not available for advance")
         else:
             await _handle_advance(message)
 
@@ -627,7 +627,7 @@ async def on_message(message):
             for keyword, response in team_keywords.items():
                 if keyword in message_lower:
                     await message.channel.send(response)
-                    logger.info(f"🏈 Rivalry response triggered: '{keyword}' → {response}")
+                    logger.info(f"Rivalry response triggered: '{keyword}' → {response}")
                     break  # Only respond once per message
 
     # Let cogs handle their own message processing (FunCog targeting, command parsing, etc.)
@@ -640,7 +640,7 @@ async def main():
     """Main entry point"""
     token = os.getenv('DISCORD_BOT_TOKEN')
     if not token:
-        logger.error("❌ DISCORD_BOT_TOKEN environment variable not set!")
+        logger.error("DISCORD_BOT_TOKEN environment variable not set!")
         sys.exit(1)
 
     # Load cogs
@@ -654,9 +654,9 @@ def run():
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        logger.info("👋 Bot shutting down...")
+        logger.info("Bot shutting down...")
     except Exception as e:
-        logger.error(f"❌ Fatal error: {e}", exc_info=True)
+        logger.error(f"Fatal error: {e}", exc_info=True)
         sys.exit(1)
 
 

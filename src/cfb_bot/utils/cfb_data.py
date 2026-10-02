@@ -43,7 +43,7 @@ try:
     CFBD_AVAILABLE = True
 except ImportError:
     CFBD_AVAILABLE = False
-    logger.warning("⚠️ cfbd library not installed - player lookup disabled")
+    logger.warning("cfbd library not installed - player lookup disabled")
 
 
 class CFBDataLookup:
@@ -131,11 +131,11 @@ class CFBDataLookup:
         self._cache_ttl = 300  # 5 minutes cache
 
         if not CFBD_AVAILABLE:
-            logger.warning("⚠️ cfbd library not available - CFB data disabled")
+            logger.warning("cfbd library not available - CFB data disabled")
             return
 
         if not self.api_key:
-            logger.warning("⚠️ CFB_DATA_API_KEY not found - CFB data disabled")
+            logger.warning("CFB_DATA_API_KEY not found - CFB data disabled")
             return
 
         # Configure the API client
@@ -156,9 +156,9 @@ class CFBDataLookup:
             self._ratings_api = cfbd.RatingsApi(self._api_client)
             self._draft_api = cfbd.DraftApi(self._api_client)
 
-            logger.info("✅ CFBD API configured successfully with all endpoints")
+            logger.info("CFBD API configured successfully with all endpoints")
         except Exception as e:
-            logger.error(f"❌ Failed to configure CFBD API: {e}")
+            logger.error(f"Failed to configure CFBD API: {e}")
             self._api_client = None
 
     @property
@@ -264,7 +264,7 @@ class CFBDataLookup:
         cache_key = f"search:{name.lower()}:{team or ''}:{year or ''}"
         if cache_key in self._search_cache:
             if time.time() < self._cache_expiry.get(cache_key, 0):
-                logger.info(f"📦 Cache hit for '{name}'")
+                logger.info(f"Cache hit for '{name}'")
                 return self._search_cache[cache_key]
             else:
                 # Expired, remove from cache
@@ -278,7 +278,7 @@ class CFBDataLookup:
 
         for try_year in years_to_try:
             try:
-                logger.info(f"🔍 Searching CFBD for '{name}' (year={try_year}, team={team})")
+                logger.info(f"Searching CFBD for '{name}' (year={try_year}, team={team})")
 
                 # Run sync API call in thread pool
                 kwargs = {'search_term': name, 'year': try_year}
@@ -293,7 +293,7 @@ class CFBDataLookup:
                 if results:
                     # Convert to dicts
                     players = [self._player_to_dict(p) for p in results]
-                    logger.info(f"✅ Found {len(players)} players for year {try_year}")
+                    logger.info(f"Found {len(players)} players for year {try_year}")
                     # Cache the result
                     self._search_cache[cache_key] = players
                     self._cache_expiry[cache_key] = time.time() + self._cache_ttl
@@ -303,7 +303,7 @@ class CFBDataLookup:
                     consecutive_429s = 0  # Reset on successful call
 
             except ApiException as e:
-                logger.error(f"❌ CFBD API error: {e.status} - {e.reason}")
+                logger.error(f"CFBD API error: {e.status} - {e.reason}")
                 if e.status == 401:
                     logger.error("Authentication failed - check your API key")
                     return []
@@ -311,19 +311,19 @@ class CFBDataLookup:
                     consecutive_429s += 1
                     # Exponential backoff: 2s, 4s, 8s, max 30s
                     wait_time = min(retry_delay * (2 ** (consecutive_429s - 1)), 30)
-                    logger.warning(f"⏳ Rate limited ({consecutive_429s}x), waiting {wait_time} seconds...")
+                    logger.warning(f"Rate limited ({consecutive_429s}x), waiting {wait_time} seconds...")
                     await asyncio.sleep(wait_time)
                     
                     # After 3 consecutive 429s, give up (API quota likely exhausted)
                     if consecutive_429s >= 3:
-                        logger.error("❌ Too many rate limits - API quota may be exhausted")
+                        logger.error("Too many rate limits - API quota may be exhausted")
                         # Cache empty result to avoid hammering API
                         self._search_cache[cache_key] = []
                         self._cache_expiry[cache_key] = time.time() + 60  # Cache for 1 min
                         return []
                     continue  # Try same year again
             except Exception as e:
-                logger.error(f"❌ Error searching for player: {e}", exc_info=True)
+                logger.error(f"Error searching for player: {e}", exc_info=True)
 
         # Cache empty result
         self._search_cache[cache_key] = []
@@ -366,7 +366,7 @@ class CFBDataLookup:
 
         for try_year in years_to_try:
             try:
-                logger.info(f"🔍 Fetching roster for {team} ({try_year})")
+                logger.info(f"Fetching roster for {team} ({try_year})")
 
                 results = await asyncio.to_thread(
                     self._teams_api.get_roster,
@@ -376,13 +376,13 @@ class CFBDataLookup:
 
                 if results:
                     roster = [self._roster_player_to_dict(p) for p in results]
-                    logger.info(f"✅ Found {len(roster)} players on {team} roster")
+                    logger.info(f"Found {len(roster)} players on {team} roster")
                     return roster
 
             except ApiException as e:
-                logger.error(f"❌ CFBD API error: {e.status} - {e.reason}")
+                logger.error(f"CFBD API error: {e.status} - {e.reason}")
             except Exception as e:
-                logger.error(f"❌ Error fetching roster: {e}", exc_info=True)
+                logger.error(f"Error fetching roster: {e}", exc_info=True)
 
         return []
 
@@ -419,7 +419,7 @@ class CFBDataLookup:
         if not self.is_available:
             return None
 
-        logger.info(f"🔍 Fetching stats for {player_name} on {team} ({year})")
+        logger.info(f"Fetching stats for {player_name} on {team} ({year})")
 
         try:
             # Get all player stats for the team
@@ -430,7 +430,7 @@ class CFBDataLookup:
             )
 
             if results:
-                logger.info(f"✅ Found {len(results)} stat entries for {team}")
+                logger.info(f"Found {len(results)} stat entries for {team}")
 
                 # Filter for the specific player (case-insensitive partial match)
                 player_stats = [
@@ -439,7 +439,7 @@ class CFBDataLookup:
                 ]
 
                 if player_stats:
-                    logger.info(f"✅ Found {len(player_stats)} stat entries for {player_name}")
+                    logger.info(f"Found {len(player_stats)} stat entries for {player_name}")
                     return self._parse_stats(player_stats)
                 else:
                     logger.info(f"No stats found for {player_name} in team stats")
@@ -447,10 +447,10 @@ class CFBDataLookup:
             return None
 
         except ApiException as e:
-            logger.error(f"❌ CFBD API error: {e.status} - {e.reason}")
+            logger.error(f"CFBD API error: {e.status} - {e.reason}")
             return None
         except Exception as e:
-            logger.error(f"❌ Error fetching player stats: {e}", exc_info=True)
+            logger.error(f"Error fetching player stats: {e}", exc_info=True)
             return None
 
     async def get_recruiting_info(self, player_name: str, year: Optional[int] = None) -> Optional[Dict[str, Any]]:
@@ -472,7 +472,7 @@ class CFBDataLookup:
 
         for try_year in years_to_try:
             try:
-                logger.info(f"🔍 Searching recruiting data for '{player_name}' ({try_year})")
+                logger.info(f"Searching recruiting data for '{player_name}' ({try_year})")
 
                 results = await asyncio.to_thread(
                     self._recruiting_api.get_recruits,
@@ -484,7 +484,7 @@ class CFBDataLookup:
                     for recruit in results:
                         recruit_name = getattr(recruit, 'name', '')
                         if player_name.lower() in recruit_name.lower():
-                            logger.info(f"✅ Found recruiting info for {recruit_name}")
+                            logger.info(f"Found recruiting info for {recruit_name}")
                             return {
                                 'name': recruit_name,
                                 'school': getattr(recruit, 'committed_to', None),
@@ -508,7 +508,7 @@ class CFBDataLookup:
             except ApiException as e:
                 logger.warning(f"Recruiting API error for {try_year}: {e.status}")
             except Exception as e:
-                logger.error(f"❌ Error fetching recruiting info: {e}", exc_info=True)
+                logger.error(f"Error fetching recruiting info: {e}", exc_info=True)
 
         return None
 
@@ -526,7 +526,7 @@ class CFBDataLookup:
             return []
 
         try:
-            logger.info(f"🔍 Fetching transfer portal data ({year})")
+            logger.info(f"Fetching transfer portal data ({year})")
 
             results = await asyncio.to_thread(
                 self._players_api.get_transfer_portal,
@@ -546,13 +546,13 @@ class CFBDataLookup:
                         'stars': getattr(t, 'stars', None),
                         'eligibility': getattr(t, 'eligibility', None),
                     })
-                logger.info(f"✅ Found {len(transfers)} transfer portal entries")
+                logger.info(f"Found {len(transfers)} transfer portal entries")
                 return transfers
 
         except ApiException as e:
-            logger.error(f"❌ CFBD API error: {e.status} - {e.reason}")
+            logger.error(f"CFBD API error: {e.status} - {e.reason}")
         except Exception as e:
-            logger.error(f"❌ Error fetching transfer portal: {e}", exc_info=True)
+            logger.error(f"Error fetching transfer portal: {e}", exc_info=True)
 
         return []
 
@@ -571,7 +571,7 @@ class CFBDataLookup:
 
         for t in transfers:
             if player_name.lower() in t.get('name', '').lower():
-                logger.info(f"✅ Found transfer info for {t.get('name')}")
+                logger.info(f"Found transfer info for {t.get('name')}")
                 return t
 
         # Try previous year
@@ -579,7 +579,7 @@ class CFBDataLookup:
             transfers = await self.get_transfer_portal(year - 1)
             for t in transfers:
                 if player_name.lower() in t.get('name', '').lower():
-                    logger.info(f"✅ Found transfer info for {t.get('name')} ({year-1})")
+                    logger.info(f"Found transfer info for {t.get('name')} ({year-1})")
                     return t
 
         return None
@@ -642,7 +642,7 @@ class CFBDataLookup:
             logger.warning("Player lookup not available - no API configured")
             return None
 
-        logger.info(f"🔍 Looking up player: {name}" + (f" from {team}" if team else ""))
+        logger.info(f"Looking up player: {name}" + (f" from {team}" if team else ""))
 
         # Search for the player
         players = await self.search_player(name, team, year)
@@ -653,10 +653,10 @@ class CFBDataLookup:
             players = await self.search_player(name, year=year)
 
         if not players:
-            logger.info(f"❌ No players found matching '{name}'")
+            logger.info(f"No players found matching '{name}'")
             return None
 
-        logger.info(f"✅ Found {len(players)} potential matches")
+        logger.info(f"Found {len(players)} potential matches")
 
         # Get the best match
         player = None
@@ -665,12 +665,12 @@ class CFBDataLookup:
             for p in players:
                 if team_lower in (p.get('team') or '').lower():
                     player = p
-                    logger.info(f"✅ Matched player to team: {p.get('name')} - {p.get('team')}")
+                    logger.info(f"Matched player to team: {p.get('name')} - {p.get('team')}")
                     break
 
         if not player:
             player = players[0]
-            logger.info(f"✅ Using first result: {player.get('name')} - {player.get('team')}")
+            logger.info(f"Using first result: {player.get('name')} - {player.get('team')}")
 
         # Get additional info in parallel
         player_name = player.get('name', name)
@@ -695,15 +695,15 @@ class CFBDataLookup:
                     for year in years_to_check
                 ]
                 
-                logger.info(f"🚀 Fetching stats for {len(years_to_check)} years in parallel...")
+                logger.info(f"Fetching stats for {len(years_to_check)} years in parallel...")
                 year_results = await asyncio.gather(*year_tasks, return_exceptions=True)
                 
                 # Process results
                 for year, result in zip(years_to_check, year_results):
                     if isinstance(result, Exception):
-                        logger.debug(f"⚠️ Error fetching {year}: {result}")
+                        logger.debug(f"Error fetching {year}: {result}")
                     elif result and any(v for v in result.values() if v):
-                        logger.info(f"✅ Found stats for {year} season")
+                        logger.info(f"Found stats for {year} season")
                         all_stats[year] = result
                 
                 return all_stats if all_stats else None
@@ -1136,7 +1136,7 @@ class CFBDataLookup:
             year = get_current_cfb_season()
 
         try:
-            logger.info(f"🔍 Fetching rankings for {year}" + (f" week {week}" if week else " (latest)"))
+            logger.info(f"Fetching rankings for {year}" + (f" week {week}" if week else " (latest)"))
 
             kwargs = {'year': year}
             if week:
@@ -1152,7 +1152,7 @@ class CFBDataLookup:
                 if latest_only and not week:
                     max_week = max(getattr(pw, 'week', 0) for pw in results)
                     results = [pw for pw in results if getattr(pw, 'week', 0) == max_week]
-                    logger.info(f"📅 Using latest week: {max_week}")
+                    logger.info(f"Using latest week: {max_week}")
 
                 rankings = []
                 for poll_week in results:
@@ -1173,11 +1173,11 @@ class CFBDataLookup:
                             'poll': poll_name,
                             'ranks': poll_ranks
                         })
-                logger.info(f"✅ Found {len(rankings)} poll(s)")
+                logger.info(f"Found {len(rankings)} poll(s)")
                 return rankings
             return []
         except ApiException as e:
-            logger.error(f"❌ Rankings API error: {e.status}")
+            logger.error(f"Rankings API error: {e.status}")
             return []
         except Exception as e:
             logger.error(f"Error fetching rankings: {e}")
@@ -1220,7 +1220,7 @@ class CFBDataLookup:
             return None
 
         try:
-            logger.info(f"🔍 Fetching matchup history: {team1} vs {team2}")
+            logger.info(f"Fetching matchup history: {team1} vs {team2}")
 
             result = await asyncio.to_thread(
                 self._teams_api.get_matchup,
@@ -1252,7 +1252,7 @@ class CFBDataLookup:
                 }
             return None
         except ApiException as e:
-            logger.error(f"❌ Matchup API error: {e.status}")
+            logger.error(f"Matchup API error: {e.status}")
             return None
         except Exception as e:
             logger.error(f"Error fetching matchup: {e}")
@@ -1267,7 +1267,7 @@ class CFBDataLookup:
             year = get_current_cfb_season()
 
         try:
-            logger.info(f"🔍 Fetching schedule for {team} ({year})")
+            logger.info(f"Fetching schedule for {team} ({year})")
 
             results = await asyncio.to_thread(
                 self._games_api.get_games,
@@ -1288,11 +1288,11 @@ class CFBDataLookup:
                         'venue': getattr(game, 'venue', None),
                         'completed': getattr(game, 'completed', False),
                     })
-                logger.info(f"✅ Found {len(games)} games")
+                logger.info(f"Found {len(games)} games")
                 return games
             return []
         except ApiException as e:
-            logger.error(f"❌ Schedule API error: {e.status}")
+            logger.error(f"Schedule API error: {e.status}")
             return []
         except Exception as e:
             logger.error(f"Error fetching schedule: {e}")
@@ -1313,7 +1313,7 @@ class CFBDataLookup:
             year = datetime.now().year
 
         try:
-            logger.info("🔍 Fetching draft picks" + (f" from {team}" if team else "") + f" ({year})")
+            logger.info("Fetching draft picks" + (f" from {team}" if team else "") + f" ({year})")
 
             # First, get all draft picks for the year
             results = await asyncio.to_thread(
@@ -1327,7 +1327,7 @@ class CFBDataLookup:
 
                 # Normalize search term (remove common mascot names)
                 search_term = self._normalize_team_name(team) if team else None
-                logger.info(f"🔍 Normalized search: '{team}' -> '{search_term}'")
+                logger.info(f"Normalized search: '{team}' -> '{search_term}'")
 
                 for pick in results:
                     college = getattr(pick, 'college_team', None) or ''
@@ -1356,13 +1356,13 @@ class CFBDataLookup:
                 if search_term:
                     # Show all colleges that might match
                     potential_matches = [c for c in all_colleges if search_term.lower() in c.lower() or c.lower().startswith(search_term.lower())]
-                    logger.info(f"🔍 Potential colleges for '{search_term}': {potential_matches}")
+                    logger.info(f"Potential colleges for '{search_term}': {potential_matches}")
 
                     # Show which ones our matcher would accept
                     actual_matches = [c for c in all_colleges if self._team_matches(search_term, c)]
-                    logger.info(f"🔍 _team_matches accepts: {actual_matches}")
+                    logger.info(f"_team_matches accepts: {actual_matches}")
 
-                logger.info(f"✅ Found {len(picks)} draft picks" + (f" from {team}" if team else ""))
+                logger.info(f"Found {len(picks)} draft picks" + (f" from {team}" if team else ""))
 
                 # If no picks found but team was specified, find similar college names
                 suggestions = []
@@ -1371,10 +1371,10 @@ class CFBDataLookup:
 
                 return {'picks': picks, 'suggestions': suggestions}
 
-            logger.warning(f"⚠️ No draft results returned for year {year}")
+            logger.warning(f"No draft results returned for year {year}")
             return {'picks': [], 'suggestions': []}
         except ApiException as e:
-            logger.error(f"❌ Draft API error: {e.status} - {e.body}")
+            logger.error(f"Draft API error: {e.status} - {e.body}")
             return {'picks': [], 'suggestions': []}
         except Exception as e:
             logger.error(f"Error fetching draft picks: {e}", exc_info=True)
@@ -1555,7 +1555,7 @@ class CFBDataLookup:
             year = datetime.now().year
 
         try:
-            logger.info(f"🔍 Fetching transfers for {team} ({year})")
+            logger.info(f"Fetching transfers for {team} ({year})")
 
             results = await asyncio.to_thread(
                 self._players_api.get_transfer_portal,
@@ -1586,10 +1586,10 @@ class CFBDataLookup:
                     if team_lower in dest:
                         incoming.append(transfer)
 
-            logger.info(f"✅ Found {len(incoming)} incoming, {len(outgoing)} outgoing transfers")
+            logger.info(f"Found {len(incoming)} incoming, {len(outgoing)} outgoing transfers")
             return {'incoming': incoming, 'outgoing': outgoing}
         except ApiException as e:
-            logger.error(f"❌ Transfer API error: {e.status}")
+            logger.error(f"Transfer API error: {e.status}")
             return {'incoming': [], 'outgoing': []}
         except Exception as e:
             logger.error(f"Error fetching transfers: {e}")
@@ -1625,7 +1625,7 @@ class CFBDataLookup:
 
         try:
             week_info = f"Week {week}" if week else "postseason"
-            logger.info("🔍 Fetching betting lines" + (f" for {team}" if team else "") + f" ({year} {week_info}, type={season_type})")
+            logger.info("Fetching betting lines" + (f" for {team}" if team else "") + f" ({year} {week_info}, type={season_type})")
 
             kwargs = {'year': year}
             if team:
@@ -1637,7 +1637,7 @@ class CFBDataLookup:
             if season_type:
                 kwargs['season_type'] = season_type
 
-            logger.info(f"📊 API kwargs: {kwargs}")
+            logger.info(f"API kwargs: {kwargs}")
 
             results = await asyncio.to_thread(
                 self._betting_api.get_lines,
@@ -1664,7 +1664,7 @@ class CFBDataLookup:
                             else:
                                 game_date = datetime.strptime(str(start_date_str)[:10], '%Y-%m-%d').date()
                         except Exception as e:
-                            logger.warning(f"⚠️ Could not parse date '{start_date_str}': {e}")
+                            logger.warning(f"Could not parse date '{start_date_str}': {e}")
 
                     # For postseason, only show upcoming games (today or future)
                     # For regular season, show all games
@@ -1695,12 +1695,12 @@ class CFBDataLookup:
                     filtered_count += 1
 
                 if skipped_count > 0:
-                    logger.info(f"📊 Filtered out {skipped_count} past games, showing {filtered_count} upcoming")
-                logger.info(f"✅ Found {len(lines)} games with lines")
+                    logger.info(f"Filtered out {skipped_count} past games, showing {filtered_count} upcoming")
+                logger.info(f"Found {len(lines)} games with lines")
                 return lines, query_info
             return [], query_info
         except ApiException as e:
-            logger.error(f"❌ Betting API error: {e.status}")
+            logger.error(f"Betting API error: {e.status}")
             return [], query_info
         except Exception as e:
             logger.error(f"Error fetching betting lines: {e}")
@@ -1775,7 +1775,7 @@ class CFBDataLookup:
             logger.warning(f"Could not fetch Elo ratings: {e}")
 
         if ratings:
-            logger.info(f"✅ Found ratings for {team}: {list(ratings.keys())}")
+            logger.info(f"Found ratings for {team}: {list(ratings.keys())}")
             return {
                 'team': team,
                 'year': year,
@@ -1792,7 +1792,7 @@ class CFBDataLookup:
             year = get_current_cfb_season()
 
         try:
-            logger.info(f"🔍 Fetching season stats for {team} ({year})")
+            logger.info(f"Fetching season stats for {team} ({year})")
             
             stats_results = await asyncio.to_thread(
                 self._stats_api.get_team_season_stats,
@@ -1826,7 +1826,7 @@ class CFBDataLookup:
                     parsed_stats['defense'][stat_name] = stat_value
             
             if parsed_stats['offense'] or parsed_stats['defense']:
-                logger.info(f"✅ Found {len(parsed_stats['offense'])} offense stats, {len(parsed_stats['defense'])} defense stats for {team}")
+                logger.info(f"Found {len(parsed_stats['offense'])} offense stats, {len(parsed_stats['defense'])} defense stats for {team}")
                 return parsed_stats
             
             return None
@@ -2383,9 +2383,9 @@ class CFBDataLookup:
             if p['team']:
                 p['team'] = p['team'].title().strip()
 
-        logger.info(f"✅ Parsed {len(players)} players from list")
+        logger.info(f"Parsed {len(players)} players from list")
         for p in players:
-            logger.info(f"   📋 Parsed: name='{p.get('name')}', team='{p.get('team')}', pos='{p.get('position')}'")
+            logger.info(f"  Parsed: name='{p.get('name')}', team='{p.get('team')}', pos='{p.get('position')}'")
         return players
 
     async def lookup_multiple_players(self, player_list: List[Dict[str, Optional[str]]]) -> List[Dict[str, Any]]:
@@ -2454,7 +2454,7 @@ class CFBDataLookup:
         results = await asyncio.gather(*tasks)
 
         found = sum(1 for r in results if r.get('result'))
-        logger.info(f"✅ Bulk lookup complete: {found}/{len(player_list)} players found")
+        logger.info(f"Bulk lookup complete: {found}/{len(player_list)} players found")
 
         return results
 

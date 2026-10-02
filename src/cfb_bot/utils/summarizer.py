@@ -37,12 +37,12 @@ class ChannelSummarizer:
         Returns:
             List of discord.Message objects
         """
-        logger.info(f"📥 Fetching messages from #{channel.name} (last {hours} hours)")
+        logger.info(f"Fetching messages from #{channel.name} (last {hours} hours)")
 
         # Calculate the time threshold - use UTC aware datetime
         time_threshold = datetime.now(timezone.utc) - timedelta(hours=hours)
 
-        logger.info(f"🔍 Looking for messages after: {time_threshold}")
+        logger.info(f"Looking for messages after: {time_threshold}")
 
         messages = []
         try:
@@ -61,17 +61,17 @@ class ChannelSummarizer:
 
                 messages.append(message)
 
-            logger.info(f"📊 Scanned {message_count} total messages, found {len(messages)} user messages")
+            logger.info(f"Scanned {message_count} total messages, found {len(messages)} user messages")
 
-            logger.info(f"✅ Fetched {len(messages)} messages from #{channel.name}")
+            logger.info(f"Fetched {len(messages)} messages from #{channel.name}")
             return messages
 
         except discord.Forbidden:
-            logger.error(f"❌ No permission to read message history in #{channel.name}")
+            logger.error(f"No permission to read message history in #{channel.name}")
             # Return empty list - caller will handle the message
             return []
         except Exception as e:
-            logger.error(f"❌ Error fetching messages: {e}")
+            logger.error(f"Error fetching messages: {e}")
             return []
 
     def format_messages_for_summary(self, messages: List[discord.Message]) -> str:
@@ -156,18 +156,18 @@ Provide a helpful summary with maximum sarcasm and wit, but don't be a tosser ab
 
         try:
             focus_log = f" (focus: {focus})" if focus else ""
-            logger.info(f"🤖 Requesting AI summary for {len(messages)} messages{focus_log}")
+            logger.info(f"Requesting AI summary for {len(messages)} messages{focus_log}")
             summary = await self.ai_assistant.ask_ai(prompt, "Channel Summarizer")
 
             if summary:
-                logger.info("✅ AI summary generated successfully")
+                logger.info("AI summary generated successfully")
                 return summary
             else:
-                logger.warning("⚠️ AI summary failed, using basic summary")
+                logger.warning("AI summary failed, using basic summary")
                 return self._basic_summary(messages)
 
         except Exception as e:
-            logger.error(f"❌ Error generating AI summary: {e}")
+            logger.error(f"Error generating AI summary: {e}")
             return self._basic_summary(messages)
 
     def _basic_summary(self, messages: List[discord.Message]) -> str:
@@ -239,7 +239,7 @@ Provide a helpful summary with maximum sarcasm and wit, but don't be a tosser ab
         Returns:
             Summary string
         """
-        logger.info(f"📊 Starting summary for #{channel.name} (last {hours} hours)")
+        logger.info(f"Starting summary for #{channel.name} (last {hours} hours)")
 
         messages = await self.fetch_messages(channel, hours, limit)
 
