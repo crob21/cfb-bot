@@ -192,7 +192,6 @@ class CharterCog(commands.Cog):
                 except Exception:
                     pass
 
-            # Find rule changes
             rule_changes = await self.charter_editor.find_rule_changes_in_messages(
                 formatted_messages,
                 channel_name=channel.name

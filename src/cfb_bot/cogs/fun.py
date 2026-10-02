@@ -14,7 +14,7 @@ import logging
 import random
 import re
 import time
-from typing import Dict, Optional, Tuple
+from typing import Dict, Tuple
 
 import discord
 from discord import app_commands
@@ -370,7 +370,7 @@ class FunCog(commands.Cog):
                 color=0xff6b6b
             )
 
-            for user_id, info in guild_targets.items():
+            for info in guild_targets.values():
                 # Calculate time since last message
                 time_since = int((time.time() - info['last_triggered']) / 60)
                 time_until = max(0, info['timeout'] - time_since)

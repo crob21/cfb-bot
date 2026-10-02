@@ -695,7 +695,6 @@ class CFBDataLookup:
                     for year in years_to_check
                 ]
                 
-                # Fetch all years in parallel
                 logger.info(f"🚀 Fetching stats for {len(years_to_check)} years in parallel...")
                 year_results = await asyncio.gather(*year_tasks, return_exceptions=True)
                 
@@ -968,7 +967,6 @@ class CFBDataLookup:
                     punts = safe_int(punting.get('NO', punting.get('PUNTS', 0)))
                     punt_yds = safe_int(punting.get('YDS', punting.get('YARDS', 0)))
                     avg = safe_float(punting.get('AVG', 0))
-                    tb = safe_int(punting.get('TB', 0))  # Touchbacks
                     in20 = safe_int(punting.get('IN 20', punting.get('IN20', 0)))
                     long_punt = safe_int(punting.get('LONG', punting.get('LNG', 0)))
                     
@@ -1315,7 +1313,7 @@ class CFBDataLookup:
             year = datetime.now().year
 
         try:
-            logger.info(f"🔍 Fetching draft picks" + (f" from {team}" if team else "") + f" ({year})")
+            logger.info("🔍 Fetching draft picks" + (f" from {team}" if team else "") + f" ({year})")
 
             # First, get all draft picks for the year
             results = await asyncio.to_thread(
@@ -1627,7 +1625,7 @@ class CFBDataLookup:
 
         try:
             week_info = f"Week {week}" if week else "postseason"
-            logger.info(f"🔍 Fetching betting lines" + (f" for {team}" if team else "") + f" ({year} {week_info}, type={season_type})")
+            logger.info("🔍 Fetching betting lines" + (f" for {team}" if team else "") + f" ({year} {week_info}, type={season_type})")
 
             kwargs = {'year': year}
             if team:
@@ -1933,7 +1931,6 @@ class CFBDataLookup:
             away = game.get('awayTeam', '?')
             home_score = game.get('homeScore', '?')
             away_score = game.get('awayScore', '?')
-            winner = game.get('winner', '')
 
             parts.append(f"• {season}: {away} {away_score} @ {home} {home_score}")
 
@@ -1975,7 +1972,7 @@ class CFBDataLookup:
         suggestions = result.get('suggestions', [])
 
         if not picks:
-            parts = [f"No draft picks found" + (f" from **{team}**" if team else "")]
+            parts = ["No draft picks found" + (f" from **{team}**" if team else "")]
 
             # Add suggestions if available
             if suggestions:
@@ -1986,7 +1983,7 @@ class CFBDataLookup:
 
             return "\n".join(parts)
 
-        parts = [f"🏈 **NFL Draft Picks**" + (f" from {team}" if team else ""), ""]
+        parts = ["🏈 **NFL Draft Picks**" + (f" from {team}" if team else ""), ""]
 
         for pick in picks[:15]:  # Limit to 15
             rd = pick.get('round', '?')

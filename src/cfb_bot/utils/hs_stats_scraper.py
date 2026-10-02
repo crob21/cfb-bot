@@ -10,7 +10,7 @@ Use responsibly with appropriate rate limiting.
 import asyncio
 import logging
 import re
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 from urllib.parse import quote_plus
 
@@ -281,7 +281,7 @@ class HSStatsScraper:
                     if card.name == 'a':
                         profile_url = card.get('href')
                     else:
-                        # Fixed typo: /athletes/ not /athlete/
+                        # The path segment is /athletes/ (plural)
                         link = card.select_one('a[href*="/athletes/"]')
                         if link:
                             profile_url = link.get('href')
@@ -631,7 +631,6 @@ class HSStatsScraper:
         try:
             seasons = []
 
-            # Get all rows
             rows = table.select('tr')
             if len(rows) < 2:
                 return []

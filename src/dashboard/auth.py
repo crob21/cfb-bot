@@ -132,12 +132,10 @@ async def callback(request: Request, code: str = None, state: str = None, error:
     
     access_token = token_data.get("access_token")
     
-    # Get user info
     user_info = await get_user_info(access_token)
     if not user_info:
         return RedirectResponse(url="/?error=user_info_failed")
     
-    # Get user's guilds
     guilds = await get_user_guilds(access_token)
     
     # Filter to guilds where user has manage_guild permission (admin)

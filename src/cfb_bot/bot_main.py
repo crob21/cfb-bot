@@ -155,7 +155,7 @@ async def setup_dependencies():
         from .utils.timekeeper import TimekeeperManager
         timekeeper_manager = TimekeeperManager(bot)
         logger.info("⏰ Timekeeper manager initialized")
-        # IMPORTANT: Load saved timer state from Discord
+        # Restore the timer, week, staff and settings from the owner DM
         try:
             await timekeeper_manager.load_saved_state()
             logger.info("✅ Timer state loaded from Discord")
@@ -281,7 +281,6 @@ async def send_startup_notification():
     from .utils.server_config import FeatureModule
 
     # ONLY send to dev channel
-    DEV_SERVER_ID = 780882032867803168
     DEV_CHANNEL_ID = int(os.getenv('DEV_CHANNEL_ID', '1417732043936108564'))
 
     dev_channel = bot.get_channel(DEV_CHANNEL_ID)
@@ -289,10 +288,10 @@ async def send_startup_notification():
         logger.warning(f"⚠️ Could not find dev channel {DEV_CHANNEL_ID}")
         return
 
-    # Get version info
-    current_version = "3.0.0"
-    version_title = "Cog Architecture"
-    version_emoji = "🏗️"
+    from . import __version__
+    current_version = __version__
+    version_title = "Update"
+    version_emoji = "🏈"
 
     if version_manager:
         try:
@@ -403,7 +402,7 @@ async def send_startup_notification():
 
     try:
         await dev_channel.send(embed=embed)
-        logger.info(f"📢 Sent detailed startup status to dev channel")
+        logger.info("📢 Sent detailed startup status to dev channel")
     except Exception as e:
         logger.warning(f"⚠️ Could not send startup to dev channel: {e}")
 
@@ -588,7 +587,6 @@ async def on_message(message):
     # Only if message is in a guild and FUN_GAMES module is enabled
     if message.guild:
         guild_id = message.guild.id
-        channel_id = message.channel.id
 
         # Import FeatureModule here to avoid circular imports
         from .utils.server_config import FeatureModule
@@ -640,7 +638,6 @@ async def on_message(message):
 
 async def main():
     """Main entry point"""
-    # Get token
     token = os.getenv('DISCORD_BOT_TOKEN')
     if not token:
         logger.error("❌ DISCORD_BOT_TOKEN environment variable not set!")

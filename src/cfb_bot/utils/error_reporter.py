@@ -2,9 +2,8 @@
 """
 Error reporting via Discord DM to the bot owner.
 
-Harry runs on a host whose logs scroll away, so unhandled errors used to surface only
-when someone in the league noticed a broken command. This DMs the bot owner instead —
-no third-party service, nothing leaves Discord.
+Host logs scroll away, so unhandled errors are DMed to the bot owner instead — no
+third-party service, nothing leaves Discord.
 
 Repeats are collapsed: the same error DMs once per cooldown window, then reports how
 many times it fired when the window closes. A global hourly cap keeps a failing loop

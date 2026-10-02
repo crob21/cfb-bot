@@ -89,7 +89,6 @@ class AIChatCog(commands.Cog):
 
                 logger.info(f"🎯 /harry from {interaction.user}: '{question}'")
 
-                # Get personality prompt
                 personality = server_config.get_personality_prompt(guild_id)
 
                 # Make AI response

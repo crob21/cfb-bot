@@ -39,7 +39,6 @@ class CostTracker:
         """Get costs for current month"""
         current_month = datetime.now().strftime('%Y-%m')
 
-        # Load from storage
         data = await self._storage.load("cost_tracker", current_month)
 
         if data:
@@ -70,10 +69,8 @@ class CostTracker:
         """
         current_month = datetime.now().strftime('%Y-%m')
 
-        # Load current month's data
         data = await self._storage.load("cost_tracker", current_month) or {}
 
-        # Update costs
         current_ai = data.get('ai_cost', 0.0)
         current_zyte = data.get('zyte_cost', 0.0)
 
@@ -184,7 +181,6 @@ class CostTracker:
         """Send cost alert notifications"""
         for alert in alerts:
             emoji = "⚠️" if alert['threshold'] < 100 else "🚨"
-            percent = (alert['current'] / alert['budget'] * 100) if alert['budget'] > 0 else 0
 
             logger.warning(
                 f"{emoji} COST ALERT: {alert['service']} at {alert['threshold']}% of budget "

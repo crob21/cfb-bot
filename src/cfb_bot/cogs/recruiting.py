@@ -519,8 +519,8 @@ class RecruitingCog(commands.Cog):
             # Only On3 scraper has team commits
             if source_name != "On3/Rivals":
                 await interaction.followup.send(
-                    f"❌ Team commits list is only available with **On3/Rivals** data source.\n"
-                    f"💡 Switch with `/recruiting source on3`",
+                    "❌ Team commits list is only available with **On3/Rivals** data source.\n"
+                    "💡 Switch with `/recruiting source on3`",
                     ephemeral=True
                 )
                 return

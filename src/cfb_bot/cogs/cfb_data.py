@@ -139,7 +139,6 @@ class CFBDataCog(commands.Cog):
         if not await self._check_cfb_available(interaction):
             return
 
-        # Parse the player list
         players = cfb_data.parse_player_list(player_list)
 
         if not players:

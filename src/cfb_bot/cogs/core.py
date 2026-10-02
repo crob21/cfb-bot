@@ -19,7 +19,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from ..config import Colors
-from ..utils.server_config import server_config, FeatureModule
+from ..utils.server_config import server_config
 from ..utils.version_manager import VersionManager
 
 logger = logging.getLogger('CFBBot.Core')
