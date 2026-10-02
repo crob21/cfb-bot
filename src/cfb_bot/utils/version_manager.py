@@ -11,10 +11,37 @@ from typing import Dict, List, Optional
 logger = logging.getLogger('CFB26Bot.Version')
 
 # Current version
-CURRENT_VERSION = "3.14.1"
+CURRENT_VERSION = "3.15.0"
 
 # Changelog - organized by version
 CHANGELOG: Dict[str, Dict] = {
+    "3.15.0": {
+        "date": "2026-10-02",
+        "title": "Side League Timers ⏱️",
+        "emoji": "⏱️",
+        "features": [
+            {
+                "category": "Advance Timer",
+                "emoji": "⏰",
+                "changes": [
+                    "CHANGE: The countdown running out no longer advances the week — it just nags",
+                    "The week moves only when you post '@everyone advanced'",
+                    "TIME'S UP now says which week you're still on"
+                ]
+            },
+            {
+                "category": "Side Leagues",
+                "emoji": "🎮",
+                "changes": [
+                    "NEW: /league side_timer league:Madden hours:24 — named countdown for another league",
+                    "NEW: /league side_timer_stop league:Madden",
+                    "Side timers announce in their own channel and never touch the dynasty week",
+                    "They survive redeploys and show in /league timer_status and /league timers",
+                    "/league nag and stop_nag merged into /league nag action:start|stop (Discord caps a group at 25 commands)"
+                ]
+            }
+        ]
+    },
     "3.14.1": {
         "date": "2026-10-02",
         "title": "Timer No Longer Eats a Week ⏰",

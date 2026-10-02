@@ -413,26 +413,26 @@ class TestLeagueNag:
     @pytest.mark.asyncio
     async def test_nag_starts_the_loop(self, owner_cog, mock_interaction):
         mock_interaction.user.id = 7
-        await owner_cog.nag.callback(owner_cog, mock_interaction, interval=10)
+        await owner_cog.nag.callback(owner_cog, mock_interaction, action="start", interval=10)
         owner_cog.timekeeper_manager.start_nagging.assert_awaited_once_with(10)
 
     @pytest.mark.asyncio
     async def test_nag_requires_league_owner(self, owner_cog, mock_interaction):
         mock_interaction.user.id = 7
         owner_cog.timekeeper_manager.get_league_staff.return_value = {'owner_id': None}
-        await owner_cog.nag.callback(owner_cog, mock_interaction, interval=5)
+        await owner_cog.nag.callback(owner_cog, mock_interaction, action="start", interval=5)
         owner_cog.timekeeper_manager.start_nagging.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_non_bot_owner_rejected(self, owner_cog, mock_interaction):
         mock_interaction.user.id = 1234
-        await owner_cog.nag.callback(owner_cog, mock_interaction, interval=5)
+        await owner_cog.nag.callback(owner_cog, mock_interaction, action="start", interval=5)
         owner_cog.timekeeper_manager.start_nagging.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_stop_nag_stops_the_loop(self, owner_cog, mock_interaction):
         mock_interaction.user.id = 7
-        await owner_cog.stop_nag.callback(owner_cog, mock_interaction)
+        await owner_cog.nag.callback(owner_cog, mock_interaction, action="stop")
         owner_cog.timekeeper_manager.stop_nagging.assert_awaited_once()
 
 
@@ -485,3 +485,50 @@ class TestTimerNeverAdvances:
         admin_cog.timekeeper_manager.increment_week.assert_not_called()
         admin_cog.timekeeper_manager.stop_all_timers.assert_not_awaited()
         assert "Replaced" not in mock_interaction.followup.send.call_args[0][0]
+
+
+class TestSideLeagueTimers:
+    """Named side-league countdowns are independent of the dynasty week"""
+
+    @pytest.fixture
+    def admin_cog(self, mock_timekeeper):
+        from cfb_bot.cogs.league import LeagueCog
+        cog = LeagueCog(MagicMock())
+        cog.admin_manager = MagicMock()
+        cog.admin_manager.admin_ids = {42}
+        cog.timekeeper_manager = mock_timekeeper
+        mock_timekeeper.get_side_timers = MagicMock(return_value=[])
+        mock_timekeeper.stop_side_timer = AsyncMock(return_value=True)
+        return cog
+
+    @pytest.mark.asyncio
+    async def test_starts_named_timer_in_current_channel(self, admin_cog, mock_interaction, mock_server_config):
+        mock_interaction.user.id = 42
+        mock_interaction.channel.send = AsyncMock()
+        with patch('cfb_bot.cogs.league.server_config', mock_server_config):
+            await admin_cog.side_timer.callback(admin_cog, mock_interaction, league="Madden", hours=24)
+
+        admin_cog.timekeeper_manager.start_timer.assert_awaited_once()
+        kwargs = admin_cog.timekeeper_manager.start_timer.await_args.kwargs
+        assert kwargs['label'] == "Madden"
+        admin_cog.timekeeper_manager.increment_week.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_rejects_silly_durations(self, admin_cog, mock_interaction, mock_server_config):
+        mock_interaction.user.id = 42
+        with patch('cfb_bot.cogs.league.server_config', mock_server_config):
+            await admin_cog.side_timer.callback(admin_cog, mock_interaction, league="Madden", hours=0)
+        admin_cog.timekeeper_manager.start_timer.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_stop_names_running_leagues_when_not_found(self, admin_cog, mock_interaction, mock_server_config):
+        mock_interaction.user.id = 42
+        admin_cog.timekeeper_manager.stop_side_timer.return_value = False
+        admin_cog.timekeeper_manager.get_side_timers.return_value = [
+            {'label': 'Madden', 'channel_name': 'madden', 'hours': 3, 'minutes': 0, 'channel_id': 1}
+        ]
+        with patch('cfb_bot.cogs.league.server_config', mock_server_config):
+            await admin_cog.side_timer_stop.callback(admin_cog, mock_interaction, league="NBA2K")
+
+        reply = mock_interaction.response.send_message.call_args[0][0]
+        assert "No **NBA2K**" in reply and "Madden" in reply

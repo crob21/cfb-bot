@@ -131,16 +131,19 @@ class TestStopAllTimers:
         from cfb_bot.utils.timekeeper import TimekeeperManager
 
         manager = TimekeeperManager.__new__(TimekeeperManager)
-        running_a, running_b, idle = MagicMock(), MagicMock(), MagicMock()
-        for t, active in ((running_a, True), (running_b, True), (idle, False)):
+        running_a, running_b, idle, side = (MagicMock(), MagicMock(), MagicMock(), MagicMock())
+        for t, active in ((running_a, True), (running_b, True), (idle, False), (side, True)):
             t.is_active = active
+            t.label = None
             t.stop_countdown = AsyncMock(return_value=active)
-        manager.timers = {1: running_a, 2: running_b, 3: idle}
+        side.label = "Madden"  # side leagues are independent of the dynasty week
+        manager.timers = {1: running_a, 2: running_b, 3: idle, 'side:madden': side}
 
         assert await manager.stop_all_timers() == 2
         running_a.stop_countdown.assert_awaited_once()
         running_b.stop_countdown.assert_awaited_once()
         idle.stop_countdown.assert_not_awaited()
+        side.stop_countdown.assert_not_awaited()
 
 
 class TestNotificationThresholds:
@@ -188,23 +191,32 @@ class TestTimerStatePersistence:
         assert _is_timer_state_message('```json\n{"channel_id": 5, "end_time": "2026-01-01T00:00:00"}\n```')
 
 
-class TestAdvancePending:
+class TestTimerDoesNotAdvance:
     @pytest.mark.asyncio
-    async def test_starting_timer_clears_pending_flag(self):
+    async def test_times_up_never_increments_the_week(self):
         from unittest.mock import MagicMock
-        from cfb_bot.utils.timekeeper import TimekeeperManager
+        from cfb_bot.utils.timekeeper import AdvanceTimer, TimekeeperManager
 
-        manager = TimekeeperManager(MagicMock())
-        manager._save_season_week_state = AsyncMock()
-        manager.advance_pending = True
-        timer = MagicMock()
-        timer.start_countdown = AsyncMock(return_value=True)
-        manager.get_timer = MagicMock(return_value=timer)
+        manager = TimekeeperManager.__new__(TimekeeperManager)
+        manager.season, manager.week = 4, 8
+        manager.increment_week = AsyncMock()
 
-        assert await manager.start_timer(MagicMock(), 48)
-        assert manager.advance_pending is False
-        manager._save_season_week_state.assert_awaited_once()
+        timer = AdvanceTimer(MagicMock(), MagicMock(), manager=manager)
+        channel = MagicMock()
+        channel.send = AsyncMock()
+        channel.name = "general"
+        timer.get_notification_channel = MagicMock(return_value=channel)
 
+        await timer._send_times_up()
+
+        manager.increment_week.assert_not_awaited()
+        assert manager.week == 8
+        embed = channel.send.call_args.kwargs['embed']
+        assert "Still on" in embed.description
+        assert "@everyone advanced" in embed.description
+
+
+class TestDuplicateAdvanceGuard:
     def test_duplicate_advance_window(self):
         from datetime import datetime, timedelta
         from unittest.mock import MagicMock
@@ -344,3 +356,48 @@ class TestTypedStatePersistence:
 
         state = await manager._load_typed_state('league_staff', legacy_key='league_owner_id')
         assert state['league_owner_name'] == "Yesko"
+
+
+class TestSideTimerManager:
+    def _manager(self):
+        from unittest.mock import MagicMock
+        from cfb_bot.utils.timekeeper import TimekeeperManager
+        m = TimekeeperManager.__new__(TimekeeperManager)
+        m.bot = MagicMock()
+        m.timers = {}
+        m.save_side_timers = AsyncMock(return_value=True)
+        return m
+
+    def test_side_key_is_case_insensitive(self):
+        from cfb_bot.utils.timekeeper import TimekeeperManager
+        assert TimekeeperManager.side_key(" Madden ") == TimekeeperManager.side_key("madden")
+
+    @pytest.mark.asyncio
+    async def test_restarting_a_named_timer_replaces_it(self):
+        from unittest.mock import MagicMock, patch
+        manager = self._manager()
+        channel = MagicMock(id=1)
+
+        with patch('cfb_bot.utils.timekeeper.AdvanceTimer.start_countdown', AsyncMock(return_value=True)), \
+             patch('cfb_bot.utils.timekeeper.AdvanceTimer.stop_countdown', AsyncMock(return_value=True)) as stop:
+            await manager.start_timer(channel, 24, label="Madden")
+            manager.timers[manager.side_key("Madden")].is_active = True
+            await manager.start_timer(channel, 12, label="madden")
+
+        assert len(manager.timers) == 1  # same timer, not a second one
+        stop.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_side_timer_announces_in_its_own_channel(self):
+        from unittest.mock import MagicMock
+        from cfb_bot.utils.timekeeper import AdvanceTimer
+
+        channel = MagicMock(name="madden-chat")
+        channel.send = AsyncMock()
+        timer = AdvanceTimer(channel, MagicMock(), manager=None, label="Madden")
+
+        await timer._send_times_up()
+
+        embed = channel.send.call_args.kwargs['embed']
+        assert "Madden" in embed.title
+        assert "advanced" not in embed.description  # no dynasty-advance instructions
