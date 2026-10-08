@@ -57,7 +57,12 @@ try:
 except ImportError:
     FUZZY_AVAILABLE = False
 
+from .cache import get_cache
+
 logger = logging.getLogger('CFBBot.On3Recruiting')
+
+# Namespace in the shared cache (utils/cache.py), so /admin cache clear clears it too
+CACHE_NAMESPACE = 'on3'
 
 
 class On3Scraper:
@@ -105,9 +110,7 @@ class On3Scraper:
     }
 
     def __init__(self):
-        self._cache: Dict[str, Any] = {}
-        self._cache_ttl = timedelta(hours=1)  # Cache for 1 hour
-        self._cache_max_size = 500  # Max cache entries before cleanup
+        self._cache_ttl_seconds = 3600  # Cache for 1 hour (shared cache, "on3" namespace)
         self._last_request = datetime.min
         self._rate_limit_delay_min = 1.0  # Minimum 1 second between requests
         self._rate_limit_delay_max = 2.5  # Maximum 2.5 seconds (randomized)
@@ -269,32 +272,12 @@ class On3Scraper:
         self._last_request = datetime.now()
 
     def _get_cached(self, key: str) -> Optional[Any]:
-        """Get cached data if still valid"""
-        if key in self._cache:
-            data, timestamp = self._cache[key]
-            if datetime.now() - timestamp < self._cache_ttl:
-                logger.debug(f"Cache hit for {key}")
-                return data
-        return None
+        """Get cached data if still valid (shared cache, so /admin cache clear clears it)"""
+        return get_cache().get(key, namespace=CACHE_NAMESPACE)
 
     def _set_cached(self, key: str, data: Any):
-        """Cache data with timestamp, with automatic cleanup"""
-        # Cleanup old entries if cache is getting large
-        if len(self._cache) >= self._cache_max_size:
-            self._cleanup_cache()
-        self._cache[key] = (data, datetime.now())
-
-    def _cleanup_cache(self):
-        """Remove expired cache entries"""
-        now = datetime.now()
-        expired_keys = [
-            key for key, (_, timestamp) in self._cache.items()
-            if now - timestamp >= self._cache_ttl
-        ]
-        for key in expired_keys:
-            del self._cache[key]
-        if expired_keys:
-            logger.debug(f"Cleaned up {len(expired_keys)} expired cache entries")
+        """Cache data with the scraper's TTL"""
+        get_cache().set(key, data, ttl_seconds=self._cache_ttl_seconds, namespace=CACHE_NAMESPACE)
 
     async def _fetch_page(self, url: str) -> Optional[str]:
         """Fetch a page with rate limiting and Cloudflare bypass (Playwright > Cloudscraper > httpx)"""

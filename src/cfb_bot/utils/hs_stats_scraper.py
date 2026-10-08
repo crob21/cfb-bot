@@ -14,7 +14,12 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 from urllib.parse import quote_plus
 
+from .cache import get_cache
+
 logger = logging.getLogger('CFBBot.HSStats')
+
+# Namespace in the shared cache (utils/cache.py), so /admin cache clear clears it too
+CACHE_NAMESPACE = 'hs_stats'
 
 # Try to import scraping libraries
 try:
@@ -90,7 +95,6 @@ class HSStatsScraper:
 
     def __init__(self):
         self.is_available = HS_SCRAPER_AVAILABLE
-        self._cache: Dict[str, Dict[str, Any]] = {}
         self._last_request_time: float = 0
         self._client: Optional[httpx.AsyncClient] = None
 
@@ -159,29 +163,12 @@ class HSStatsScraper:
         return ":".join(key_parts)
 
     def _check_cache(self, cache_key: str) -> Optional[Dict[str, Any]]:
-        """Check if we have a valid cached result"""
-        if cache_key in self._cache:
-            cached = self._cache[cache_key]
-            if datetime.now().timestamp() - cached.get('timestamp', 0) < self.CACHE_TTL:
-                logger.info(f"Cache hit for {cache_key}")
-                return cached.get('data')
-        return None
+        """Check the shared cache for a valid result"""
+        return get_cache().get(cache_key, namespace=CACHE_NAMESPACE)
 
     def _store_cache(self, cache_key: str, data: Dict[str, Any]):
-        """Store result in cache"""
-        self._cache[cache_key] = {
-            'data': data,
-            'timestamp': datetime.now().timestamp()
-        }
-
-        # Clean old cache entries (keep last 100)
-        if len(self._cache) > 100:
-            oldest_keys = sorted(
-                self._cache.keys(),
-                key=lambda k: self._cache[k].get('timestamp', 0)
-            )[:50]
-            for key in oldest_keys:
-                del self._cache[key]
+        """Store a result in the shared cache"""
+        get_cache().set(cache_key, data, ttl_seconds=self.CACHE_TTL, namespace=CACHE_NAMESPACE)
 
     async def search_player(self, name: str, state: str = None) -> List[Dict[str, Any]]:
         """
