@@ -15,11 +15,38 @@ def version_key(version: str) -> tuple:
     return tuple(int(part) for part in version.split('.'))
 
 # Current version
-CURRENT_VERSION = "3.16.2"
+CURRENT_VERSION = "3.17.0"
 
 # Recent releases, newest first. /changelog reads these; the full history is in
 # docs/CHANGELOG.md. Add new releases at the top.
 CHANGELOG: Dict[str, Dict] = {
+    "3.17.0": {
+        "date": "2026-10-08",
+        "title": "Harry Answers When You @ Him 💬",
+        "emoji": "💬",
+        "features": [
+            {
+                "category": "AI Chat",
+                "emoji": "💬",
+                "changes": [
+                    "NEW: @mention Harry in a channel and he answers, no slash command needed",
+                    "Works in channels enabled with /admin channels, when the ai_chat module is on",
+                    "A bare @mention gets a greeting; one reply per person every 10 seconds",
+                    "Users targeted by /fun target still get their insults instead"
+                ]
+            },
+            {
+                "category": "Trolling",
+                "emoji": "🎯",
+                "changes": [
+                    "FIX: /fun target now only trolls in the channel it was run in (threads count as their parent)",
+                    "NEW: everywhere:true on /fun target and /fun target_all keeps the old server-wide behavior",
+                    "Channels blocked with /admin block are never trolled",
+                    "/fun status shows where each target is being trolled"
+                ]
+            }
+        ]
+    },
     "3.16.2": {
         "date": "2026-10-02",
         "title": "Quieter Logs, Shorter Changelog 🧹",

@@ -87,6 +87,7 @@ class FunCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.admin_manager = None
+        self.channel_manager = None
 
         # Guild-scoped: {guild_id: {user_id: {'timeout': ..., 'last_triggered': ..., 'engage': bool}}}
         self.targets: Dict[int, Dict[int, Dict]] = {}
@@ -99,14 +100,35 @@ class FunCog(commands.Cog):
 
         logger.info("FunCog initialized")
 
-    def set_dependencies(self, admin_manager=None, ai_assistant=None):
+    def set_dependencies(self, admin_manager=None, ai_assistant=None, channel_manager=None):
         """Set dependencies after bot is ready"""
         self.admin_manager = admin_manager
         self.ai_assistant = ai_assistant
+        self.channel_manager = channel_manager
 
     def _targets_for_guild(self, guild_id: int) -> Dict[int, Dict]:
         """Get the targets dict for a guild (per-server targeting)."""
         return self.targets.setdefault(guild_id, {})
+
+    def _trolling_allowed_here(self, message: discord.Message, target_info: Dict) -> bool:
+        """
+        True if Harry may troll this target in this channel.
+
+        A target is scoped to the channel it was set in (threads count as their parent
+        channel). Targets saved with channel_id None are server-wide. Channels blocked
+        with /admin block never get unprompted trolling.
+        """
+        channel = message.channel
+        channel_id = channel.id
+        parent_id = getattr(channel, 'parent_id', None)
+
+        if self.channel_manager and self.channel_manager.is_channel_blocked(channel_id):
+            return False
+
+        target_channel = target_info.get('channel_id')
+        if target_channel is None:  # server-wide target
+            return True
+        return target_channel in (channel_id, parent_id)
 
     def _is_duplicate_interaction(self, interaction: discord.Interaction) -> bool:
         """Check if we've already processed this interaction (prevents duplicate commands)"""
@@ -142,14 +164,16 @@ class FunCog(commands.Cog):
     @app_commands.describe(
         user="The unfortunate soul to target",
         timeout="Minutes between messages (default: 30)",
-        engage="Should Harry argue back if they respond? (default: True)"
+        engage="Should Harry argue back if they respond? (default: True)",
+        everywhere="Troll them in every channel instead of just this one (default: False)"
     )
     async def target(
         self,
         interaction: discord.Interaction,
         user: discord.Member,
         timeout: int = 30,
-        engage: bool = True
+        engage: bool = True,
+        everywhere: bool = False
     ):
         """Enable trolling for a specific user"""
         # Check for duplicate interactions
@@ -186,16 +210,20 @@ class FunCog(commands.Cog):
             'enabled_by': interaction.user.id,
             'enabled_by_name': interaction.user.display_name,
             'engage': engage,
-            'argument_count': 0  # Track how many times Harry has argued back
+            'argument_count': 0,  # Track how many times Harry has argued back
+            # None = every channel; otherwise only the channel this was run in
+            'channel_id': None if everywhere else interaction.channel_id,
         }
 
-        logger.info(f"{interaction.user.display_name} enabled trolling for {user.display_name} (timeout: {timeout}m, engage: {engage})")
+        scope_text = "every channel" if everywhere else f"#{getattr(interaction.channel, 'name', interaction.channel_id)}"
+        logger.info(f"{interaction.user.display_name} enabled trolling for {user.display_name} in {scope_text} (timeout: {timeout}m, engage: {engage})")
 
         engage_text = "🔥 **Engage mode: ON** - Harry will argue if they respond!" if engage else "💤 **Engage mode: OFF**"
 
         embed = discord.Embed(
             title="🎯 Target Acquired",
             description=f"**{user.display_name}** is now being trolled!\n\n"
+                       f"📍 **Where:** {'every channel' if everywhere else interaction.channel.mention}\n"
                        f"⏱️ **Timeout:** {timeout} minutes\n"
                        f"{engage_text}\n"
                        f"🤫 **Silent mode:** They won't know it's intentional\n\n"
@@ -378,7 +406,10 @@ class FunCog(commands.Cog):
                 engage_status = "🔥 ON" if info.get('engage') else "💤 OFF"
                 arg_count = info.get('argument_count', 0)
 
+                target_channel = info.get('channel_id')
+                where = f"<#{target_channel}>" if target_channel else "every channel"
                 status_text = (
+                    f"📍 **Where:** {where}\n"
                     f"⏱️ **Timeout:** {info['timeout']} minutes\n"
                     f"🕐 **Last triggered:** {time_since}m ago\n"
                     f"⏳ **Next available:** {time_until}m\n"
@@ -393,21 +424,23 @@ class FunCog(commands.Cog):
                     inline=False
                 )
 
-        embed.set_footer(text="Targeting is per-server only | Harry's Secret Trolling System")
+        embed.set_footer(text="Targets are per-server and, by default, per-channel | Harry's Secret Trolling System")
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @fun_group.command(name="target_all", description="🎯 Start trolling multiple users at once (Admin only)")
     @app_commands.describe(
         users="Users to target (space-separated mentions: @user1 @user2 @user3)",
         timeout="Minutes between messages (default: 30)",
-        engage="Should Harry argue back if they respond? (default: True)"
+        engage="Should Harry argue back if they respond? (default: True)",
+        everywhere="Troll them in every channel instead of just this one (default: False)"
     )
     async def target_all(
         self,
         interaction: discord.Interaction,
         users: str,
         timeout: int = 30,
-        engage: bool = True
+        engage: bool = True,
+        everywhere: bool = False
     ):
         """Enable trolling for multiple users at once"""
         # Check for duplicate interactions
@@ -472,7 +505,8 @@ class FunCog(commands.Cog):
                 'enabled_by': interaction.user.id,
                 'enabled_by_name': interaction.user.display_name,
                 'engage': engage,
-                'argument_count': 0
+                'argument_count': 0,
+                'channel_id': None if everywhere else interaction.channel_id,
             }
             added.append(member.display_name)
 
@@ -611,6 +645,10 @@ Do NOT start with "Oh," or "Look," - start directly with the roast."""
             return
 
         guild_targets = self._targets_for_guild(message.guild.id)
+
+        target_info = guild_targets.get(message.author.id)
+        if target_info and not self._trolling_allowed_here(message, target_info):
+            return
 
         # PRIORITY 1: Check if this is a reply to Harry's troll message (argument mode)
         if message.reference and message.reference.message_id:

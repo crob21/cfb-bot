@@ -198,7 +198,7 @@ async def setup_dependencies():
             elif cog_name == 'AdminCog':
                 cog.set_dependencies(admin_manager=admin_manager, channel_manager=channel_manager, timekeeper_manager=timekeeper_manager, ai_assistant=ai_assistant, schedule_manager=schedule_manager)
             elif cog_name == 'FunCog':
-                cog.set_dependencies(admin_manager=admin_manager, ai_assistant=ai_assistant)
+                cog.set_dependencies(admin_manager=admin_manager, ai_assistant=ai_assistant, channel_manager=channel_manager)
             elif cog_name == 'RecruitingCog':
                 if hasattr(cog, 'admin_manager'):
                     cog.admin_manager = admin_manager
