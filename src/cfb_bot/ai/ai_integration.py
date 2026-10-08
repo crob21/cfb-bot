@@ -15,12 +15,36 @@ from dotenv import load_dotenv
 from ..utils.storage import get_storage
 from ..security import HTTP_TIMEOUT, sanitize_ai_response
 
-from ..config import GAME_NAME
+from ..config import (ANTHROPIC_COST_PER_1K, ANTHROPIC_MODEL, GAME_NAME,
+                      OPENAI_COST_PER_1K, OPENAI_MODEL)
 
 # Load environment variables
 load_dotenv()
 
 logger = logging.getLogger('CFBBot.AI')
+
+def openai_request_body(model: str, system: str, prompt: str, max_tokens: int) -> dict:
+    """
+    Build the OpenAI chat-completions body for a model.
+
+    The GPT-5 and o-series models renamed max_tokens to max_completion_tokens and only
+    accept the default temperature, so sending the older parameters 400s every call.
+    """
+    body = {
+        'model': model,
+        'messages': [
+            {'role': 'system', 'content': system},
+            {'role': 'user', 'content': prompt},
+        ],
+    }
+    newer_model = model.startswith(('gpt-5', 'o1', 'o3', 'o4'))
+    if newer_model:
+        body['max_completion_tokens'] = max_tokens
+    else:
+        body['max_tokens'] = max_tokens
+        body['temperature'] = 0.7
+    return body
+
 
 class AICharterAssistant:
     """AI-powered assistant for league charter questions"""
@@ -38,9 +62,9 @@ class AICharterAssistant:
         self.total_anthropic_tokens = 0
         self.total_requests = 0
 
-        # Cost tracking (per 1k tokens - averaged input/output)
-        self.openai_cost_per_1k = 0.001  # GPT-3.5-turbo average
-        self.anthropic_cost_per_1k = 0.002  # Claude Haiku 4.5 blended ($1/$5 per 1M in/out)
+        # Cost tracking (per 1k tokens - averaged input/output), from config.py
+        self.openai_cost_per_1k = OPENAI_COST_PER_1K
+        self.anthropic_cost_per_1k = ANTHROPIC_COST_PER_1K
 
         # Storage
         self._storage = get_storage()
@@ -258,15 +282,12 @@ class AICharterAssistant:
             - Do NOT make up specific league schedules, rosters, or game results
             """
 
-        data = {
-            'model': 'gpt-3.5-turbo',
-            'messages': [
-                {'role': 'system', 'content': f'{personality} Be hilariously sarcastic and helpful.'},
-                {'role': 'user', 'content': prompt}
-            ],
-            'max_tokens': max_tokens,
-            'temperature': 0.7
-        }
+        data = openai_request_body(
+            OPENAI_MODEL,
+            f'{personality} Be hilariously sarcastic and helpful.',
+            prompt,
+            max_tokens,
+        )
 
         try:
             # Log the full prompt being sent
@@ -428,7 +449,7 @@ class AICharterAssistant:
             """
 
         data = {
-            'model': 'claude-haiku-4-5',
+            'model': ANTHROPIC_MODEL,
             'max_tokens': max_tokens,
             'messages': [
                 {'role': 'user', 'content': prompt}
