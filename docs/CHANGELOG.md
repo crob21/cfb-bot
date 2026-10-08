@@ -3,6 +3,13 @@
 Full release history for Harry. The bot's `/changelog` command shows the most recent releases;
 this file keeps everything. Generated from `src/cfb_bot/utils/version_manager.py`.
 
+## 3.17.4 — No More Silent /harry 💬 (2026-10-08)
+
+### Fixes
+- FIX: /harry and /ask returned nothing at all when no AI key was configured
+- Both commands now answer immediately, so Discord can't expire the reply
+- Harry says which API key is missing instead of a vague apology
+
 ## 3.17.3 — Blank Settings Can't Kill Harry 🛡️ (2026-10-08)
 
 ### Fixes

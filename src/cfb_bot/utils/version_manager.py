@@ -15,11 +15,27 @@ def version_key(version: str) -> tuple:
     return tuple(int(part) for part in version.split('.'))
 
 # Current version
-CURRENT_VERSION = "3.17.3"
+CURRENT_VERSION = "3.17.4"
 
 # Recent releases, newest first. /changelog reads these; the full history is in
 # docs/CHANGELOG.md. Add new releases at the top.
 CHANGELOG: Dict[str, Dict] = {
+    "3.17.4": {
+        "date": "2026-10-08",
+        "title": "No More Silent /harry 💬",
+        "emoji": "💬",
+        "features": [
+            {
+                "category": "Fixes",
+                "emoji": "🔧",
+                "changes": [
+                    "FIX: /harry and /ask returned nothing at all when no AI key was configured",
+                    "Both commands now answer immediately, so Discord can't expire the reply",
+                    "Harry says which API key is missing instead of a vague apology"
+                ]
+            }
+        ]
+    },
     "3.17.3": {
         "date": "2026-10-08",
         "title": "Blank Settings Can't Kill Harry 🛡️",
