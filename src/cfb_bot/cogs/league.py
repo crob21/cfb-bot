@@ -40,7 +40,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from ..config import GAME_NAME, Colors
-from ..services.checks import check_module_enabled, check_module_enabled_deferred
+from ..services.checks import check_module_enabled, check_module_enabled_deferred, requires_admin, requires_module
 from ..utils.server_config import server_config, FeatureModule
 # Week schedule constants and helpers live in one canonical place: utils/timekeeper.py.
 # That module also drives advance/increment and season rollover, so reusing it here
@@ -165,14 +165,10 @@ class LeagueCog(commands.Cog):
 
     @league_group.command(name="timer", description="Start advance countdown timer (Admin only)")
     @app_commands.describe(hours="Number of hours for the countdown (default: 48)")
+    @requires_module(FeatureModule.LEAGUE)
+    @requires_admin("❌ Only bot admins can start countdowns!")
     async def timer(self, interaction: discord.Interaction, hours: int = 48):
         """Start the advance countdown timer"""
-        if not await check_module_enabled(interaction, FeatureModule.LEAGUE, server_config):
-            return
-
-        if not self._is_league_admin(interaction):
-            await interaction.response.send_message("❌ Only bot admins can start countdowns!", ephemeral=True)
-            return
 
         if not self.timekeeper_manager:
             await interaction.response.send_message("❌ Timekeeper not available", ephemeral=True)
@@ -233,14 +229,10 @@ class LeagueCog(commands.Cog):
         league="Name of the side league, e.g. Madden",
         hours="Number of hours for the countdown (default: 24)",
     )
+    @requires_module(FeatureModule.LEAGUE)
+    @requires_admin("❌ Only admins can start countdowns!")
     async def side_timer(self, interaction: discord.Interaction, league: str, hours: int = 24):
         """Start (or restart) a named countdown that never touches the dynasty week."""
-        if not await check_module_enabled(interaction, FeatureModule.LEAGUE, server_config):
-            return
-
-        if not self._is_league_admin(interaction):
-            await interaction.response.send_message("❌ Only admins can start countdowns!", ephemeral=True)
-            return
 
         if not self.timekeeper_manager:
             await interaction.response.send_message("❌ Timekeeper not available", ephemeral=True)
@@ -284,14 +276,10 @@ class LeagueCog(commands.Cog):
 
     @league_group.command(name="side_timer_stop", description="Stop a side league's countdown")
     @app_commands.describe(league="Name of the side league to stop")
+    @requires_module(FeatureModule.LEAGUE)
+    @requires_admin("❌ Only admins can stop timers!")
     async def side_timer_stop(self, interaction: discord.Interaction, league: str):
         """Stop a named side-league countdown."""
-        if not await check_module_enabled(interaction, FeatureModule.LEAGUE, server_config):
-            return
-
-        if not self._is_league_admin(interaction):
-            await interaction.response.send_message("❌ Only admins can stop timers!", ephemeral=True)
-            return
 
         if not self.timekeeper_manager:
             await interaction.response.send_message("❌ Timekeeper not available", ephemeral=True)
@@ -307,10 +295,9 @@ class LeagueCog(commands.Cog):
         await interaction.response.send_message(message, ephemeral=True)
 
     @league_group.command(name="timer_status", description="Check the current advance countdown status")
+    @requires_module(FeatureModule.LEAGUE)
     async def timer_status(self, interaction: discord.Interaction):
         """Check the current advance countdown status"""
-        if not await check_module_enabled(interaction, FeatureModule.LEAGUE, server_config):
-            return
 
         await interaction.response.defer()
 
@@ -399,14 +386,10 @@ class LeagueCog(commands.Cog):
         await interaction.followup.send(embed=embed)
 
     @league_group.command(name="timer_stop", description="Stop the current advance countdown (Admin only)")
+    @requires_module(FeatureModule.LEAGUE)
+    @requires_admin("❌ Only admins can stop timers!")
     async def timer_stop(self, interaction: discord.Interaction):
         """Stop the current advance countdown"""
-        if not await check_module_enabled(interaction, FeatureModule.LEAGUE, server_config):
-            return
-
-        if not self._is_league_admin(interaction):
-            await interaction.response.send_message("❌ Only admins can stop timers!", ephemeral=True)
-            return
 
         if not self.timekeeper_manager:
             await interaction.response.send_message("❌ Timekeeper not available", ephemeral=True)
@@ -421,14 +404,10 @@ class LeagueCog(commands.Cog):
         await interaction.response.send_message(embed=embed)
 
     @league_group.command(name="timers", description="List all active advance timers and stop them (Admin only)")
+    @requires_module(FeatureModule.LEAGUE)
+    @requires_admin("❌ Only admins can manage timers!")
     async def timers(self, interaction: discord.Interaction):
         """List every active timer with a menu to stop them one at a time."""
-        if not await check_module_enabled(interaction, FeatureModule.LEAGUE, server_config):
-            return
-
-        if not self._is_league_admin(interaction):
-            await interaction.response.send_message("❌ Only admins can manage timers!", ephemeral=True)
-            return
 
         if not self.timekeeper_manager:
             await interaction.response.send_message("❌ Timekeeper not available", ephemeral=True)
@@ -627,10 +606,9 @@ class LeagueCog(commands.Cog):
 
     @league_group.command(name="games", description="View the games for a specific week")
     @app_commands.describe(week="Game week number (0-14, leave empty for current)")
+    @requires_module(FeatureModule.LEAGUE)
     async def games(self, interaction: discord.Interaction, week: Optional[int] = None):
         """View the schedule for a specific week"""
-        if not await check_module_enabled(interaction, FeatureModule.LEAGUE, server_config):
-            return
 
         await interaction.response.defer()
 
@@ -687,10 +665,9 @@ class LeagueCog(commands.Cog):
 
     @league_group.command(name="schedule", description="View the full season schedule, or one team's whole season")
     @app_commands.describe(team="Optional — show just this team's season (leave empty for the whole league)")
+    @requires_module(FeatureModule.LEAGUE)
     async def schedule(self, interaction: discord.Interaction, team: Optional[str] = None):
         """Show the full season schedule for the league or a single team"""
-        if not await check_module_enabled(interaction, FeatureModule.LEAGUE, server_config):
-            return
 
         await interaction.response.defer()
 
@@ -762,10 +739,9 @@ class LeagueCog(commands.Cog):
 
     @league_group.command(name="find_game", description="Find a team's game for a specific week")
     @app_commands.describe(team="Team name", week="Game week number (0-14, leave empty for current)")
+    @requires_module(FeatureModule.LEAGUE)
     async def find_game(self, interaction: discord.Interaction, team: str, week: Optional[int] = None):
         """Find a team's game"""
-        if not await check_module_enabled(interaction, FeatureModule.LEAGUE, server_config):
-            return
 
         await interaction.response.defer()
 
@@ -809,10 +785,9 @@ class LeagueCog(commands.Cog):
 
     @league_group.command(name="byes", description="Show which teams have a bye this week")
     @app_commands.describe(week="Game week number (0-14, leave empty for current)")
+    @requires_module(FeatureModule.LEAGUE)
     async def byes(self, interaction: discord.Interaction, week: Optional[int] = None):
         """Show teams on bye"""
-        if not await check_module_enabled(interaction, FeatureModule.LEAGUE, server_config):
-            return
 
         await interaction.response.defer()
 
@@ -848,14 +823,10 @@ class LeagueCog(commands.Cog):
 
     @league_group.command(name="set_week", description="Set the current season and week (Admin only)")
     @app_commands.describe(season="Season number", week=f"Step number ({FIRST_WEEK}-{LAST_WEEK}, see /league weeks)")
+    @requires_module(FeatureModule.LEAGUE)
+    @requires_admin("❌ Only admins can set season/week!")
     async def set_week(self, interaction: discord.Interaction, season: int, week: int):
         """Set the current season and week"""
-        if not await check_module_enabled(interaction, FeatureModule.LEAGUE, server_config):
-            return
-
-        if not self._is_league_admin(interaction):
-            await interaction.response.send_message("❌ Only admins can set season/week!", ephemeral=True)
-            return
 
         if not self.timekeeper_manager:
             await interaction.response.send_message("❌ Timekeeper not available", ephemeral=True)
@@ -883,14 +854,11 @@ class LeagueCog(commands.Cog):
 
     @league_group.command(name="upload_schedule", description="Upload a full schedule JSON file (Admin only)")
     @app_commands.describe(file="A .json schedule file (see /league schedule_template for the format)")
+    @requires_module(FeatureModule.LEAGUE)
+    @requires_admin("❌ Only admins can upload schedules!")
     async def upload_schedule(self, interaction: discord.Interaction, file: discord.Attachment):
         """Replace the league schedule from an uploaded JSON file — no git needed."""
-        if not await check_module_enabled(interaction, FeatureModule.LEAGUE, server_config):
-            return
 
-        if not self._is_league_admin(interaction):
-            await interaction.response.send_message("❌ Only admins can upload schedules!", ephemeral=True)
-            return
         if not self.schedule_manager:
             await interaction.response.send_message("❌ Schedule manager not available", ephemeral=True)
             return
@@ -937,14 +905,11 @@ class LeagueCog(commands.Cog):
         games="Comma-separated matchups as away@home, e.g. 'Stanford@Texas, LSU@FSU'",
         byes="Comma-separated teams on bye (optional), e.g. 'Nebraska, USF'",
     )
+    @requires_module(FeatureModule.LEAGUE)
+    @requires_admin("❌ Only admins can edit the schedule!")
     async def set_week_games(self, interaction: discord.Interaction, week: int, games: str, byes: Optional[str] = None):
         """Edit a single week's schedule from Discord without a file."""
-        if not await check_module_enabled(interaction, FeatureModule.LEAGUE, server_config):
-            return
 
-        if not self._is_league_admin(interaction):
-            await interaction.response.send_message("❌ Only admins can edit the schedule!", ephemeral=True)
-            return
         if not self.schedule_manager:
             await interaction.response.send_message("❌ Schedule manager not available", ephemeral=True)
             return
@@ -1024,14 +989,10 @@ class LeagueCog(commands.Cog):
 
     @league_group.command(name="timer_channel", description="Set the channel for timer notifications (Admin only)")
     @app_commands.describe(channel="Channel for timer notifications")
+    @requires_module(FeatureModule.LEAGUE)
+    @requires_admin("❌ Only admins can set the timer channel!")
     async def timer_channel(self, interaction: discord.Interaction, channel: discord.TextChannel):
         """Set the notification channel"""
-        if not await check_module_enabled(interaction, FeatureModule.LEAGUE, server_config):
-            return
-
-        if not self._is_league_admin(interaction):
-            await interaction.response.send_message("❌ Only admins can set the timer channel!", ephemeral=True)
-            return
 
         if not self.timekeeper_manager:
             await interaction.response.send_message("❌ Timekeeper not available", ephemeral=True)
@@ -1072,14 +1033,10 @@ class LeagueCog(commands.Cog):
 
     @league_group.command(name="set_owner", description="Set the league owner (Admin only)")
     @app_commands.describe(user="User to set as league owner")
+    @requires_module(FeatureModule.LEAGUE)
+    @requires_admin("❌ Only admins can set the league owner!")
     async def set_owner(self, interaction: discord.Interaction, user: discord.User):
         """Set the league owner"""
-        if not await check_module_enabled(interaction, FeatureModule.LEAGUE, server_config):
-            return
-
-        if not self._is_league_admin(interaction):
-            await interaction.response.send_message("❌ Only admins can set the league owner!", ephemeral=True)
-            return
 
         if not self.timekeeper_manager:
             await interaction.response.send_message("❌ Timekeeper not available", ephemeral=True)
@@ -1098,6 +1055,8 @@ class LeagueCog(commands.Cog):
         user="User to set as co-commissioner",
         none="Set to 'None'"
     )
+    @requires_module(FeatureModule.LEAGUE)
+    @requires_admin("❌ Only admins can set the co-commissioner!")
     async def set_commish(
         self,
         interaction: discord.Interaction,
@@ -1105,12 +1064,6 @@ class LeagueCog(commands.Cog):
         none: Optional[bool] = False
     ):
         """Set the co-commissioner"""
-        if not await check_module_enabled(interaction, FeatureModule.LEAGUE, server_config):
-            return
-
-        if not self._is_league_admin(interaction):
-            await interaction.response.send_message("❌ Only admins can set the co-commissioner!", ephemeral=True)
-            return
 
         if not self.timekeeper_manager:
             await interaction.response.send_message("❌ Timekeeper not available", ephemeral=True)
@@ -1141,6 +1094,7 @@ class LeagueCog(commands.Cog):
         channel="Channel to analyze",
         hours="Hours of chat history (default: 168 = 1 week)"
     )
+    @requires_module(FeatureModule.LEAGUE)
     async def pick_commish(
         self,
         interaction: discord.Interaction,
@@ -1149,9 +1103,6 @@ class LeagueCog(commands.Cog):
     ):
         """Have Harry analyze chat and recommend a co-commissioner"""
         await interaction.response.defer()
-
-        if not await check_module_enabled_deferred(interaction, FeatureModule.LEAGUE, server_config):
-            return
 
         if not self._is_league_admin(interaction):
             await interaction.followup.send("❌ Only admins can ask me to pick a commish!", ephemeral=True)
