@@ -23,8 +23,10 @@ load_dotenv()
 
 logger = logging.getLogger('CFBBot.AI')
 
-# Reasoning models bill thinking against the completion cap; give the answer room.
+# Reasoning models bill thinking against the completion cap; give the answer room,
+# but don't let a long request (a charter rewrite) turn into a huge, slow, costly call.
 REASONING_TOKEN_HEADROOM = 4
+REASONING_TOKEN_CEILING = 16000
 
 
 def openai_request_body(model: str, system: str, prompt: str, max_tokens: int) -> dict:
@@ -46,7 +48,8 @@ def openai_request_body(model: str, system: str, prompt: str, max_tokens: int) -
         # These models spend tokens on internal reasoning out of the same budget, so a
         # tight cap gets used up before any visible text and the reply comes back blank.
         # Keep reasoning light and leave room for the answer.
-        body['max_completion_tokens'] = max(max_tokens * REASONING_TOKEN_HEADROOM, 2000)
+        body['max_completion_tokens'] = min(
+            max(max_tokens * REASONING_TOKEN_HEADROOM, 2000), REASONING_TOKEN_CEILING)
         body['reasoning_effort'] = 'low'
     else:
         body['max_tokens'] = max_tokens
@@ -83,7 +86,9 @@ def league_prompt(personality: str, charter: str, schedule: str, question: str) 
             they asked for a list. Do not volunteer the schedule, the charter, or this week's
             games unless the question calls for it.
 
-            The league's user-controlled teams: {teams_line}
+            The league's user-controlled teams RIGHT NOW: {teams_line}
+            That list is authoritative. The charter below may still name teams and coaches
+            from past seasons - never present those as current.
 
             Question: {question}
 
@@ -180,7 +185,8 @@ class AICharterAssistant:
         """Get charter content for AI context"""
         # Try to get content from local file first
         try:
-            charter_file = "data/charter_content.txt"
+            from ..config import CHARTER_FILE, CHARTER_FILE_LEGACY
+            charter_file = CHARTER_FILE if os.path.exists(CHARTER_FILE) else CHARTER_FILE_LEGACY
             if os.path.exists(charter_file):
                 with open(charter_file, 'r', encoding='utf-8') as f:
                     content = f.read()
@@ -300,6 +306,7 @@ class AICharterAssistant:
             max_tokens: Maximum tokens for response
             personality_prompt: Custom personality prompt
             include_league_context: Whether to include league schedule/charter info (False for non-league servers)
+            max_tokens: Cap on the answer - raise it for long output like a charter rewrite
         """
         # Check cache first
         cache_key = self._get_cache_key(question, include_league_context)
@@ -563,7 +570,7 @@ class AICharterAssistant:
             logger.error(f"Error calling Anthropic: {e}")
             return None
 
-    async def ask_ai(self, question: str, user_info: str = None, include_league_context: bool = True) -> Optional[str]:
+    async def ask_ai(self, question: str, user_info: str = None, include_league_context: bool = True, max_tokens: int = 500) -> Optional[str]:
         """Ask AI about the charter (tries OpenAI first, then Anthropic)
 
         Args:
@@ -590,14 +597,14 @@ class AICharterAssistant:
 
         # Try OpenAI first
         logger.info(f"Trying OpenAI... (include_league_context={include_league_context})")
-        response = await self.ask_openai(question, context, include_league_context=include_league_context)
+        response = await self.ask_openai(question, context, max_tokens=max_tokens, include_league_context=include_league_context)
         if response:
             logger.info("OpenAI response received")
             return response
 
         # Fallback to Anthropic
         logger.info("Trying Anthropic...")
-        response = await self.ask_anthropic(question, context, include_league_context=include_league_context)
+        response = await self.ask_anthropic(question, context, max_tokens=max_tokens, include_league_context=include_league_context)
         if response:
             logger.info("Anthropic response received")
         else:

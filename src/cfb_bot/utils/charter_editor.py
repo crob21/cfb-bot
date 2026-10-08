@@ -27,7 +27,9 @@ class CharterEditor:
     def __init__(self, ai_assistant=None, bot=None):
         self.ai_assistant = ai_assistant
         self.bot = bot  # Discord bot for persistence
-        self.charter_file = "data/charter_content.txt"
+        from ..config import CHARTER_FILE, CHARTER_FILE_LEGACY
+        self.charter_file = (CHARTER_FILE if os.path.exists(CHARTER_FILE)
+                             or not os.path.exists(CHARTER_FILE_LEGACY) else CHARTER_FILE_LEGACY)
         self.backup_dir = "data/charter_backups"
         self._discord_charter_loaded = False  # Track if we've loaded from Discord
 
@@ -527,6 +529,53 @@ Just provide the formatted rule text, nothing else."""
             logger.error(f"Error formatting rule with AI: {e}")
             return f"**Rule**: {rule_summary}"
 
+
+    async def revise_charter(self, instruction: str, league_facts: str = "") -> Optional[str]:
+        """
+        Rewrite the whole charter against an instruction, returning the new markdown.
+
+        Used for wholesale updates ("the teams changed, the cadence is a 48h timer").
+        Returns None if there's no AI or the result looks truncated - a short answer
+        here would silently delete most of the league's rules.
+        """
+        current = self.read_charter()
+        if not current:
+            logger.error("No charter to revise")
+            return None
+        if not self.ai_assistant:
+            logger.error("No AI assistant available to revise the charter")
+            return None
+
+        facts = f"\n\nCurrent league facts (use these to correct anything stale):\n{league_facts}" if league_facts else ""
+        prompt = f"""You are editing the {GAME_NAME} league charter.
+
+Apply this instruction: {instruction}{facts}
+
+Rules for your response:
+- Return the COMPLETE updated charter in markdown, start to finish
+- Keep every section that the instruction doesn't touch, word for word
+- Keep the existing heading structure and numbering
+- Professional tone - no jokes, this is the rulebook
+- Output only the charter itself, no preamble or commentary
+
+Current charter:
+{current}"""
+
+        logger.info(f"Requesting charter revision: {instruction[:80]}")
+        revised = await self.ai_assistant.ask_ai(
+            prompt, "Charter Editor", include_league_context=False, max_tokens=8000)
+
+        if not revised:
+            logger.error("Charter revision returned nothing")
+            return None
+
+        revised = revised.strip()
+        # Guard against a truncated answer wiping the rulebook
+        if len(revised) < len(current) * 0.6:
+            logger.error(
+                f"Charter revision looks truncated ({len(revised)} chars vs {len(current)}) - refusing")
+            return None
+        return revised
 
     def get_backup_list(self) -> List[Dict]:
         """Get a list of available charter backups"""
