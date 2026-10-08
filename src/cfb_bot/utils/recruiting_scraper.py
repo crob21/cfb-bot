@@ -22,7 +22,12 @@ from urllib.parse import quote_plus
 import httpx
 from bs4 import BeautifulSoup
 
+from .cache import get_cache
+
 logger = logging.getLogger('CFBBot.Recruiting')
+
+# Namespace in the shared cache (utils/cache.py), so /admin cache clear clears it too
+CACHE_NAMESPACE = '247sports'
 
 
 class RecruitingScraper:
@@ -64,8 +69,7 @@ class RecruitingScraper:
     }
 
     def __init__(self):
-        self._cache: Dict[str, Any] = {}
-        self._cache_ttl = timedelta(hours=1)  # Cache for 1 hour
+        self._cache_ttl_seconds = 3600  # Cache for 1 hour (shared cache, "247sports" namespace)
         self._last_request = datetime.min
         self._rate_limit_delay = 0.5  # 0.5 seconds between requests (polite but responsive)
 
@@ -96,17 +100,12 @@ class RecruitingScraper:
         self._last_request = datetime.now()
 
     def _get_cached(self, key: str) -> Optional[Any]:
-        """Get cached data if still valid"""
-        if key in self._cache:
-            data, timestamp = self._cache[key]
-            if datetime.now() - timestamp < self._cache_ttl:
-                logger.debug(f"Cache hit for {key}")
-                return data
-        return None
+        """Get cached data if still valid (shared cache, so /admin cache clear clears it)"""
+        return get_cache().get(key, namespace=CACHE_NAMESPACE)
 
     def _set_cached(self, key: str, data: Any):
-        """Cache data with timestamp"""
-        self._cache[key] = (data, datetime.now())
+        """Cache data with the scraper's TTL"""
+        get_cache().set(key, data, ttl_seconds=self._cache_ttl_seconds, namespace=CACHE_NAMESPACE)
 
     async def _fetch_page(self, url: str) -> Optional[str]:
         """Fetch a page with rate limiting and error handling"""

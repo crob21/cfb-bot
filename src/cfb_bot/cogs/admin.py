@@ -26,6 +26,7 @@ from discord.ext import commands
 
 from ..config import Colors, Footers
 from ..utils.server_config import server_config, FeatureModule
+from ..services.checks import requires_admin
 
 logger = logging.getLogger('CFBBot.Admin')
 
@@ -62,6 +63,7 @@ class AdminCog(commands.Cog):
         channel="Select a channel",
         channel_id="Or paste a channel ID"
     )
+    @requires_admin("❌ Only admins can set the admin channel!")
     async def set_channel(
         self,
         interaction: discord.Interaction,
@@ -69,9 +71,6 @@ class AdminCog(commands.Cog):
         channel_id: Optional[str] = None
     ):
         """Set the admin notification channel"""
-        if not self.admin_manager or not self.admin_manager.is_admin(interaction.user, interaction):
-            await interaction.response.send_message("❌ Only admins can set the admin channel!", ephemeral=True)
-            return
 
         if not interaction.guild:
             await interaction.response.send_message("❌ This only works in servers!", ephemeral=True)
@@ -106,14 +105,11 @@ class AdminCog(commands.Cog):
 
     @admin_group.command(name="add", description="Add a user as bot admin")
     @app_commands.describe(user="The user to make a bot admin")
+    @requires_admin("❌ You need to be a bot admin!")
     async def add(self, interaction: discord.Interaction, user: discord.Member):
         """Add a bot admin"""
         if not self.admin_manager:
             await interaction.response.send_message("❌ Admin manager not available", ephemeral=True)
-            return
-
-        if not self.admin_manager.is_admin(interaction.user, interaction):
-            await interaction.response.send_message("❌ You need to be a bot admin!", ephemeral=True)
             return
 
         success = self.admin_manager.add_admin(user.id)
@@ -134,14 +130,11 @@ class AdminCog(commands.Cog):
 
     @admin_group.command(name="remove", description="Remove a user as bot admin")
     @app_commands.describe(user="The user to remove as bot admin")
+    @requires_admin("❌ You need to be a bot admin!")
     async def remove(self, interaction: discord.Interaction, user: discord.Member):
         """Remove a bot admin"""
         if not self.admin_manager:
             await interaction.response.send_message("❌ Admin manager not available", ephemeral=True)
-            return
-
-        if not self.admin_manager.is_admin(interaction.user, interaction):
-            await interaction.response.send_message("❌ You need to be a bot admin!", ephemeral=True)
             return
 
         success = self.admin_manager.remove_admin(user.id)
@@ -194,11 +187,9 @@ class AdminCog(commands.Cog):
 
     @admin_group.command(name="block", description="Block unprompted responses in a channel")
     @app_commands.describe(channel="The channel to block")
+    @requires_admin("❌ Only admins can block channels!")
     async def block(self, interaction: discord.Interaction, channel: discord.TextChannel):
         """Block unprompted responses"""
-        if not self.admin_manager or not self.admin_manager.is_admin(interaction.user, interaction):
-            await interaction.response.send_message("❌ Only admins can block channels!", ephemeral=True)
-            return
 
         if not self.channel_manager:
             await interaction.response.send_message("❌ Channel manager not available", ephemeral=True)
@@ -222,11 +213,9 @@ class AdminCog(commands.Cog):
 
     @admin_group.command(name="unblock", description="Allow unprompted responses in a channel")
     @app_commands.describe(channel="The channel to unblock")
+    @requires_admin("❌ Only admins can unblock channels!")
     async def unblock(self, interaction: discord.Interaction, channel: discord.TextChannel):
         """Allow unprompted responses"""
-        if not self.admin_manager or not self.admin_manager.is_admin(interaction.user, interaction):
-            await interaction.response.send_message("❌ Only admins can unblock channels!", ephemeral=True)
-            return
 
         if not self.channel_manager:
             await interaction.response.send_message("❌ Channel manager not available", ephemeral=True)
@@ -528,15 +517,9 @@ class AdminCog(commands.Cog):
             await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @admin_group.command(name="sync", description="Force sync slash commands")
+    @requires_admin("❌ Only admins can sync commands!")
     async def sync_commands(self, interaction: discord.Interaction):
         """Force sync slash commands"""
-        is_admin = (
-            interaction.user.guild_permissions.administrator or
-            (self.admin_manager and self.admin_manager.is_admin(interaction.user, interaction))
-        )
-        if not is_admin:
-            await interaction.response.send_message("❌ Only admins can sync commands!", ephemeral=True)
-            return
 
         await interaction.response.defer(ephemeral=True)
 
@@ -666,19 +649,11 @@ class AdminCog(commands.Cog):
         app_commands.Choice(name="🌐 Zyte API (Official - Last 30 Days)", value="api"),
         app_commands.Choice(name="📋 Both (Side by Side)", value="both")
     ])
+    @requires_admin("❌ Only admins can view Zyte usage!")
     async def zyte_usage(self, interaction: discord.Interaction, view: str = "local"):
         """Check Zyte API usage statistics"""
         if not interaction.guild:
             await interaction.response.send_message("❌ This only works in servers!", ephemeral=True)
-            return
-
-        # Check if user is admin
-        is_admin = (
-            interaction.user.guild_permissions.administrator or
-            (self.admin_manager and self.admin_manager.is_admin(interaction.user, interaction))
-        )
-        if not is_admin:
-            await interaction.response.send_message("❌ Only admins can view Zyte usage!", ephemeral=True)
             return
 
         await interaction.response.defer(ephemeral=True)
@@ -908,19 +883,11 @@ class AdminCog(commands.Cog):
         app_commands.Choice(name="🌐 OpenAI API (Official - Today Only)", value="api"),
         app_commands.Choice(name="📋 Both (Side by Side)", value="both")
     ])
+    @requires_admin("❌ Only admins can view AI usage!")
     async def ai_usage(self, interaction: discord.Interaction, view: str = "local"):
         """Check AI token usage and cost statistics"""
         if not interaction.guild:
             await interaction.response.send_message("❌ This only works in servers!", ephemeral=True)
-            return
-
-        # Check if user is admin
-        is_admin = (
-            interaction.user.guild_permissions.administrator or
-            (self.admin_manager and self.admin_manager.is_admin(interaction.user, interaction))
-        )
-        if not is_admin:
-            await interaction.response.send_message("❌ Only admins can view AI usage!", ephemeral=True)
             return
 
         await interaction.response.defer(ephemeral=True)
@@ -1131,19 +1098,11 @@ class AdminCog(commands.Cog):
         app_commands.Choice(name="🗑️ Clear Recruiting Cache", value="clear_recruiting"),
         app_commands.Choice(name="🗑️ Clear All Cache", value="clear_all")
     ])
+    @requires_admin("❌ Only admins can manage cache!")
     async def cache_management(self, interaction: discord.Interaction, action: str = "stats"):
         """Manage bot cache"""
         if not interaction.guild:
             await interaction.response.send_message("❌ This only works in servers!", ephemeral=True)
-            return
-
-        # Check if user is admin
-        is_admin = (
-            interaction.user.guild_permissions.administrator or
-            (self.admin_manager and self.admin_manager.is_admin(interaction.user, interaction))
-        )
-        if not is_admin:
-            await interaction.response.send_message("❌ Only admins can manage cache!", ephemeral=True)
             return
 
         await interaction.response.defer(ephemeral=True)
@@ -1238,19 +1197,11 @@ class AdminCog(commands.Cog):
         app_commands.Choice(name="View (current)", value="view"),
         app_commands.Choice(name="Reconcile from Zyte & OpenAI", value="reconcile"),
     ])
+    @requires_admin("❌ Only admins can view budget!")
     async def budget_status(self, interaction: discord.Interaction, action: str = "view"):
         """View monthly budget status, or reconcile from provider APIs."""
         if not interaction.guild:
             await interaction.response.send_message("❌ This only works in servers!", ephemeral=True)
-            return
-
-        # Check if user is admin
-        is_admin = (
-            interaction.user.guild_permissions.administrator or
-            (self.admin_manager and self.admin_manager.is_admin(interaction.user, interaction))
-        )
-        if not is_admin:
-            await interaction.response.send_message("❌ Only admins can view budget!", ephemeral=True)
             return
 
         await interaction.response.defer(ephemeral=True)
@@ -1386,19 +1337,11 @@ class AdminCog(commands.Cog):
         app_commands.Choice(name="📊 View Now", value="view"),
         app_commands.Choice(name="📧 Send to All Admins", value="send")
     ])
+    @requires_admin("❌ Only admins can view digest!")
     async def weekly_digest(self, interaction: discord.Interaction, action: str = "view"):
         """View or send the weekly digest"""
         if not interaction.guild:
             await interaction.response.send_message("❌ This only works in servers!", ephemeral=True)
-            return
-
-        # Check if user is admin
-        is_admin = (
-            interaction.user.guild_permissions.administrator or
-            (self.admin_manager and self.admin_manager.is_admin(interaction.user, interaction))
-        )
-        if not is_admin:
-            await interaction.response.send_message("❌ Only admins can view digest!", ephemeral=True)
             return
 
         await interaction.response.defer(ephemeral=True)
@@ -1418,11 +1361,9 @@ class AdminCog(commands.Cog):
             )
 
     @admin_group.command(name="schedule_reload", description="Reload the league schedule from file (Admin only)")
+    @requires_admin("❌ Only admins can reload the schedule!")
     async def schedule_reload(self, interaction: discord.Interaction):
         """Reload the schedule from schedule.json without restarting the bot"""
-        if not self.admin_manager or not self.admin_manager.is_admin(interaction.user, interaction):
-            await interaction.response.send_message("❌ Only admins can reload the schedule!", ephemeral=True)
-            return
 
         if not self.schedule_manager:
             await interaction.response.send_message("❌ Schedule manager not available", ephemeral=True)

@@ -17,7 +17,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from ..config import Colors, Footers
-from ..services.checks import check_module_enabled_deferred
+from ..services.checks import check_module_enabled_deferred, requires_module
 from ..utils.server_config import server_config, FeatureModule
 from ..utils.hs_stats_scraper import hs_stats_scraper
 
@@ -43,6 +43,7 @@ class HSStatsCog(commands.Cog):
         state="Optional state to narrow search (e.g., 'Louisiana', 'TX')",
         school="Optional high school name to narrow search"
     )
+    @requires_module(FeatureModule.HS_STATS)
     async def stats(
         self,
         interaction: discord.Interaction,
@@ -60,9 +61,6 @@ class HSStatsCog(commands.Cog):
         """
         # Defer FIRST to avoid interaction timeout (3 sec limit)
         await interaction.response.defer()
-
-        if not await check_module_enabled_deferred(interaction, FeatureModule.HS_STATS, server_config):
-            return
 
         if not hs_stats_scraper.is_available:
             await interaction.followup.send(
@@ -139,6 +137,7 @@ class HSStatsCog(commands.Cog):
     @app_commands.describe(
         players="Comma-separated player names, e.g., 'Arch Manning (LA), Dylan Raiola (AZ)'"
     )
+    @requires_module(FeatureModule.HS_STATS)
     async def bulk(
         self,
         interaction: discord.Interaction,
@@ -154,9 +153,6 @@ class HSStatsCog(commands.Cog):
         """
         # Defer FIRST to avoid interaction timeout (3 sec limit)
         await interaction.response.defer()
-
-        if not await check_module_enabled_deferred(interaction, FeatureModule.HS_STATS, server_config):
-            return
 
         if not hs_stats_scraper.is_available:
             await interaction.followup.send(

@@ -22,7 +22,7 @@ from discord.ext import commands
 
 from ..config import Colors, Footers
 from ..services.checks import (check_module_enabled,
-                               check_module_enabled_deferred)
+                               check_module_enabled_deferred, requires_module)
 from ..utils.cache import get_cache
 from ..utils.cfb_data import cfb_data
 from ..utils.on3_scraper import on3_scraper
@@ -56,6 +56,270 @@ class RecruitingCog(commands.Cog):
         description="⭐ Recruiting rankings, commits, and player lookups"
     )
 
+    async def _lookup_recruit(self, scraper, source_name: str, name: str, year, position, deep_search: bool):
+        """Fetch a recruit, using the 24h cache before hitting the scraper."""
+        # Check cache first (24 hour TTL) - include position in cache key
+        cache = get_cache()
+        cache_key = f"{name.lower()}:{year or 'current'}:{source_name}:{deep_search}:{position or 'any'}"
+        recruit = cache.get(cache_key, namespace='recruiting')
+
+        if recruit:
+            logger.info(f"Cache HIT for {name} - saved API call!")
+        else:
+            # Cache miss - scrape the data
+            max_pages = 65 if deep_search else 20
+            recruit = await scraper.search_recruit(name, year, max_pages=max_pages, position=position)
+
+            if recruit:
+                # Cache successful lookups for 24 hours (86400 seconds)
+                cache.set(cache_key, recruit, ttl_seconds=86400, namespace='recruiting')
+                logger.info(f"Cached {name} for 24 hours")
+
+        return recruit
+
+    async def _send_candidate_picker(self, interaction, scraper, recruit, name: str, source_name: str, position, year):
+        """
+        Handle a search that matched several players.
+
+        Returns (handled, recruit): handled=True means a reply was already sent and the
+        command is done; otherwise recruit is the single player the search resolved to.
+        """
+        # Check if we got multiple candidates
+        if recruit and recruit.get('multiple'):
+            candidates = recruit.get('candidates', [])
+            query_name = recruit.get('query_name', name)
+            total_found = recruit.get('total_found', len(candidates))
+
+            if len(candidates) == 0:
+                # No candidates found (likely filtered out by position)
+                pos_msg = f" with position **{position}**" if position else ""
+                embed = discord.Embed(
+                    title="❓ No Players Found",
+                    description=f"Couldn't find **{query_name}**{pos_msg}.\n\n"
+                               f"💡 Try removing the position filter or check the spelling.",
+                    color=Colors.WARNING
+                )
+                embed.set_footer(text=f"Harry's Recruiting 🏈 | Data from {source_name}")
+                await interaction.followup.send(embed=embed, ephemeral=True)
+                return True, None
+            elif len(candidates) == 1:
+                # Exactly one candidate (possibly after position filter)
+                recruit = candidates[0]
+            else:
+                # Show selection menu
+                filter_msg = f" (filtered by position: **{position}**)" if position else ""
+
+                # Show "X of Y" if we had to limit results
+                count_msg = f"**{len(candidates)}** player(s)"
+                if total_found > len(candidates):
+                    count_msg = f"**{len(candidates)} of {total_found}** players (showing first 5 from search)"
+
+                embed = discord.Embed(
+                    title=f"🔍 Multiple players found: {query_name}",
+                    description=f"Found {count_msg} with this name{filter_msg}. Please select which one you're looking for:",
+                    color=Colors.WARNING
+                )
+
+                # Add each candidate as a field
+                for i, candidate in enumerate(candidates[:5], 1):  # Limit display to 5
+                    stars = '⭐' * candidate.get('stars', 0) if candidate.get('stars') else 'Unranked'
+                    pos = candidate.get('position', '?')
+                    school = candidate.get('committed_to') or candidate.get('high_school', 'Unknown')
+                    class_year = candidate.get('class', year or '?')
+
+                    field_value = f"**Position:** {pos}\n**Class:** {class_year}\n**Rating:** {stars}"
+                    if candidate.get('committed_to'):
+                        field_value += f"\n**Committed:** {candidate['committed_to']} ✅"
+                    elif candidate.get('high_school'):
+                        field_value += f"\n**HS:** {school}"
+
+                    embed.add_field(
+                        name=f"{i}. {candidate.get('name', query_name)}",
+                        value=field_value,
+                        inline=True
+                    )
+
+                # Create select menu
+                select = discord.ui.Select(
+                    placeholder="Choose which player you want to see...",
+                    options=[
+                        discord.SelectOption(
+                            label=f"{candidate.get('name', query_name)} ({candidate.get('position', '?')})",
+                            description=f"Class {candidate.get('class', '?')} - {(candidate.get('committed_to') or candidate.get('high_school') or 'Unknown')[:50]}",
+                            value=str(i)
+                        )
+                        for i, candidate in enumerate(candidates[:5])  # Limit to 5 options
+                    ]
+                )
+
+                async def select_callback(select_interaction: discord.Interaction):
+                    selected_idx = int(select.values[0])
+                    selected_recruit = candidates[selected_idx]
+
+                    # Build the full recruit embed
+                    result_embed = discord.Embed(
+                        title=f"⭐ Recruit: {selected_recruit.get('name', query_name)}",
+                        description=scraper.format_recruit(selected_recruit),
+                        color=Colors.RECRUITING
+                    )
+
+                    if selected_recruit.get('image_url'):
+                        result_embed.set_thumbnail(url=selected_recruit['image_url'])
+
+                    if selected_recruit.get('profile_url'):
+                        result_embed.add_field(
+                            name="🔗 Profile",
+                            value=f"[View Full Profile on On3/Rivals]({selected_recruit['profile_url']})",
+                            inline=False
+                        )
+
+                    result_embed.set_footer(text=f"Harry's Recruiting 🏈 | Data from {source_name}")
+                    await select_interaction.response.edit_message(embed=result_embed, view=None)
+
+                select.callback = select_callback
+                view = discord.ui.View(timeout=180)  # 3 minute timeout
+                view.add_item(select)
+
+                # Add helpful footer
+                footer_text = "Harry's Recruiting 🏈 | Use the menu below to select"
+                if total_found > 5 and not position:
+                    footer_text = "Harry's Recruiting 🏈 | 💡 Tip: Use position: filter to narrow results"
+
+                embed.set_footer(text=footer_text)
+                await interaction.followup.send(embed=embed, view=view)
+                return True, None
+
+        return False, recruit
+
+    async def _send_recruit(self, interaction, scraper, recruit, name: str, source_name: str, deep_search: bool):
+        """Post the recruit's profile embed."""
+        embed = discord.Embed(
+            title=f"⭐ Recruit: {recruit.get('name', name)}",
+            description=scraper.format_recruit(recruit),
+            color=Colors.RECRUITING
+        )
+
+        if recruit.get('image_url'):
+            embed.set_thumbnail(url=recruit['image_url'])
+
+        # Auto-fetch college stats for transfer portal players
+        if recruit.get('is_transfer'):
+            college_stats = None
+            recruit_name = recruit.get('name', name)
+            previous_school = recruit.get('previous_school')
+
+            # Try 1: Full name lookup
+            try:
+                college_stats = await cfb_data.get_full_player_info(recruit_name, previous_school)
+            except Exception as e:
+                logger.debug(f"Full name CFB lookup failed for {recruit_name}: {e}")
+
+            # Try 2: Last name only with position matching (handles nicknames like "Hollywood Smothers" -> "Daylan Smothers")
+            if not college_stats:
+                name_parts = recruit_name.split()
+                if len(name_parts) >= 2:
+                    last_name = name_parts[-1]
+                    on3_pos = recruit.get('position', '').upper()
+                    try:
+                        players = await cfb_data.search_player(last_name, previous_school)
+                        if players and on3_pos:
+                            # Position group mapping
+                            pos_groups = {
+                                'RB': ['RB', 'HB', 'FB'], 'WR': ['WR'], 'QB': ['QB'], 'TE': ['TE'],
+                                'OT': ['OT', 'OL', 'T'], 'OG': ['OG', 'OL', 'G'], 'C': ['C', 'OL'],
+                                'DL': ['DL', 'DE', 'DT', 'NT'], 'DE': ['DE', 'DL', 'EDGE'],
+                                'LB': ['LB', 'ILB', 'OLB'], 'CB': ['CB', 'DB'], 'S': ['S', 'SS', 'FS', 'DB'],
+                            }
+                            valid_pos = pos_groups.get(on3_pos, [on3_pos])
+                            for p in players:
+                                cfb_pos = (p.get('position') or '').upper()
+                                if cfb_pos in valid_pos or on3_pos in cfb_pos:
+                                    college_stats = await cfb_data.get_full_player_info(p.get('name'), p.get('team'))
+                                    if college_stats:
+                                        logger.info(f"Found college stats via last name match: {p.get('name')}")
+                                        break
+                        elif players:
+                            # No position to match, take first result
+                            college_stats = await cfb_data.get_full_player_info(players[0].get('name'), players[0].get('team'))
+                    except Exception as e:
+                        logger.debug(f"Last name CFB lookup failed: {e}")
+
+            # Display college stats if found
+            if college_stats and college_stats.get('stats'):
+                stats_lines = []
+                team_name = college_stats.get('team', '')
+                if team_name:
+                    stats_lines.append(f"**School:** {team_name}")
+
+                stats = college_stats.get('stats', {})
+                years = sorted(stats.keys(), reverse=True)
+                for yr in years[:2]:
+                    ys = stats[yr]
+                    stat_str = None
+                    if ys.get('receiving', {}).get('YDS'):
+                        stat_str = f"🎯 {ys['receiving'].get('REC', 0)} REC | {ys['receiving']['YDS']} YDS | {ys['receiving'].get('TD', 0)} TD"
+                    elif ys.get('rushing', {}).get('YDS'):
+                        stat_str = f"🏃 {ys['rushing'].get('CAR', 0)} CAR | {ys['rushing']['YDS']} YDS | {ys['rushing'].get('TD', 0)} TD"
+                    elif ys.get('passing', {}).get('YDS'):
+                        stat_str = f"🎯 {ys['passing']['YDS']} YDS | {ys['passing'].get('TD', 0)} TD | {ys['passing'].get('INT', 0)} INT"
+                    elif ys.get('defense', {}).get('TOT') or ys.get('defense', {}).get('SOLO'):
+                        d = ys['defense']
+                        stat_str = f"🛡️ {d.get('TOT', d.get('SOLO', 0))} TKL | {d.get('TFL', 0)} TFL | {d.get('SACKS', 0)} Sacks"
+                    if stat_str:
+                        stats_lines.append(f"**{yr}:** {stat_str}")
+
+                if stats_lines:
+                    embed.add_field(
+                        name="🏈 College Stats (Transfer)",
+                        value='\n'.join(stats_lines),
+                        inline=False
+                    )
+
+        # Profile link at bottom
+        if recruit.get('profile_url'):
+            embed.add_field(
+                name="🔗 Profile",
+                value=f"[View Full Profile on On3/Rivals]({recruit['profile_url']})",
+                inline=False
+            )
+
+        footer = f"Harry's Recruiting 🏈 | Data from {source_name}"
+        if recruit.get('is_transfer'):
+            footer = f"Harry's Portal Tracker 🔄 | Data from {source_name}"
+        elif deep_search and source_name == "247Sports Composite":
+            footer += " | Deep Search"
+        embed.set_footer(text=footer)
+        await interaction.followup.send(embed=embed)
+
+    async def _send_not_found(self, interaction, name: str, source_name: str, position, deep_search: bool):
+        """Post the 'no such recruit' embed with search tips."""
+        tips = [
+            "• Check the spelling",
+            "• Try the full name",
+            "• Specify the year if not current class",
+        ]
+        if not position:
+            tips.append("• Add `position:WR` (or QB, RB, etc.) if multiple players share this name")
+        if not deep_search and source_name == "247Sports Composite":
+            tips.append("• Try `deep_search:True` to search all ~3000 ranked recruits")
+
+        # Suggest alternative source
+        if source_name == "On3/Rivals":
+            tips.append("• Try `/recruiting source 247sports` if On3 is blocked")
+        else:
+            tips.append("• Try `/recruiting source on3` for transfer portal data")
+
+        embed = discord.Embed(
+            title="❓ Recruit Not Found",
+            description=f"Couldn't find **{name}** in {source_name}.\n\n"
+                       f"💡 **Tips:**\n" + '\n'.join(tips),
+            color=Colors.WARNING
+        )
+        embed.set_footer(text=f"Harry's Recruiting 🏈 | Data from {source_name}")
+        # Send as followup (we deferred at start, so this will be public)
+        await interaction.followup.send(embed=embed)
+
+
     @recruiting_group.command(name="player", description="Look up a recruit's ranking")
     @app_commands.describe(
         name="Recruit name (e.g., 'Arch Manning')",
@@ -78,6 +342,7 @@ class RecruitingCog(commands.Cog):
         app_commands.Choice(name="S - Safety", value="S"),
         app_commands.Choice(name="ATH - Athlete", value="ATH"),
     ])
+    @requires_module(FeatureModule.RECRUITING)
     async def player(
         self,
         interaction: discord.Interaction,
@@ -87,8 +352,6 @@ class RecruitingCog(commands.Cog):
         deep_search: bool = False
     ):
         """Look up a recruit from configured recruiting source"""
-        if not await check_module_enabled(interaction, FeatureModule.RECRUITING, server_config):
-            return
 
         # Defer immediately as PUBLIC - On3 searches can take 5-10+ seconds with retries/blocks
         # This means "not found" errors will also be public, but that's better than interaction timeout
@@ -106,253 +369,19 @@ class RecruitingCog(commands.Cog):
             pos_filter = f" (position: {position})" if position else ""
             logger.info(f"/recruiting player: {name} ({year or 'current'}){pos_filter} via {source_name} - {search_depth}")
 
-            # Check cache first (24 hour TTL) - include position in cache key
-            cache = get_cache()
-            cache_key = f"{name.lower()}:{year or 'current'}:{source_name}:{deep_search}:{position or 'any'}"
-            recruit = cache.get(cache_key, namespace='recruiting')
+            recruit = await self._lookup_recruit(scraper, source_name, name, year, position, deep_search)
 
-            if recruit:
-                logger.info(f"Cache HIT for {name} - saved API call!")
-            else:
-                # Cache miss - scrape the data
-                max_pages = 65 if deep_search else 20
-                recruit = await scraper.search_recruit(name, year, max_pages=max_pages, position=position)
-
-                if recruit:
-                    # Cache successful lookups for 24 hours (86400 seconds)
-                    cache.set(cache_key, recruit, ttl_seconds=86400, namespace='recruiting')
-                    logger.info(f"Cached {name} for 24 hours")
-
-            # Check if we got multiple candidates
             if recruit and recruit.get('multiple'):
-                candidates = recruit.get('candidates', [])
-                query_name = recruit.get('query_name', name)
-                total_found = recruit.get('total_found', len(candidates))
-
-                if len(candidates) == 0:
-                    # No candidates found (likely filtered out by position)
-                    pos_msg = f" with position **{position}**" if position else ""
-                    embed = discord.Embed(
-                        title="❓ No Players Found",
-                        description=f"Couldn't find **{query_name}**{pos_msg}.\n\n"
-                                   f"💡 Try removing the position filter or check the spelling.",
-                        color=Colors.WARNING
-                    )
-                    embed.set_footer(text=f"Harry's Recruiting 🏈 | Data from {source_name}")
-                    await interaction.followup.send(embed=embed, ephemeral=True)
-                    return
-                elif len(candidates) == 1:
-                    # Exactly one candidate (possibly after position filter)
-                    recruit = candidates[0]
-                else:
-                    # Show selection menu
-                    filter_msg = f" (filtered by position: **{position}**)" if position else ""
-
-                    # Show "X of Y" if we had to limit results
-                    count_msg = f"**{len(candidates)}** player(s)"
-                    if total_found > len(candidates):
-                        count_msg = f"**{len(candidates)} of {total_found}** players (showing first 5 from search)"
-
-                    embed = discord.Embed(
-                        title=f"🔍 Multiple players found: {query_name}",
-                        description=f"Found {count_msg} with this name{filter_msg}. Please select which one you're looking for:",
-                        color=Colors.WARNING
-                    )
-
-                    # Add each candidate as a field
-                    for i, candidate in enumerate(candidates[:5], 1):  # Limit display to 5
-                        stars = '⭐' * candidate.get('stars', 0) if candidate.get('stars') else 'Unranked'
-                        pos = candidate.get('position', '?')
-                        school = candidate.get('committed_to') or candidate.get('high_school', 'Unknown')
-                        class_year = candidate.get('class', year or '?')
-
-                        field_value = f"**Position:** {pos}\n**Class:** {class_year}\n**Rating:** {stars}"
-                        if candidate.get('committed_to'):
-                            field_value += f"\n**Committed:** {candidate['committed_to']} ✅"
-                        elif candidate.get('high_school'):
-                            field_value += f"\n**HS:** {school}"
-
-                        embed.add_field(
-                            name=f"{i}. {candidate.get('name', query_name)}",
-                            value=field_value,
-                            inline=True
-                        )
-
-                    # Create select menu
-                    select = discord.ui.Select(
-                        placeholder="Choose which player you want to see...",
-                        options=[
-                            discord.SelectOption(
-                                label=f"{candidate.get('name', query_name)} ({candidate.get('position', '?')})",
-                                description=f"Class {candidate.get('class', '?')} - {(candidate.get('committed_to') or candidate.get('high_school') or 'Unknown')[:50]}",
-                                value=str(i)
-                            )
-                            for i, candidate in enumerate(candidates[:5])  # Limit to 5 options
-                        ]
-                    )
-
-                    async def select_callback(select_interaction: discord.Interaction):
-                        selected_idx = int(select.values[0])
-                        selected_recruit = candidates[selected_idx]
-
-                        # Build the full recruit embed
-                        result_embed = discord.Embed(
-                            title=f"⭐ Recruit: {selected_recruit.get('name', query_name)}",
-                            description=scraper.format_recruit(selected_recruit),
-                            color=Colors.RECRUITING
-                        )
-
-                        if selected_recruit.get('image_url'):
-                            result_embed.set_thumbnail(url=selected_recruit['image_url'])
-
-                        if selected_recruit.get('profile_url'):
-                            result_embed.add_field(
-                                name="🔗 Profile",
-                                value=f"[View Full Profile on On3/Rivals]({selected_recruit['profile_url']})",
-                                inline=False
-                            )
-
-                        result_embed.set_footer(text=f"Harry's Recruiting 🏈 | Data from {source_name}")
-                        await select_interaction.response.edit_message(embed=result_embed, view=None)
-
-                    select.callback = select_callback
-                    view = discord.ui.View(timeout=180)  # 3 minute timeout
-                    view.add_item(select)
-
-                    # Add helpful footer
-                    footer_text = "Harry's Recruiting 🏈 | Use the menu below to select"
-                    if total_found > 5 and not position:
-                        footer_text = "Harry's Recruiting 🏈 | 💡 Tip: Use position: filter to narrow results"
-
-                    embed.set_footer(text=footer_text)
-                    await interaction.followup.send(embed=embed, view=view)
+                handled, recruit = await self._send_candidate_picker(
+                    interaction, scraper, recruit, name, source_name, position, year
+                )
+                if handled:
                     return
 
             if recruit:
-                embed = discord.Embed(
-                    title=f"⭐ Recruit: {recruit.get('name', name)}",
-                    description=scraper.format_recruit(recruit),
-                    color=Colors.RECRUITING
-                )
-
-                if recruit.get('image_url'):
-                    embed.set_thumbnail(url=recruit['image_url'])
-
-                # Auto-fetch college stats for transfer portal players
-                if recruit.get('is_transfer'):
-                    college_stats = None
-                    recruit_name = recruit.get('name', name)
-                    previous_school = recruit.get('previous_school')
-
-                    # Try 1: Full name lookup
-                    try:
-                        college_stats = await cfb_data.get_full_player_info(recruit_name, previous_school)
-                    except Exception as e:
-                        logger.debug(f"Full name CFB lookup failed for {recruit_name}: {e}")
-
-                    # Try 2: Last name only with position matching (handles nicknames like "Hollywood Smothers" -> "Daylan Smothers")
-                    if not college_stats:
-                        name_parts = recruit_name.split()
-                        if len(name_parts) >= 2:
-                            last_name = name_parts[-1]
-                            on3_pos = recruit.get('position', '').upper()
-                            try:
-                                players = await cfb_data.search_player(last_name, previous_school)
-                                if players and on3_pos:
-                                    # Position group mapping
-                                    pos_groups = {
-                                        'RB': ['RB', 'HB', 'FB'], 'WR': ['WR'], 'QB': ['QB'], 'TE': ['TE'],
-                                        'OT': ['OT', 'OL', 'T'], 'OG': ['OG', 'OL', 'G'], 'C': ['C', 'OL'],
-                                        'DL': ['DL', 'DE', 'DT', 'NT'], 'DE': ['DE', 'DL', 'EDGE'],
-                                        'LB': ['LB', 'ILB', 'OLB'], 'CB': ['CB', 'DB'], 'S': ['S', 'SS', 'FS', 'DB'],
-                                    }
-                                    valid_pos = pos_groups.get(on3_pos, [on3_pos])
-                                    for p in players:
-                                        cfb_pos = (p.get('position') or '').upper()
-                                        if cfb_pos in valid_pos or on3_pos in cfb_pos:
-                                            college_stats = await cfb_data.get_full_player_info(p.get('name'), p.get('team'))
-                                            if college_stats:
-                                                logger.info(f"Found college stats via last name match: {p.get('name')}")
-                                                break
-                                elif players:
-                                    # No position to match, take first result
-                                    college_stats = await cfb_data.get_full_player_info(players[0].get('name'), players[0].get('team'))
-                            except Exception as e:
-                                logger.debug(f"Last name CFB lookup failed: {e}")
-
-                    # Display college stats if found
-                    if college_stats and college_stats.get('stats'):
-                        stats_lines = []
-                        team_name = college_stats.get('team', '')
-                        if team_name:
-                            stats_lines.append(f"**School:** {team_name}")
-
-                        stats = college_stats.get('stats', {})
-                        years = sorted(stats.keys(), reverse=True)
-                        for yr in years[:2]:
-                            ys = stats[yr]
-                            stat_str = None
-                            if ys.get('receiving', {}).get('YDS'):
-                                stat_str = f"🎯 {ys['receiving'].get('REC', 0)} REC | {ys['receiving']['YDS']} YDS | {ys['receiving'].get('TD', 0)} TD"
-                            elif ys.get('rushing', {}).get('YDS'):
-                                stat_str = f"🏃 {ys['rushing'].get('CAR', 0)} CAR | {ys['rushing']['YDS']} YDS | {ys['rushing'].get('TD', 0)} TD"
-                            elif ys.get('passing', {}).get('YDS'):
-                                stat_str = f"🎯 {ys['passing']['YDS']} YDS | {ys['passing'].get('TD', 0)} TD | {ys['passing'].get('INT', 0)} INT"
-                            elif ys.get('defense', {}).get('TOT') or ys.get('defense', {}).get('SOLO'):
-                                d = ys['defense']
-                                stat_str = f"🛡️ {d.get('TOT', d.get('SOLO', 0))} TKL | {d.get('TFL', 0)} TFL | {d.get('SACKS', 0)} Sacks"
-                            if stat_str:
-                                stats_lines.append(f"**{yr}:** {stat_str}")
-
-                        if stats_lines:
-                            embed.add_field(
-                                name="🏈 College Stats (Transfer)",
-                                value='\n'.join(stats_lines),
-                                inline=False
-                            )
-
-                # Profile link at bottom
-                if recruit.get('profile_url'):
-                    embed.add_field(
-                        name="🔗 Profile",
-                        value=f"[View Full Profile on On3/Rivals]({recruit['profile_url']})",
-                        inline=False
-                    )
-
-                footer = f"Harry's Recruiting 🏈 | Data from {source_name}"
-                if recruit.get('is_transfer'):
-                    footer = f"Harry's Portal Tracker 🔄 | Data from {source_name}"
-                elif deep_search and source_name == "247Sports Composite":
-                    footer += " | Deep Search"
-                embed.set_footer(text=footer)
-                await interaction.followup.send(embed=embed)
+                await self._send_recruit(interaction, scraper, recruit, name, source_name, deep_search)
             else:
-                tips = [
-                    "• Check the spelling",
-                    "• Try the full name",
-                    "• Specify the year if not current class",
-                ]
-                if not position:
-                    tips.append("• Add `position:WR` (or QB, RB, etc.) if multiple players share this name")
-                if not deep_search and source_name == "247Sports Composite":
-                    tips.append("• Try `deep_search:True` to search all ~3000 ranked recruits")
-
-                # Suggest alternative source
-                if source_name == "On3/Rivals":
-                    tips.append("• Try `/recruiting source 247sports` if On3 is blocked")
-                else:
-                    tips.append("• Try `/recruiting source on3` for transfer portal data")
-
-                embed = discord.Embed(
-                    title="❓ Recruit Not Found",
-                    description=f"Couldn't find **{name}** in {source_name}.\n\n"
-                               f"💡 **Tips:**\n" + '\n'.join(tips),
-                    color=Colors.WARNING
-                )
-                embed.set_footer(text=f"Harry's Recruiting 🏈 | Data from {source_name}")
-                # Send as followup (we deferred at start, so this will be public)
-                await interaction.followup.send(embed=embed)
-
+                await self._send_not_found(interaction, name, source_name, position, deep_search)
         except Exception as e:
             logger.error(f"Error in /recruiting player: {e}", exc_info=True)
             await interaction.followup.send(f"❌ Error looking up recruit: {str(e)}")
@@ -376,6 +405,7 @@ class RecruitingCog(commands.Cog):
         app_commands.Choice(name="CB - Cornerback", value="CB"),
         app_commands.Choice(name="S - Safety", value="S"),
     ])
+    @requires_module(FeatureModule.RECRUITING)
     async def top(
         self,
         interaction: discord.Interaction,
@@ -389,9 +419,6 @@ class RecruitingCog(commands.Cog):
             await interaction.response.defer()
         except discord.errors.NotFound:
             logger.warning("/recruiting top interaction expired")
-            return
-
-        if not await check_module_enabled_deferred(interaction, FeatureModule.RECRUITING, server_config):
             return
 
         try:
@@ -445,6 +472,7 @@ class RecruitingCog(commands.Cog):
         team="Team name (e.g., 'Georgia', 'Ohio State')",
         year="Recruiting class year (default: current)"
     )
+    @requires_module(FeatureModule.RECRUITING)
     async def class_cmd(
         self,
         interaction: discord.Interaction,
@@ -456,9 +484,6 @@ class RecruitingCog(commands.Cog):
             await interaction.response.defer()
         except discord.errors.NotFound:
             logger.warning(f"/recruiting class interaction expired for {team}")
-            return
-
-        if not await check_module_enabled_deferred(interaction, FeatureModule.RECRUITING, server_config):
             return
 
         try:
@@ -495,6 +520,7 @@ class RecruitingCog(commands.Cog):
         year="Recruiting class year (default: current)",
         show="Number of commits to show (default: 30, max: 50)"
     )
+    @requires_module(FeatureModule.RECRUITING)
     async def commits(
         self,
         interaction: discord.Interaction,
@@ -507,9 +533,6 @@ class RecruitingCog(commands.Cog):
             await interaction.response.defer()
         except discord.errors.NotFound:
             logger.warning(f"/recruiting commits interaction expired for {team}")
-            return
-
-        if not await check_module_enabled_deferred(interaction, FeatureModule.RECRUITING, server_config):
             return
 
         try:
@@ -554,6 +577,7 @@ class RecruitingCog(commands.Cog):
         year="Recruiting class year (default: current)",
         top="Number of teams to show (default: 25)"
     )
+    @requires_module(FeatureModule.RECRUITING)
     async def rankings(
         self,
         interaction: discord.Interaction,
@@ -565,9 +589,6 @@ class RecruitingCog(commands.Cog):
             await interaction.response.defer()
         except discord.errors.NotFound:
             logger.warning("/recruiting rankings interaction expired")
-            return
-
-        if not await check_module_enabled_deferred(interaction, FeatureModule.RECRUITING, server_config):
             return
 
         try:
@@ -628,6 +649,7 @@ class RecruitingCog(commands.Cog):
         name="Player name (e.g., 'John Smith')",
         team="Previous/current team to help find the right player"
     )
+    @requires_module(FeatureModule.RECRUITING)
     async def portal(
         self,
         interaction: discord.Interaction,
@@ -639,9 +661,6 @@ class RecruitingCog(commands.Cog):
             await interaction.response.defer()
         except discord.errors.NotFound:
             logger.warning(f"/recruiting portal interaction expired for {name}")
-            return
-
-        if not await check_module_enabled_deferred(interaction, FeatureModule.RECRUITING, server_config):
             return
 
         try:
@@ -833,14 +852,13 @@ class RecruitingCog(commands.Cog):
         app_commands.Choice(name="On3/Rivals (default) - Server-side rendered, reliable", value="on3"),
         app_commands.Choice(name="247Sports Composite - Legacy, more data but slower", value="247"),
     ])
+    @requires_module(FeatureModule.RECRUITING)
     async def source(
         self,
         interaction: discord.Interaction,
         source: Optional[str] = None
     ):
         """Set or view the recruiting data source"""
-        if not await check_module_enabled(interaction, FeatureModule.RECRUITING, server_config):
-            return
 
         if not interaction.guild:
             await interaction.response.send_message("❌ This command only works in servers!", ephemeral=True)
