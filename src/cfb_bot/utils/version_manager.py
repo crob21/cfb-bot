@@ -15,11 +15,27 @@ def version_key(version: str) -> tuple:
     return tuple(int(part) for part in version.split('.'))
 
 # Current version
-CURRENT_VERSION = "3.17.1"
+CURRENT_VERSION = "3.17.2"
 
 # Recent releases, newest first. /changelog reads these; the full history is in
 # docs/CHANGELOG.md. Add new releases at the top.
 CHANGELOG: Dict[str, Dict] = {
+    "3.17.2": {
+        "date": "2026-10-08",
+        "title": "Harry Finds His Words 💬",
+        "emoji": "💬",
+        "features": [
+            {
+                "category": "AI",
+                "emoji": "💬",
+                "changes": [
+                    "FIX: Blank replies on gpt-5-mini — reasoning used the whole token budget before any text",
+                    "Reasoning models get 4x token headroom and run at low reasoning effort",
+                    "An empty AI reply is now logged with the model, finish reason and reasoning tokens"
+                ]
+            }
+        ]
+    },
     "3.17.1": {
         "date": "2026-10-08",
         "title": "Harry Gets a Better Brain 🧠",

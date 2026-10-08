@@ -3,6 +3,13 @@
 Full release history for Harry. The bot's `/changelog` command shows the most recent releases;
 this file keeps everything. Generated from `src/cfb_bot/utils/version_manager.py`.
 
+## 3.17.2 — Harry Finds His Words 💬 (2026-10-08)
+
+### AI
+- FIX: Blank replies on gpt-5-mini — reasoning used the whole token budget before any text
+- Reasoning models get 4x token headroom and run at low reasoning effort
+- An empty AI reply is now logged with the model, finish reason and reasoning tokens
+
 ## 3.17.1 — Harry Gets a Better Brain 🧠 (2026-10-08)
 
 ### AI
