@@ -734,24 +734,9 @@ class CFBDataLookup:
             'transfer': transfer,
         }
 
-    def format_player_response(self, player_info: Dict[str, Any]) -> str:
-        """
-        Format player info into a nice Discord response
-
-        Args:
-            player_info: Full player info from get_full_player_info
-
-        Returns:
-            Formatted string for Discord
-        """
-        if not player_info:
-            return "Couldn't find that player, mate. Check the spelling or try another name."
-
-        player = player_info.get('player', {})
-        stats = player_info.get('stats')
-        recruiting = player_info.get('recruiting')
-        transfer = player_info.get('transfer')
-
+    def _player_identity_lines(self, player: Dict[str, Any]) -> List[str]:
+        """Header, vitals and hometown lines for a player."""
+        response_parts = []
         # Basic info
         name = player.get('name') or f"{player.get('firstName', '')} {player.get('lastName', '')}".strip()
         team = player.get('team', 'Unknown')
@@ -818,6 +803,11 @@ class CFBDataLookup:
 
         response_parts.append("")
 
+        return response_parts
+
+    def _player_transfer_lines(self, transfer: Optional[Dict[str, Any]]) -> List[str]:
+        """Transfer portal lines, empty when the player hasn't transferred."""
+        response_parts = []
         # Transfer info (if applicable)
         if transfer:
             origin = transfer.get('origin', 'Unknown')
@@ -827,6 +817,186 @@ class CFBDataLookup:
                 response_parts.append(f"   Eligibility: {transfer.get('eligibility')}")
             response_parts.append("")
 
+        return response_parts
+
+    def _season_stat_lines(self, year_stats: Dict[str, Any]) -> List[str]:
+        """One season's stat lines, one per category the player has numbers in."""
+        year_parts = []
+
+        # Helper function to safely convert stat values to int/float
+        def safe_int(val, default=0):
+            """Convert value to int, handling strings and None"""
+            if val is None or val == '':
+                return default
+            try:
+                return int(float(val))  # Handle both "15" and "15.0"
+            except (ValueError, TypeError):
+                return default
+            
+        def safe_float(val, default=0.0):
+            """Convert value to float, handling strings and None"""
+            if val is None or val == '':
+                return default
+            try:
+                return float(val)
+            except (ValueError, TypeError):
+                return default
+
+        # Passing
+        passing = year_stats.get('passing', {})
+        if passing:
+            comp = safe_int(passing.get('COMPLETIONS', passing.get('completions', 0)))
+            att = safe_int(passing.get('ATT', passing.get('attempts', 0)))
+            yards = safe_int(passing.get('YDS', passing.get('yards', 0)))
+            tds = safe_int(passing.get('TD', passing.get('touchdowns', 0)))
+            ints = safe_int(passing.get('INT', passing.get('interceptions', 0)))
+            long = safe_int(passing.get('LONG', passing.get('LNG', 0)))
+                
+            if any([comp, yards, tds]):
+                # Calculate completion % and YPA
+                comp_pct = f"{(comp/att*100):.1f}%" if att > 0 else "0.0%"
+                ypa = f"{yards/att:.1f}" if att > 0 else "0.0"
+                    
+                pass_parts = [f"{comp}/{att} ({comp_pct})", f"{yards} YDS ({ypa} YPA)", f"{tds} TD", f"{ints} INT"]
+                if long:
+                    pass_parts.append(f"{long} Long")
+                year_parts.append(f"🏈 {' | '.join(pass_parts)}")
+
+        # Rushing
+        rushing = year_stats.get('rushing', {})
+        if rushing:
+            carries = safe_int(rushing.get('CAR', rushing.get('carries', 0)))
+            yards = safe_int(rushing.get('YDS', rushing.get('yards', 0)))
+            tds = safe_int(rushing.get('TD', rushing.get('touchdowns', 0)))
+            long = safe_int(rushing.get('LONG', rushing.get('LNG', 0)))
+                
+            if any([carries, yards, tds]):
+                ypc = f"{yards/carries:.1f}" if carries > 0 else "0.0"
+                rush_parts = [f"{carries} CAR", f"{yards} YDS ({ypc} YPC)", f"{tds} TD"]
+                if long:
+                    rush_parts.append(f"{long} Long")
+                year_parts.append(f"🏃 {' | '.join(rush_parts)}")
+
+        # Receiving
+        receiving = year_stats.get('receiving', {})
+        if receiving:
+            rec = safe_int(receiving.get('REC', receiving.get('receptions', 0)))
+            yards = safe_int(receiving.get('YDS', receiving.get('yards', 0)))
+            tds = safe_int(receiving.get('TD', receiving.get('touchdowns', 0)))
+            long = safe_int(receiving.get('LONG', receiving.get('LNG', 0)))
+                
+            if any([rec, yards, tds]):
+                ypr = f"{yards/rec:.1f}" if rec > 0 else "0.0"
+                rec_parts = [f"{rec} REC", f"{yards} YDS ({ypr} YPR)", f"{tds} TD"]
+                if long:
+                    rec_parts.append(f"{long} Long")
+                year_parts.append(f"🎯 {' | '.join(rec_parts)}")
+
+        # Defense
+        defense = year_stats.get('defense', {})
+        if defense:
+            tackles = safe_int(defense.get('TOT', defense.get('SOLO', defense.get('tackles', 0))))
+            solo = safe_int(defense.get('SOLO', 0))
+            tfl = safe_float(defense.get('TFL', 0))
+            sacks = safe_float(defense.get('SACKS', defense.get('SK', 0)))
+            ints = safe_int(defense.get('INT', 0))
+            pd = safe_int(defense.get('PD', 0))  # Pass Deflections
+            qb_hur = safe_int(defense.get('QBH', defense.get('QB HUR', 0)))  # QB Hurries
+            ff = safe_int(defense.get('FF', 0))  # Forced Fumbles
+            fr = safe_int(defense.get('FR', 0))  # Fumble Recoveries
+                
+            if any([tackles, solo, tfl, sacks, ints, pd, qb_hur, ff, fr]):
+                stat_parts = []
+                if tackles:
+                    stat_parts.append(f"{tackles} TKL")
+                if solo:
+                    stat_parts.append(f"{solo} Solo")
+                if tfl:
+                    stat_parts.append(f"{tfl:.1f} TFL" if isinstance(tfl, float) and tfl % 1 != 0 else f"{int(tfl)} TFL")
+                if sacks:
+                    stat_parts.append(f"{sacks:.1f} Sacks" if isinstance(sacks, float) and sacks % 1 != 0 else f"{int(sacks)} Sacks")
+                if qb_hur:
+                    stat_parts.append(f"{qb_hur} QBH")
+                if ints:
+                    stat_parts.append(f"{ints} INT")
+                if pd:
+                    stat_parts.append(f"{pd} PD")
+                if ff:
+                    stat_parts.append(f"{ff} FF")
+                if fr:
+                    stat_parts.append(f"{fr} FR")
+                year_parts.append(f"🛡️ {' | '.join(stat_parts)}")
+
+        # Kicking
+        kicking = year_stats.get('kicking', {})
+        if kicking:
+            fgm = safe_int(kicking.get('FGM', 0))
+            fga = safe_int(kicking.get('FGA', 0))
+            xpm = safe_int(kicking.get('XPM', 0))
+            long_fg = safe_int(kicking.get('LONG', kicking.get('LNG', 0)))
+            if any([fgm, fga, xpm]):
+                kick_parts = [f"{fgm}/{fga} FG"]
+                if xpm:
+                    kick_parts.append(f"{xpm} XP")
+                if long_fg:
+                    kick_parts.append(f"{long_fg} Long")
+                year_parts.append(f"🦵 {' | '.join(kick_parts)}")
+
+        # Punting
+        punting = year_stats.get('punting', {})
+        if punting:
+            punts = safe_int(punting.get('NO', punting.get('PUNTS', 0)))
+            punt_yds = safe_int(punting.get('YDS', punting.get('YARDS', 0)))
+            avg = safe_float(punting.get('AVG', 0))
+            in20 = safe_int(punting.get('IN 20', punting.get('IN20', 0)))
+            long_punt = safe_int(punting.get('LONG', punting.get('LNG', 0)))
+                
+            if any([punts, punt_yds, avg]):
+                punt_parts = []
+                if punts:
+                    punt_parts.append(f"{punts} Punts")
+                if punt_yds:
+                    punt_parts.append(f"{punt_yds} YDS")
+                if avg:
+                    punt_parts.append(f"{avg:.1f} AVG")
+                if in20:
+                    punt_parts.append(f"{in20} In20")
+                if long_punt:
+                    punt_parts.append(f"{long_punt} Long")
+                year_parts.append(f"🥾 {' | '.join(punt_parts)}")
+
+        # Returns
+        returns = year_stats.get('returns', {})
+        if returns:
+            kr = safe_int(returns.get('KR', 0))  # Kick Returns
+            kr_yds = safe_int(returns.get('KR YDS', returns.get('KRYDS', 0)))
+            kr_td = safe_int(returns.get('KR TD', returns.get('KRTD', 0)))
+            pr = safe_int(returns.get('PR', 0))  # Punt Returns
+            pr_yds = safe_int(returns.get('PR YDS', returns.get('PRYDS', 0)))
+            pr_td = safe_int(returns.get('PR TD', returns.get('PRTD', 0)))
+                
+            if any([kr, kr_yds, kr_td, pr, pr_yds, pr_td]):
+                return_parts = []
+                if kr or kr_yds:
+                    kr_avg = f"{kr_yds/kr:.1f}" if kr and kr > 0 else "0.0"
+                    kr_part = f"KR: {kr} RET | {kr_yds} YDS ({kr_avg} AVG)"
+                    if kr_td:
+                        kr_part += f" | {kr_td} TD"
+                    return_parts.append(kr_part)
+                if pr or pr_yds:
+                    pr_avg = f"{pr_yds/pr:.1f}" if pr and pr > 0 else "0.0"
+                    pr_part = f"PR: {pr} RET | {pr_yds} YDS ({pr_avg} AVG)"
+                    if pr_td:
+                        pr_part += f" | {pr_td} TD"
+                    return_parts.append(pr_part)
+                if return_parts:
+                    year_parts.append(f"⚡ {' | '.join(return_parts)}")
+
+        return year_parts
+
+    def _player_stats_lines(self, stats: Optional[Dict[str, Any]]) -> List[str]:
+        """Per-season stat lines, newest season first."""
+        response_parts = []
         # Stats section (multi-year)
         if stats and isinstance(stats, dict):
             has_any_stats = False
@@ -834,186 +1004,9 @@ class CFBDataLookup:
             # Sort years descending (most recent first)
             for year in sorted(stats.keys(), reverse=True):
                 year_stats = stats[year]
-                year_has_stats = False
-                year_parts = []
+                year_parts = self._season_stat_lines(year_stats)
 
-                # Helper function to safely convert stat values to int/float
-                def safe_int(val, default=0):
-                    """Convert value to int, handling strings and None"""
-                    if val is None or val == '':
-                        return default
-                    try:
-                        return int(float(val))  # Handle both "15" and "15.0"
-                    except (ValueError, TypeError):
-                        return default
-                
-                def safe_float(val, default=0.0):
-                    """Convert value to float, handling strings and None"""
-                    if val is None or val == '':
-                        return default
-                    try:
-                        return float(val)
-                    except (ValueError, TypeError):
-                        return default
-
-                # Passing
-                passing = year_stats.get('passing', {})
-                if passing:
-                    comp = safe_int(passing.get('COMPLETIONS', passing.get('completions', 0)))
-                    att = safe_int(passing.get('ATT', passing.get('attempts', 0)))
-                    yards = safe_int(passing.get('YDS', passing.get('yards', 0)))
-                    tds = safe_int(passing.get('TD', passing.get('touchdowns', 0)))
-                    ints = safe_int(passing.get('INT', passing.get('interceptions', 0)))
-                    long = safe_int(passing.get('LONG', passing.get('LNG', 0)))
-                    
-                    if any([comp, yards, tds]):
-                        # Calculate completion % and YPA
-                        comp_pct = f"{(comp/att*100):.1f}%" if att > 0 else "0.0%"
-                        ypa = f"{yards/att:.1f}" if att > 0 else "0.0"
-                        
-                        pass_parts = [f"{comp}/{att} ({comp_pct})", f"{yards} YDS ({ypa} YPA)", f"{tds} TD", f"{ints} INT"]
-                        if long:
-                            pass_parts.append(f"{long} Long")
-                        year_parts.append(f"🏈 {' | '.join(pass_parts)}")
-                        year_has_stats = True
-
-                # Rushing
-                rushing = year_stats.get('rushing', {})
-                if rushing:
-                    carries = safe_int(rushing.get('CAR', rushing.get('carries', 0)))
-                    yards = safe_int(rushing.get('YDS', rushing.get('yards', 0)))
-                    tds = safe_int(rushing.get('TD', rushing.get('touchdowns', 0)))
-                    long = safe_int(rushing.get('LONG', rushing.get('LNG', 0)))
-                    
-                    if any([carries, yards, tds]):
-                        ypc = f"{yards/carries:.1f}" if carries > 0 else "0.0"
-                        rush_parts = [f"{carries} CAR", f"{yards} YDS ({ypc} YPC)", f"{tds} TD"]
-                        if long:
-                            rush_parts.append(f"{long} Long")
-                        year_parts.append(f"🏃 {' | '.join(rush_parts)}")
-                        year_has_stats = True
-
-                # Receiving
-                receiving = year_stats.get('receiving', {})
-                if receiving:
-                    rec = safe_int(receiving.get('REC', receiving.get('receptions', 0)))
-                    yards = safe_int(receiving.get('YDS', receiving.get('yards', 0)))
-                    tds = safe_int(receiving.get('TD', receiving.get('touchdowns', 0)))
-                    long = safe_int(receiving.get('LONG', receiving.get('LNG', 0)))
-                    
-                    if any([rec, yards, tds]):
-                        ypr = f"{yards/rec:.1f}" if rec > 0 else "0.0"
-                        rec_parts = [f"{rec} REC", f"{yards} YDS ({ypr} YPR)", f"{tds} TD"]
-                        if long:
-                            rec_parts.append(f"{long} Long")
-                        year_parts.append(f"🎯 {' | '.join(rec_parts)}")
-                        year_has_stats = True
-
-                # Defense
-                defense = year_stats.get('defense', {})
-                if defense:
-                    tackles = safe_int(defense.get('TOT', defense.get('SOLO', defense.get('tackles', 0))))
-                    solo = safe_int(defense.get('SOLO', 0))
-                    tfl = safe_float(defense.get('TFL', 0))
-                    sacks = safe_float(defense.get('SACKS', defense.get('SK', 0)))
-                    ints = safe_int(defense.get('INT', 0))
-                    pd = safe_int(defense.get('PD', 0))  # Pass Deflections
-                    qb_hur = safe_int(defense.get('QBH', defense.get('QB HUR', 0)))  # QB Hurries
-                    ff = safe_int(defense.get('FF', 0))  # Forced Fumbles
-                    fr = safe_int(defense.get('FR', 0))  # Fumble Recoveries
-                    
-                    if any([tackles, solo, tfl, sacks, ints, pd, qb_hur, ff, fr]):
-                        stat_parts = []
-                        if tackles:
-                            stat_parts.append(f"{tackles} TKL")
-                        if solo:
-                            stat_parts.append(f"{solo} Solo")
-                        if tfl:
-                            stat_parts.append(f"{tfl:.1f} TFL" if isinstance(tfl, float) and tfl % 1 != 0 else f"{int(tfl)} TFL")
-                        if sacks:
-                            stat_parts.append(f"{sacks:.1f} Sacks" if isinstance(sacks, float) and sacks % 1 != 0 else f"{int(sacks)} Sacks")
-                        if qb_hur:
-                            stat_parts.append(f"{qb_hur} QBH")
-                        if ints:
-                            stat_parts.append(f"{ints} INT")
-                        if pd:
-                            stat_parts.append(f"{pd} PD")
-                        if ff:
-                            stat_parts.append(f"{ff} FF")
-                        if fr:
-                            stat_parts.append(f"{fr} FR")
-                        year_parts.append(f"🛡️ {' | '.join(stat_parts)}")
-                        year_has_stats = True
-
-                # Kicking
-                kicking = year_stats.get('kicking', {})
-                if kicking:
-                    fgm = safe_int(kicking.get('FGM', 0))
-                    fga = safe_int(kicking.get('FGA', 0))
-                    xpm = safe_int(kicking.get('XPM', 0))
-                    long_fg = safe_int(kicking.get('LONG', kicking.get('LNG', 0)))
-                    if any([fgm, fga, xpm]):
-                        kick_parts = [f"{fgm}/{fga} FG"]
-                        if xpm:
-                            kick_parts.append(f"{xpm} XP")
-                        if long_fg:
-                            kick_parts.append(f"{long_fg} Long")
-                        year_parts.append(f"🦵 {' | '.join(kick_parts)}")
-                        year_has_stats = True
-
-                # Punting
-                punting = year_stats.get('punting', {})
-                if punting:
-                    punts = safe_int(punting.get('NO', punting.get('PUNTS', 0)))
-                    punt_yds = safe_int(punting.get('YDS', punting.get('YARDS', 0)))
-                    avg = safe_float(punting.get('AVG', 0))
-                    in20 = safe_int(punting.get('IN 20', punting.get('IN20', 0)))
-                    long_punt = safe_int(punting.get('LONG', punting.get('LNG', 0)))
-                    
-                    if any([punts, punt_yds, avg]):
-                        punt_parts = []
-                        if punts:
-                            punt_parts.append(f"{punts} Punts")
-                        if punt_yds:
-                            punt_parts.append(f"{punt_yds} YDS")
-                        if avg:
-                            punt_parts.append(f"{avg:.1f} AVG")
-                        if in20:
-                            punt_parts.append(f"{in20} In20")
-                        if long_punt:
-                            punt_parts.append(f"{long_punt} Long")
-                        year_parts.append(f"🥾 {' | '.join(punt_parts)}")
-                        year_has_stats = True
-
-                # Returns
-                returns = year_stats.get('returns', {})
-                if returns:
-                    kr = safe_int(returns.get('KR', 0))  # Kick Returns
-                    kr_yds = safe_int(returns.get('KR YDS', returns.get('KRYDS', 0)))
-                    kr_td = safe_int(returns.get('KR TD', returns.get('KRTD', 0)))
-                    pr = safe_int(returns.get('PR', 0))  # Punt Returns
-                    pr_yds = safe_int(returns.get('PR YDS', returns.get('PRYDS', 0)))
-                    pr_td = safe_int(returns.get('PR TD', returns.get('PRTD', 0)))
-                    
-                    if any([kr, kr_yds, kr_td, pr, pr_yds, pr_td]):
-                        return_parts = []
-                        if kr or kr_yds:
-                            kr_avg = f"{kr_yds/kr:.1f}" if kr and kr > 0 else "0.0"
-                            kr_part = f"KR: {kr} RET | {kr_yds} YDS ({kr_avg} AVG)"
-                            if kr_td:
-                                kr_part += f" | {kr_td} TD"
-                            return_parts.append(kr_part)
-                        if pr or pr_yds:
-                            pr_avg = f"{pr_yds/pr:.1f}" if pr and pr > 0 else "0.0"
-                            pr_part = f"PR: {pr} RET | {pr_yds} YDS ({pr_avg} AVG)"
-                            if pr_td:
-                                pr_part += f" | {pr_td} TD"
-                            return_parts.append(pr_part)
-                        if return_parts:
-                            year_parts.append(f"⚡ {' | '.join(return_parts)}")
-                            year_has_stats = True
-
-                if year_has_stats:
+                if year_parts:
                     response_parts.append(f"📊 **{year} Season:**")
                     for part in year_parts:
                         response_parts.append(f"   {part}")
@@ -1025,6 +1018,11 @@ class CFBDataLookup:
         else:
             response_parts.append("📊 *No stats available*")
 
+        return response_parts
+
+    def _player_recruiting_lines(self, recruiting: Optional[Dict[str, Any]]) -> List[str]:
+        """Recruiting profile lines, empty when there's no recruiting record."""
+        response_parts = []
         # Recruiting info
         if recruiting:
             response_parts.append("")
@@ -1112,7 +1110,28 @@ class CFBDataLookup:
             if early_info:
                 response_parts.append(f"   **Status:** {' | '.join(early_info)}")
 
+        return response_parts
+
+    def format_player_response(self, player_info: Dict[str, Any]) -> str:
+        """
+        Format player info into a nice Discord response
+
+        Args:
+            player_info: Full player info from get_full_player_info
+
+        Returns:
+            Formatted string for Discord
+        """
+        if not player_info:
+            return "Couldn't find that player, mate. Check the spelling or try another name."
+
+        response_parts = self._player_identity_lines(player_info.get('player', {}))
+        response_parts += self._player_transfer_lines(player_info.get('transfer'))
+        response_parts += self._player_stats_lines(player_info.get('stats'))
+        response_parts += self._player_recruiting_lines(player_info.get('recruiting'))
+
         return "\n".join(response_parts)
+
 
     # ==================== TEAM FEATURES ====================
 
