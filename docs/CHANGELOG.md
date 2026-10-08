@@ -3,6 +3,12 @@
 Full release history for Harry. The bot's `/changelog` command shows the most recent releases;
 this file keeps everything. Generated from `src/cfb_bot/utils/version_manager.py`.
 
+## 3.18.1 — Stop Saying You Were Mentioned 🙄 (2026-10-08)
+
+### AI
+- FIX: Harry opened every @mention reply narrating the ping ("Oi, BoozeRob mentioned me...")
+- He now just answers, like a normal conversation
+
 ## 3.18.0 — Harry Answers the Question 🎯 (2026-10-08)
 
 ### AI
