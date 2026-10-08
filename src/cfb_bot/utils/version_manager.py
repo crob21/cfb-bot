@@ -34,6 +34,16 @@ CHANGELOG: Dict[str, Dict] = {
                     "A bare @mention gets a greeting; one reply per person every 10 seconds",
                     "Users targeted by /fun target still get their insults instead"
                 ]
+            },
+            {
+                "category": "Trolling",
+                "emoji": "🎯",
+                "changes": [
+                    "FIX: /fun target now only trolls in the channel it was run in (threads count as their parent)",
+                    "NEW: everywhere:true on /fun target and /fun target_all keeps the old server-wide behavior",
+                    "Channels blocked with /admin block are never trolled",
+                    "/fun status shows where each target is being trolled"
+                ]
             }
         ]
     },
