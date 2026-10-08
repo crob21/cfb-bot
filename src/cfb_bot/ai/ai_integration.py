@@ -15,7 +15,8 @@ from dotenv import load_dotenv
 from ..utils.storage import get_storage
 from ..security import HTTP_TIMEOUT, sanitize_ai_response
 
-from ..config import GAME_NAME
+from ..config import (ANTHROPIC_COST_PER_1K, ANTHROPIC_MODEL, GAME_NAME,
+                      OPENAI_COST_PER_1K, OPENAI_MODEL)
 
 # Load environment variables
 load_dotenv()
@@ -38,9 +39,9 @@ class AICharterAssistant:
         self.total_anthropic_tokens = 0
         self.total_requests = 0
 
-        # Cost tracking (per 1k tokens - averaged input/output)
-        self.openai_cost_per_1k = 0.001  # GPT-3.5-turbo average
-        self.anthropic_cost_per_1k = 0.002  # Claude Haiku 4.5 blended ($1/$5 per 1M in/out)
+        # Cost tracking (per 1k tokens - averaged input/output), from config.py
+        self.openai_cost_per_1k = OPENAI_COST_PER_1K
+        self.anthropic_cost_per_1k = ANTHROPIC_COST_PER_1K
 
         # Storage
         self._storage = get_storage()
@@ -259,7 +260,7 @@ class AICharterAssistant:
             """
 
         data = {
-            'model': 'gpt-3.5-turbo',
+            'model': OPENAI_MODEL,
             'messages': [
                 {'role': 'system', 'content': f'{personality} Be hilariously sarcastic and helpful.'},
                 {'role': 'user', 'content': prompt}
@@ -428,7 +429,7 @@ class AICharterAssistant:
             """
 
         data = {
-            'model': 'claude-haiku-4-5',
+            'model': ANTHROPIC_MODEL,
             'max_tokens': max_tokens,
             'messages': [
                 {'role': 'user', 'content': prompt}

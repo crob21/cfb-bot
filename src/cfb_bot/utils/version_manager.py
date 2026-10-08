@@ -15,11 +15,28 @@ def version_key(version: str) -> tuple:
     return tuple(int(part) for part in version.split('.'))
 
 # Current version
-CURRENT_VERSION = "3.17.0"
+CURRENT_VERSION = "3.17.1"
 
 # Recent releases, newest first. /changelog reads these; the full history is in
 # docs/CHANGELOG.md. Add new releases at the top.
 CHANGELOG: Dict[str, Dict] = {
+    "3.17.1": {
+        "date": "2026-10-08",
+        "title": "Harry Gets a Better Brain 🧠",
+        "emoji": "🧠",
+        "features": [
+            {
+                "category": "AI",
+                "emoji": "🧠",
+                "changes": [
+                    "Upgraded OpenAI from the legacy gpt-3.5-turbo to gpt-4o-mini — sharper and cheaper",
+                    "NEW: OPENAI_MODEL and ANTHROPIC_MODEL env vars — swapping models is a host setting now",
+                    "FIX: /admin ai and /admin budget priced every call as gpt-3.5-turbo, overstating spend",
+                    "Cost estimates are env-configurable too (OPENAI_COST_PER_1K, ANTHROPIC_COST_PER_1K)"
+                ]
+            }
+        ]
+    },
     "3.17.0": {
         "date": "2026-10-08",
         "title": "Harry Answers When You @ Him 💬",
