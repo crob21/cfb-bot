@@ -365,10 +365,13 @@ class AIChatCog(commands.Cog):
         league_enabled = server_config.is_module_enabled(guild_id, FeatureModule.LEAGUE)
         personality = server_config.get_personality_prompt(guild_id)
         topic = f"{GAME_NAME} league rules" if league_enabled else "college football"
+        # Don't tell him he was "mentioned" — he opens every reply narrating it
+        # ("Oi, BoozeRob mentioned me..."). He's just in a conversation.
         prompt = (
-            f"{personality} You were mentioned in Discord by {message.author.display_name}. "
-            f"Reply in one or two short messages worth of text, no more. "
-            f"Answer this, about {topic} if it's relevant: {question}"
+            f"{personality} You're chatting in Discord and {message.author.display_name} "
+            f"just said this to you. Reply straight to them, briefly - a couple of sentences. "
+            f"Never narrate that you were mentioned or pinged. "
+            f"What they said, answer it (about {topic} if relevant): {question}"
         )
 
         logger.info(f"@mention from {message.author} in #{message.channel}: '{question[:100]}'")

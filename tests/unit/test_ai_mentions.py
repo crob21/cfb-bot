@@ -138,3 +138,19 @@ class TestMentionReplies:
             await cog.on_message(message)
         message.reply.assert_awaited_once()
         cog.ai_assistant.ask_ai.assert_not_awaited()
+
+
+class TestMentionPromptWording:
+    """Harry opened replies narrating the ping: 'Oi, BoozeRob mentioned me...'"""
+
+    @pytest.mark.asyncio
+    async def test_prompt_does_not_announce_the_mention(self):
+        cog, message = make_cog(), make_message(content=f"<@{BOT_ID}> why corn gear?")
+        message.mentions = [cog.bot.user]
+        with patch('cfb_bot.cogs.ai_chat.server_config', enabled_config()):
+            await cog.on_message(message)
+
+        prompt = cog.ai_assistant.ask_ai.await_args[0][0]
+        assert "mentioned" not in prompt.split("Never narrate")[0]
+        assert "Never narrate that you were mentioned" in prompt
+        assert prompt.endswith("why corn gear?")
