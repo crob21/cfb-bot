@@ -343,3 +343,70 @@ class TestTransferPortalDetection:
 
             cog = RecruitingCog(MagicMock())
             await cog.player.callback(cog, mock_interaction, name="Gavin Day")
+
+
+class TestRecruitingPlayerCandidatePaths:
+    """/recruiting player when a search matches several players"""
+
+    @pytest.mark.asyncio
+    async def test_multiple_candidates_posts_a_picker(self, mock_interaction, mock_server_config, mock_on3_scraper):
+        from cfb_bot.cogs.recruiting import RecruitingCog
+
+        mock_on3_scraper.search_recruit.return_value = {
+            'multiple': True,
+            'query_name': 'Smith',
+            'total_found': 3,
+            'candidates': [
+                create_mock_recruit(name="Smith One", position="WR"),
+                create_mock_recruit(name="Smith Two", position="RB"),
+                create_mock_recruit(name="Smith Three", position="QB"),
+            ],
+        }
+
+        with patch('cfb_bot.cogs.recruiting.server_config', mock_server_config), \
+             patch('cfb_bot.cogs.recruiting.on3_scraper', mock_on3_scraper):
+            cog = RecruitingCog(MagicMock())
+            await cog.player.callback(cog, mock_interaction, name="Smith")
+
+        # one reply: the picker, carrying the select menu
+        assert mock_interaction.followup.send.await_count == 1
+        assert mock_interaction.followup.send.await_args.kwargs.get('view') is not None
+
+    @pytest.mark.asyncio
+    async def test_single_candidate_is_shown_directly(self, mock_interaction, mock_server_config, mock_on3_scraper):
+        """A position filter narrowing to one player must still show that player."""
+        from cfb_bot.cogs.recruiting import RecruitingCog
+
+        mock_on3_scraper.search_recruit.return_value = {
+            'multiple': True,
+            'query_name': 'Smith',
+            'total_found': 1,
+            'candidates': [create_mock_recruit(name="Smith One", position="WR")],
+        }
+
+        with patch('cfb_bot.cogs.recruiting.server_config', mock_server_config), \
+             patch('cfb_bot.cogs.recruiting.on3_scraper', mock_on3_scraper):
+            cog = RecruitingCog(MagicMock())
+            await cog.player.callback(cog, mock_interaction, name="Smith", position="WR")
+
+        assert mock_interaction.followup.send.await_count == 1
+        embed = mock_interaction.followup.send.await_args.kwargs['embed']
+        assert "Smith One" in embed.title
+        assert mock_interaction.followup.send.await_args.kwargs.get('view') is None
+
+    @pytest.mark.asyncio
+    async def test_no_candidates_after_filter_says_not_found(self, mock_interaction, mock_server_config, mock_on3_scraper):
+        from cfb_bot.cogs.recruiting import RecruitingCog
+
+        mock_on3_scraper.search_recruit.return_value = {
+            'multiple': True, 'query_name': 'Smith', 'total_found': 4, 'candidates': [],
+        }
+
+        with patch('cfb_bot.cogs.recruiting.server_config', mock_server_config), \
+             patch('cfb_bot.cogs.recruiting.on3_scraper', mock_on3_scraper):
+            cog = RecruitingCog(MagicMock())
+            await cog.player.callback(cog, mock_interaction, name="Smith", position="K")
+
+        assert mock_interaction.followup.send.await_count == 1
+        embed = mock_interaction.followup.send.await_args.kwargs['embed']
+        assert "No Players Found" in embed.title
