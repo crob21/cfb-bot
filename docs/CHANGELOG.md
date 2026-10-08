@@ -3,6 +3,12 @@
 Full release history for Harry. The bot's `/changelog` command shows the most recent releases;
 this file keeps everything. Generated from `src/cfb_bot/utils/version_manager.py`.
 
+## 3.17.3 — Blank Settings Can't Kill Harry 🛡️ (2026-10-08)
+
+### Fixes
+- FIX: An env var added but left blank crash-looped the bot on startup
+- Blank or unparseable settings now fall back to their defaults and log a warning
+
 ## 3.17.2 — Harry Finds His Words 💬 (2026-10-08)
 
 ### AI

@@ -5,6 +5,7 @@ Configuration constants for CFB League Bot
 Contains colors, footers, and shared constants used across all cogs.
 """
 
+import logging
 import os
 from dotenv import load_dotenv
 
@@ -14,22 +15,48 @@ load_dotenv()
 # Bot Configuration
 # =============================================================================
 
+def env_str(name: str, default: str) -> str:
+    """
+    Environment variable as a string, treating blank as unset.
+
+    Hosts like Render keep a variable you added but left empty, and os.getenv then
+    returns '' instead of the default — which once left Harry asking for a model
+    named empty string.
+    """
+    value = os.getenv(name)
+    return value.strip() if value and value.strip() else default
+
+
+def env_float(name: str, default: float) -> float:
+    """Environment variable as a float, falling back on blank or unparseable values."""
+    value = os.getenv(name)
+    if not value or not value.strip():
+        return default
+    try:
+        return float(value)
+    except ValueError:
+        logging.getLogger('CFBBot.Config').warning(
+            f"{name}={value!r} is not a number - using {default}"
+        )
+        return default
+
+
 # Discord token
 DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
 
 # The game the league plays. Everything Harry says or prompts with reads this, so a new
 # season's game is a GAME_NAME env change on the host — no code change needed.
-GAME_NAME = os.getenv('GAME_NAME', 'CFB 27')
+GAME_NAME = env_str('GAME_NAME', 'CFB 27')
 
 # AI models. Both are env-configurable so a model swap is a host setting, not a code
 # change. OpenAI is tried first, Anthropic is the fallback (see ai/ai_integration.py).
-OPENAI_MODEL = os.getenv('OPENAI_MODEL', 'gpt-5-mini')
-ANTHROPIC_MODEL = os.getenv('ANTHROPIC_MODEL', 'claude-haiku-4-5')
+OPENAI_MODEL = env_str('OPENAI_MODEL', 'gpt-5-mini')
+ANTHROPIC_MODEL = env_str('ANTHROPIC_MODEL', 'claude-haiku-4-5')
 
 # Rough blended $/1k tokens for each model, used by /admin ai and /admin budget.
 # Update alongside the model, or override on the host if pricing changes.
-OPENAI_COST_PER_1K = float(os.getenv('OPENAI_COST_PER_1K', '0.0009'))
-ANTHROPIC_COST_PER_1K = float(os.getenv('ANTHROPIC_COST_PER_1K', '0.002'))
+OPENAI_COST_PER_1K = env_float('OPENAI_COST_PER_1K', 0.0009)
+ANTHROPIC_COST_PER_1K = env_float('ANTHROPIC_COST_PER_1K', 0.002)
 
 # Admin channel for notifications
 ADMIN_CHANNEL_ID = 1417663211292852244
