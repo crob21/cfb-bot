@@ -3,6 +3,13 @@
 Full release history for Harry. The bot's `/changelog` command shows the most recent releases;
 this file keeps everything. Generated from `src/cfb_bot/utils/version_manager.py`.
 
+## 3.18.2 — Harry Watches the Clock ⏱️ (2026-10-08)
+
+### AI
+- Harry now knows how long is left on the advance timer and when it ends
+- Asked about advances he quoted the charter's cadence; he leads with the live countdown now
+- He says plainly when no countdown is running
+
 ## 3.18.1 — Stop Saying You Were Mentioned 🙄 (2026-10-08)
 
 ### AI
