@@ -44,6 +44,16 @@ CHANGELOG: Dict[str, Dict] = {
                     "Channels blocked with /admin block are never trolled",
                     "/fun status shows where each target is being trolled"
                 ]
+            },
+            {
+                "category": "Under the Hood",
+                "emoji": "🧹",
+                "changes": [
+                    "FIX: /admin cache clear now clears the recruiting and HS stats caches too",
+                    "Admin and module checks are decorators, so a command can't skip one",
+                    "Deleted an unused retry module and unused week fields",
+                    "Split the two longest functions (378 and 277 lines) into named sections"
+                ]
             }
         ]
     },

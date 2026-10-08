@@ -17,6 +17,12 @@ this file keeps everything. Generated from `src/cfb_bot/utils/version_manager.py
 - Channels blocked with /admin block are never trolled
 - /fun status shows where each target is being trolled
 
+### Under the Hood
+- FIX: /admin cache clear now clears the recruiting and HS stats caches too
+- Admin and module checks are decorators, so a command can't skip one
+- Deleted an unused retry module and unused week fields
+- Split the two longest functions (378 and 277 lines) into named sections
+
 ## 3.16.2 — Quieter Logs, Shorter Changelog 🧹 (2026-10-02)
 
 ### Fixes
