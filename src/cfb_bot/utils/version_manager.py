@@ -15,11 +15,37 @@ def version_key(version: str) -> tuple:
     return tuple(int(part) for part in version.split('.'))
 
 # Current version
-CURRENT_VERSION = "3.18.2"
+CURRENT_VERSION = "3.19.0"
 
 # Recent releases, newest first. /changelog reads these; the full history is in
 # docs/CHANGELOG.md. Add new releases at the top.
 CHANGELOG: Dict[str, Dict] = {
+    "3.19.0": {
+        "date": "2026-10-08",
+        "title": "Harry Proposes, You Merge 📜",
+        "emoji": "📜",
+        "features": [
+            {
+                "category": "Charter",
+                "emoji": "📜",
+                "changes": [
+                    "NEW: /charter propose — Harry redrafts the charter and opens a pull request",
+                    "He can never merge it; that stays with you",
+                    "Only Discord IDs in CHARTER_EDITOR_IDS can propose (empty = nobody)",
+                    "Revisions use the league's current teams and week, correcting stale sections",
+                    "The charter is now data/charter.md, so changes show as a readable diff"
+                ]
+            },
+            {
+                "category": "AI",
+                "emoji": "🤖",
+                "changes": [
+                    "Harry treats the live schedule as the team list, not the charter's old rosters",
+                    "Long AI answers (like a charter rewrite) get a bigger token budget, capped so they can't run away"
+                ]
+            }
+        ]
+    },
     "3.18.2": {
         "date": "2026-10-08",
         "title": "Harry Watches the Clock ⏱️",

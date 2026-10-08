@@ -3,6 +3,19 @@
 Full release history for Harry. The bot's `/changelog` command shows the most recent releases;
 this file keeps everything. Generated from `src/cfb_bot/utils/version_manager.py`.
 
+## 3.19.0 — Harry Proposes, You Merge 📜 (2026-10-08)
+
+### Charter
+- NEW: /charter propose — Harry redrafts the charter and opens a pull request
+- He can never merge it; that stays with you
+- Only Discord IDs in CHARTER_EDITOR_IDS can propose (empty = nobody)
+- Revisions use the league's current teams and week, correcting stale sections
+- The charter is now data/charter.md, so changes show as a readable diff
+
+### AI
+- Harry treats the live schedule as the team list, not the charter's old rosters
+- Long AI answers (like a charter rewrite) get a bigger token budget, capped so they can't run away
+
 ## 3.18.2 — Harry Watches the Clock ⏱️ (2026-10-08)
 
 ### AI

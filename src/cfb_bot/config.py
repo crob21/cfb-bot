@@ -58,6 +58,21 @@ ANTHROPIC_MODEL = env_str('ANTHROPIC_MODEL', 'claude-haiku-4-5')
 OPENAI_COST_PER_1K = env_float('OPENAI_COST_PER_1K', 0.0009)
 ANTHROPIC_COST_PER_1K = env_float('ANTHROPIC_COST_PER_1K', 0.002)
 
+# League charter: markdown in the repo, edited through /charter and (optionally) a PR.
+# The old plain-text name is still read so an existing deployment keeps working.
+CHARTER_FILE = 'data/charter.md'
+CHARTER_FILE_LEGACY = 'data/charter_content.txt'
+
+# Discord user IDs allowed to have Harry open a charter PR. Empty = nobody.
+CHARTER_EDITOR_IDS = [
+    int(uid) for uid in env_str('CHARTER_EDITOR_IDS', '').replace(' ', '').split(',') if uid.isdigit()
+]
+
+# GitHub repo for charter PRs, e.g. "crob21/cfb-bot". Needs GITHUB_TOKEN with repo scope.
+GITHUB_REPO = env_str('GITHUB_REPO', '')
+GITHUB_TOKEN = os.getenv('GITHUB_TOKEN', '')
+GITHUB_BASE_BRANCH = env_str('GITHUB_BASE_BRANCH', 'main')
+
 # Admin channel for notifications
 ADMIN_CHANNEL_ID = 1417663211292852244
 

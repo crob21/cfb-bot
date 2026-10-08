@@ -423,6 +423,103 @@ class CharterCog(commands.Cog):
             logger.error(f"Error adding rule: {e}")
             await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
 
+    @charter_group.command(
+        name="propose",
+        description="Have Harry draft a charter change and open a pull request (charter editors only)")
+    @app_commands.describe(
+        instruction="What to change, in plain English (e.g. 'advances run on a 48h timer, not Tue/Fri')",
+        summary="Short title for the pull request",
+    )
+    async def propose(self, interaction: discord.Interaction, instruction: str, summary: str):
+        """
+        Draft a charter revision and open a PR for it.
+
+        Harry proposes, a human merges. Restricted to the Discord IDs in
+        CHARTER_EDITOR_IDS, separately from Discord admin or bot admin.
+        """
+        from ..utils.charter_git import (CharterPullRequest, is_configured,
+                                         may_propose_charter_change)
+
+        if not may_propose_charter_change(interaction.user.id):
+            await interaction.response.send_message(
+                "❌ Not your charter to change, mate. Only the league's charter editors "
+                "can propose changes.",
+                ephemeral=True,
+            )
+            return
+
+        if not is_configured():
+            await interaction.response.send_message(
+                "❌ Charter PRs aren't set up — needs `GITHUB_TOKEN` and `GITHUB_REPO`.",
+                ephemeral=True,
+            )
+            return
+
+        if not self.charter_editor:
+            await interaction.response.send_message("❌ Charter editor not available", ephemeral=True)
+            return
+
+        await interaction.response.defer()
+
+        try:
+            revised = await self.charter_editor.revise_charter(instruction, self._league_facts())
+            if not revised:
+                await interaction.followup.send(
+                    "❌ Couldn't draft that revision — the charter came back empty or truncated, "
+                    "so I left it alone. Try a narrower instruction.",
+                    ephemeral=True,
+                )
+                return
+
+            ok, result = await CharterPullRequest().open(
+                revised, summary, f"{interaction.user.display_name} ({interaction.user.id})")
+
+            if not ok:
+                await interaction.followup.send(f"❌ Couldn't open the PR: {result}", ephemeral=True)
+                return
+
+            embed = discord.Embed(
+                title="📜 Charter Change Proposed",
+                description=(
+                    f"**{summary}**\n\n{instruction}\n\n"
+                    f"[Review and merge the pull request]({result})"
+                ),
+                color=Colors.SUCCESS,
+            )
+            embed.set_footer(text="Harry can open it — only you can merge it 🏈")
+            await interaction.followup.send(embed=embed)
+
+        except Exception as e:
+            logger.error(f"Error proposing charter change: {e}")
+            await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
+
+    @staticmethod
+    def _league_facts() -> str:
+        """Current teams, season and week, so a revision can correct stale details."""
+        facts = []
+        try:
+            from ..utils.schedule_manager import get_schedule_manager
+            schedule_mgr = get_schedule_manager()
+            if schedule_mgr and schedule_mgr.teams:
+                facts.append(f"User-controlled teams: {', '.join(schedule_mgr.teams)}")
+            if schedule_mgr and schedule_mgr.season:
+                facts.append(f"Season: {schedule_mgr.season}")
+        except Exception as e:
+            logger.debug(f"No schedule facts for charter revision: {e}")
+
+        try:
+            from .. import bot_main as bot_module
+            timekeeper = getattr(bot_module, 'timekeeper_manager', None)
+            if timekeeper:
+                season_info = timekeeper.get_season_week()
+                if season_info.get('week_name'):
+                    facts.append(f"Current week: {season_info['week_name']} "
+                                 f"(step {season_info['week']} of 27)")
+        except Exception as e:
+            logger.debug(f"No timekeeper facts for charter revision: {e}")
+
+        return "\n".join(facts)
+
     @charter_group.command(name="update", description="Update an existing rule (Admin only)")
     @app_commands.describe(
         section_identifier="Section title or number to update",

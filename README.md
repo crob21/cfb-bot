@@ -56,7 +56,9 @@ MaxPreps stats for a player, or a whole list at once with `/hs bulk`.
 Ask Harry anything — or just **@mention him**, no slash command needed. He answers with your charter and current week in context. `/summarize` catches you up on a channel you ignored for a week. Works with OpenAI or Anthropic; models are a config setting, not a code change.
 
 ### 📜 Charter (`/charter`)
-Link your league charter, search it, edit it in natural language, and keep version history with backups and restore.
+The charter lives in the repo as [`data/charter.md`](data/charter.md). Link it, search it, edit it in natural language, and keep version history with backups and restore.
+
+**Harry can propose rule changes, but never land them.** `/charter propose` has him redraft the charter against your instruction — using the league's *current* teams and week, so stale details get corrected — then open a **pull request** you review and merge. Two gates: only Discord IDs in `CHARTER_EDITOR_IDS` may propose, and there is no merge call anywhere in that code path.
 
 ### ⚙️ Admin (`/admin`)
 Per-server module toggles, channel whitelisting, bot admins, API usage and cost tracking, cache control, monthly budget alerts, and command sync.
@@ -122,6 +124,8 @@ Only the bot token is required. Everything else unlocks a feature.
 | `ZYTE_API_KEY` | No | [Zyte](https://www.zyte.com/) — recruiting scraping through Cloudflare |
 | `BOT_ADMIN_IDS` | No | Comma-separated Discord user IDs for bot admins |
 | `GAME_NAME` | No | The game your league plays (default `CFB 27`) |
+| `CHARTER_EDITOR_IDS` | No | Discord IDs allowed to run `/charter propose` (empty = nobody) |
+| `GITHUB_TOKEN` / `GITHUB_REPO` | No | Lets Harry open charter pull requests |
 | `OPENAI_MODEL` | No | Default `gpt-5-mini` — swap models without touching code |
 | `ANTHROPIC_MODEL` | No | Default `claude-haiku-4-5` |
 | `AI_MONTHLY_BUDGET` | No | Spend before alerts fire (default `10`) |
@@ -144,7 +148,7 @@ Every command group maps to a module you toggle with `/admin config`. On by defa
 | `/recruiting` | player, top, class, commits, rankings, portal, source |
 | `/hs` | stats, bulk |
 | `/league` | timer, timer_status, timers, side_timer, games, schedule, week, weeks, find_game, byes, staff, set_week, upload_schedule, set_week_games, pick_commish, … |
-| `/charter` | lookup, search, add, update, history, backups, restore, link, scan, sync, import |
+| `/charter` | lookup, search, add, update, propose, history, backups, restore, link, scan, sync, import |
 | `/harry`, `/ask`, `/summarize` | AI — or just @mention him |
 | `/fun` | target, untarget, target_all, untarget_all, roast, status, timeout, toggle_engage |
 | `/admin` | config, channels, set_channel, block/unblock, add/remove admins, ai, zyte, cache, budget, digest, sync |
