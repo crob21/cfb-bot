@@ -1,202 +1,216 @@
-# CFB Bot (Harry) 🏈
+# Harry 🏈
 
-A comprehensive Discord bot for College Football dynasty leagues. Player lookups, recruiting data, high school stats, AI-powered insights, league management, interactive charter editing—and Harry's signature cockney personality.
+[![Tests](https://github.com/crob21/cfb-bot/actions/workflows/test.yml/badge.svg)](https://github.com/crob21/cfb-bot/actions/workflows/test.yml)
+[![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/)
+[![discord.py 2.x](https://img.shields.io/badge/discord.py-2.x-5865F2.svg)](https://discordpy.readthedocs.io/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-**Harry** – Your cockney, Oregon-hating assistant.
+**A Discord bot for College Football dynasty leagues, with a cockney bastard bolted on front.**
+
+Harry runs your advance timer, knows your schedule, looks up recruits, reads your charter, and insults anyone who deserves it. He hates the Oregon Ducks with his whole chest.
+
+```
+BoozeRob (ASU) — 1:57 PM
+   @Harry why are you wearing corn gear?
+
+Harry 🤖 — 1:58 PM
+   The league's got bugger all to say about corn gear, so rock the maize
+   if it tickles yer fancy, mate. But if anyone shows up in Oregon duck
+   tat, I'll lose my bloody mind — toss the feathers, ya muppet.
+```
+
+**87 slash commands across 7 command groups.** Turn on what your league needs, leave the rest off.
+
+---
+
+## Why Harry
+
+**He knows your league, not just football.** Upload your schedule and he answers from it — who you play, who's on bye, what week it is. Point him at your charter and he'll quote the rules at people instead of making them up.
+
+**He keeps the league moving.** A 48-hour advance timer with escalating reminders, and when the commissioner posts `@everyone advanced`, Harry advances the week and restarts the clock. No one has to remember anything.
+
+**He's cheap to run.** Free hosting tier, free storage (config lives in the bot owner's DMs), and AI costs fractions of a cent per question with a monthly budget and alerts.
+
+**He has a personality problem.** This is a feature. `/fun target` sics him on a league-mate until you call him off.
+
+---
 
 ## Features
 
 ### 🏈 CFB Data (`/cfb`)
-- **Player lookup** – `/cfb player`, bulk `/cfb players`
-- **Rankings** – AP, Coaches, CFP polls
-- **Matchup history** – `/cfb matchup` for rivalry records
-- **Schedules** – `/cfb schedule`, results and upcoming games
-- **Transfer portal** – `/cfb transfers`
-- **Team stats** – `/cfb teamstats` for offense & defense
-- **Ratings** – SP+, SRS, Elo via `/cfb ratings`
-- **Draft** – `/cfb draft_picks` by school
+Real data from [CollegeFootballData.com](https://collegefootballdata.com/) — player lookups (single or bulk), AP/Coaches/CFP rankings, rivalry matchup history, team schedules and results, transfer portal, offense/defense team stats, SP+/SRS/Elo ratings, and NFL draft picks by school.
 
 ### ⭐ Recruiting (`/recruiting`)
-- **Player lookup** – On3/Rivals or 247Sports; position filter for duplicate names
-- **Rankings** – Team recruiting classes
-- **Commits** – `/recruiting commits` by team
-- **Portal** – Transfer portal cross-reference
-- **Source** – Switch On3 vs 247 per server
+On3/Rivals **or** 247Sports Composite, switchable per server. Recruit lookups with position filters for duplicate names, team recruiting classes, commit lists, team rankings, and transfer portal cross-reference. Cloudflare-blocked pages fall back through Playwright → cloudscraper → plain HTTP.
 
 ### 🏫 High School Stats (`/hs`)
-- **Player lookup** – `/hs stats` from MaxPreps
-- **Bulk lookup** – `/hs bulk` for lists
+MaxPreps stats for a player, or a whole list at once with `/hs bulk`.
 
 ### ⏰ League (`/league`)
-- **Advance timer** – Countdown with 24h / 12h / 6h / 1h reminders
-- **Schedule** – `/league games`, `/league find_game`, `/league byes`
-- **Week** – Current season/week, full week list
-- **Staff** – Owner, co-commish; `/league pick_commish` for AI suggestion
-- **Charter** – Link and natural-language updates
+- **Advance timer** — countdown with 24h / 12h / 6h / 1h warnings. Post `@everyone advanced` in the timer channel and Harry advances the week and restarts the clock.
+- **Schedule** — `/league games`, `find_game`, `byes`. Upload a season with `/league upload_schedule`, or type one week with `/league set_week_games`. Your teams are **bolded** everywhere they appear.
+- **Week tracking** — the real 27-step dynasty calendar, not a guess.
+- **Staff** — owner and co-commish, including `/league pick_commish`, where Harry reads the chat and nominates someone.
 
 ### 🤖 AI (`/harry`, `/ask`, `/summarize`)
-- **Harry** – League-aware Q&A
-- **Summarize** – Channel recaps
-- **Co-commish picker** – Analyzes chat for recommendations
+Ask Harry anything — or just **@mention him**, no slash command needed. He answers with your charter and current week in context. `/summarize` catches you up on a channel you ignored for a week. Works with OpenAI or Anthropic; models are a config setting, not a code change.
+
+### 📜 Charter (`/charter`)
+Link your league charter, search it, edit it in natural language, and keep version history with backups and restore.
 
 ### ⚙️ Admin (`/admin`)
-- **Config** – Enable/disable modules per server
-- **Channels** – Set admin channel, block/unblock AI
-- **Admins** – Add/remove bot admins
-- **Usage** – `/admin ai`, `/admin zyte` for API usage and costs
-- **Cache** – Stats and clear recruiting cache
-- **Budget** – Monthly limits and alerts
-- **Sync** – Force slash-command sync
+Per-server module toggles, channel whitelisting, bot admins, API usage and cost tracking, cache control, monthly budget alerts, and command sync.
 
-### 😄 Personality
-- Cockney accent and snarky attitude
-- Deep, unhinged hatred of Oregon 🦆💩
-- Rivalry auto-responses (configurable per channel)
+### 😄 Fun (`/fun`)
+`/fun target` picks a victim and Harry trolls them in that channel — add `everywhere:true` to make it server-wide. Engage mode lets him argue back when they bite. Rivalry auto-responses fire on team keywords, because someone has to say it when a Duck is mentioned.
 
 ---
 
-## Quick Start
+## The dynasty calendar
 
-### Prerequisites
-- Python 3.11+ (3.13 recommended)
-- [Discord Bot Token](https://discord.com/developers/applications)
-- Optional: OpenAI or Anthropic key (AI), CollegeFootballData.com key (CFB data), Zyte key (recruiting scraping)
+Harry tracks all 27 advances of a season, so "what week is it?" always has a real answer:
 
-### Install & run
+| Steps | Phase | |
+|---|---|---|
+| 1 | Preseason | |
+| 2–16 | Regular Season | Week 0 through Week 14 |
+| 17–22 | Postseason | Conference Championship, Bowl Weeks 1–4 (CFP QF/SF), National Championship |
+| 23–27 | Offseason | Staff Moves, Transfer Portal (open/close), National Signing Day, Training Results |
+
+Advancing past Training Results rolls over to Preseason of the next season.
+
+---
+
+## Quick start
+
+**You need:** Python 3.11+ (3.13 recommended) and a [Discord bot token](https://discord.com/developers/applications).
 
 ```bash
 git clone https://github.com/crob21/cfb-bot.git
 cd cfb-bot
 
 pip install -r requirements.txt
+playwright install chromium          # only if you want recruiting scraping
 
-cp config/env.example .env
-# Edit .env with DISCORD_BOT_TOKEN and any optional keys
-
+cp config/env.example .env           # add DISCORD_BOT_TOKEN
 python main.py
 ```
 
+Then in Discord:
+
+```
+/admin set_channel        # where Harry is allowed to talk
+/admin config             # turn on the modules you want
+/league timer_channel     # where advance timers live
+/league upload_schedule   # attach your season JSON
+```
+
+Harry is **off by default in every channel** — he only speaks where you let him.
+
+---
+
 ## Configuration
 
-### Environment variables
+Only the bot token is required. Everything else unlocks a feature.
 
-| Variable | Required | Description |
-|--------|----------|-------------|
-| `DISCORD_BOT_TOKEN` | Yes | Discord bot token |
-| `OPENAI_API_KEY` | No | AI (Harry); or use `ANTHROPIC_API_KEY` |
-| `CFB_DATA_API_KEY` | No | [CollegeFootballData.com](https://collegefootballdata.com/key) – player/stats/rankings |
-| `ZYTE_API_KEY` | No | [Zyte](https://www.zyte.com/) – recruiting (Cloudflare bypass) |
-| `ZYTE_DASHBOARD_API_KEY` | No | Zyte dashboard API key (for `/admin zyte` official stats) |
-| `ZYTE_ORG_ID` | No | Zyte org ID from dashboard URL (`app.zyte.com/o/123456` → `123456`) |
-| `ZYTE_SPEND_LIMIT` | No | Cap in USD (e.g. `20`); Zyte API calls stop when monthly spend reaches this (0 = no cap) |
+| Variable | Required | What it does |
+|---|---|---|
+| `DISCORD_BOT_TOKEN` | **Yes** | The bot token |
+| `OPENAI_API_KEY` | No | AI features (`/harry`, `/ask`, @mentions, AI insults) |
+| `ANTHROPIC_API_KEY` | No | AI fallback when OpenAI fails or runs dry |
+| `CFB_DATA_API_KEY` | No | [CollegeFootballData.com](https://collegefootballdata.com/key) — all `/cfb` commands |
+| `ZYTE_API_KEY` | No | [Zyte](https://www.zyte.com/) — recruiting scraping through Cloudflare |
 | `BOT_ADMIN_IDS` | No | Comma-separated Discord user IDs for bot admins |
-| `TIMER_CHANNEL_ID` | No | Default advance/timer channel until `/league timer_channel` is set |
-| `DEV_CHANNEL_ID` | No | Channel for Harry's startup status post |
+| `GAME_NAME` | No | The game your league plays (default `CFB 27`) |
+| `OPENAI_MODEL` | No | Default `gpt-5-mini` — swap models without touching code |
+| `ANTHROPIC_MODEL` | No | Default `claude-haiku-4-5` |
+| `AI_MONTHLY_BUDGET` | No | Spend before alerts fire (default `10`) |
+| `TIMER_CHANNEL_ID` / `DEV_CHANNEL_ID` | No | Default advance channel and startup-status channel |
 
-See `config/env.example` for the full list (charter URL, dashboard, budgets, etc.).
+More in [`config/env.example`](config/env.example) — charter URL, Zyte dashboard stats, spend caps, cost estimates.
 
-### Per-server and per-channel
-- **Modules** – Use `/admin config` to enable/disable CFB Data, Recruiting, League, HS Stats, etc. per server.
-- **Channels** – Harry is off by default; use `/admin set_channel` and channel enable/block as needed.
+> **Leave a variable out entirely to use its default.** A variable that exists but is empty counts as set.
 
----
-
-## Commands overview
-
-| Group | Description |
-|-------|-------------|
-| `/cfb` | Player, rankings, schedule, matchup, transfers, teamstats, ratings, draft |
-| `/recruiting` | Player, top, class, commits, rankings, portal, source |
-| `/hs` | Stats, bulk |
-| `/league` | Timer, timer_status, games, week, weeks, find_game, byes, staff, set_week, pick_commish, … |
-| `/charter` | View, edit, link |
-| `/harry` | Ask Harry (league context) |
-| `/admin` | Config, set_channel, add/remove admins, ai, zyte, cache, budget, sync, … |
-
-**Full command reference:** [docs/COMMANDS.md](docs/COMMANDS.md)
+### Per-server, per-channel
+Every command group maps to a module you toggle with `/admin config`. On by default: **core**, **ai_chat**, **cfb_data**, **fun_games**. Opt-in: **league**, **hs_stats**, **recruiting**. Channels are whitelisted with `/admin channels`, and `/admin block` stops unprompted chatter while leaving @mentions working.
 
 ---
 
-## Project structure
+## Commands
+
+| Group | What's in it |
+|---|---|
+| `/cfb` | player, players, rankings, matchup, schedule, transfers, teamstats, ratings, betting, draft |
+| `/recruiting` | player, top, class, commits, rankings, portal, source |
+| `/hs` | stats, bulk |
+| `/league` | timer, timer_status, timers, side_timer, games, schedule, week, weeks, find_game, byes, staff, set_week, upload_schedule, set_week_games, pick_commish, … |
+| `/charter` | lookup, search, add, update, history, backups, restore, link, scan, sync, import |
+| `/harry`, `/ask`, `/summarize` | AI — or just @mention him |
+| `/fun` | target, untarget, target_all, untarget_all, roast, status, timeout, toggle_engage |
+| `/admin` | config, channels, set_channel, block/unblock, add/remove admins, ai, zyte, cache, budget, digest, sync |
+
+**Full reference:** [docs/COMMANDS.md](docs/COMMANDS.md)
+
+---
+
+## How it's built
+
+discord.py 2.x, cog-based. Each command group is a cog; dependencies are injected after startup. Commands declare their requirements as decorators (`@requires_admin`, `@requires_module`), so a command can't forget a permission check.
 
 ```
 cfb-bot/
-├── main.py                 # Entry point (calls cfb_bot.main)
+├── main.py                     # entry point
 ├── src/cfb_bot/
-│   ├── bot_main.py         # Cog-based bot; loads all cogs
-│   ├── cogs/               # Slash command modules
-│   │   ├── core.py         # /help, /version, /changelog, /whats_new, /tokens
-│   │   ├── ai_chat.py      # /harry, /ask, /summarize
-│   │   ├── cfb_data.py     # /cfb
-│   │   ├── recruiting.py   # /recruiting
-│   │   ├── hs_stats.py     # /hs
-│   │   ├── league.py       # /league
-│   │   ├── charter.py      # /charter
-│   │   ├── admin.py        # /admin
-│   │   └── fun.py          # /fun (admin-only)
-│   ├── ai/                 # AI integration (OpenAI, Anthropic)
-│   ├── utils/              # Storage, config, timekeeper, cache, cfb_data, scrapers
-│   └── services/           # Checks, embeds
-├── src/dashboard/          # Optional web dashboard (FastAPI)
-├── config/
-│   ├── env.example
-│   └── render.yaml         # Render deployment config
-├── data/                   # Charter, schedule, rules (optional local data)
-├── tests/
-└── docs/                   # COMMANDS.md, CHANGELOG, setup guides
+│   ├── bot_main.py             # bot setup, cog loading, @everyone advance handling
+│   ├── cogs/                   # one per command group (core, ai_chat, cfb_data,
+│   │                           #   recruiting, hs_stats, league, charter, admin, fun)
+│   ├── ai/                     # OpenAI + Anthropic integration, prompt building
+│   ├── utils/                  # timekeeper, schedule, storage, scrapers, cache, config
+│   └── services/               # permission checks, embed builders
+├── src/dashboard/              # optional FastAPI web dashboard
+├── config/                     # env.example, render.yaml
+├── data/                       # charter, schedule, rules
+├── docs/                       # COMMANDS.md, CHANGELOG.md, SETUP.md
+└── tests/                      # 235 unit tests + 17 startup integration tests
 ```
 
----
-
-## Deployment
-
-### Render
-- Connect the repo and create a **Worker** (or use `config/render.yaml`).
-- **Start command:** `python3 -u main.py` (unbuffered so logs stream; see `config/render.yaml`).
-- Set env vars in the Render dashboard (no secrets in repo).
-
-### Railway / other
-- Start: `python main.py` (or `python3 -u main.py` for unbuffered logs).
-- Set `DISCORD_BOT_TOKEN` and any optional keys.
+**Storage with no database:** config and state live as edited messages in the bot owner's DMs. Free, and it survives redeploys. Each namespace is one Discord message (2,000 chars); if one outgrows that, Harry DMs the owner rather than silently dropping the change.
 
 ---
 
 ## Development
 
 ```bash
-# Run unit tests
-pytest tests/unit/ -v
+pytest tests/unit/ -v                                      # fast, no network
+pytest tests/unit/ --cov=src/cfb_bot --cov-report=term-missing
+pytest tests/integration/test_bot_startup.py -v            # startup smoke tests
 
-# With coverage
-pytest tests/unit/ -v --cov=src/cfb_bot --cov-report=term-missing
-
-# Run bot locally
-python main.py
-
-# Dashboard (optional)
-python run_dashboard.py
+python main.py                                             # run the bot
+python run_dashboard.py                                    # optional web dashboard
 ```
+
+Unit tests never touch the network or Discord. CI runs them on every push and pull request.
 
 ---
 
-## Storage
+## Deployment
 
-Config and state live as messages in the bot owner's DMs — free, and they survive redeploys. Each namespace is one Discord message (2,000 characters); if one outgrows that, Harry DMs the owner instead of silently losing the change.
+**Render** — create a Worker, or use [`config/render.yaml`](config/render.yaml). Start command `python3 -u main.py` (unbuffered, so logs stream). Set env vars in the dashboard; nothing secret lives in the repo. Include `playwright install chromium` in the build if you want recruiting scraping.
+
+**Railway or anywhere else** — start with `python main.py` and set `DISCORD_BOT_TOKEN`.
 
 ---
 
 ## Docs
 
-- [Full command reference](docs/COMMANDS.md)
-- [Changelog](docs/CHANGELOG.md)
+- [Command reference](docs/COMMANDS.md) — every command, every option
+- [Changelog](docs/CHANGELOG.md) — full release history (`/changelog` shows recent ones in Discord)
 - [Setup & contributing](docs/SETUP.md)
-
----
 
 ## License
 
-MIT – see [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE).
 
 ---
 
-*Made with 🏈 for dynasty leagues. Don’t mention the bloody Ducks. 🦆💩*
+*Made with 🏈 for dynasty leagues. Don't mention the bloody Ducks. 🦆💩*
