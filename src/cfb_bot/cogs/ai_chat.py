@@ -89,10 +89,12 @@ class AIChatCog(commands.Cog):
 
         league_enabled = server_config.is_module_enabled(guild_id, FeatureModule.LEAGUE)
 
+        # Acknowledge first: an interaction must be answered within 3 seconds or its
+        # token dies, and every path below ends in followup.send().
+        await interaction.response.send_message("🤔 Harry is thinking...", ephemeral=True)
+
         if self.AI_AVAILABLE and self.ai_assistant:
             try:
-                await interaction.response.send_message("🤔 Harry is thinking...", ephemeral=True)
-
                 logger.info(f"/harry from {interaction.user}: '{question}'")
 
                 personality = server_config.get_personality_prompt(guild_id)
@@ -122,7 +124,9 @@ class AIChatCog(commands.Cog):
                 embed.description = f"Oops! Something went wrong: {str(e)}"
                 embed.add_field(name="💬 Responding to:", value=f"*{question}*", inline=False)
         else:
-            embed.description = "I'm having some technical difficulties right now. Try again in a bit!"
+            logger.error("/harry ran with no AI configured - set OPENAI_API_KEY or ANTHROPIC_API_KEY")
+            embed.description = ("My brain's not plugged in — no AI key is configured. "
+                                 "An admin needs to set `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`.")
             embed.add_field(name="💬 Responding to:", value=f"*{question}*", inline=False)
 
         # Only add charter link if LEAGUE module is enabled
@@ -166,10 +170,11 @@ class AIChatCog(commands.Cog):
             color=Colors.PRIMARY
         )
 
+        # Acknowledge first (see /harry) so the token survives a slow or missing AI
+        await interaction.response.send_message("🤔 Thinking...", ephemeral=True)
+
         if self.AI_AVAILABLE and self.ai_assistant:
             try:
-                await interaction.response.send_message("🤔 Thinking...", ephemeral=True)
-
                 logger.info(f"/ask from {interaction.user}: '{question}'")
 
                 personality = server_config.get_personality_prompt(guild_id)
