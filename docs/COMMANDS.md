@@ -498,7 +498,7 @@ Costs are recorded automatically when the bot uses AI or Zyte. Use **Reconcile**
 
 ### **@Harry Mentions**
 **Module:** AI Chat (configurable)  
-**Description:** @mention Harry in any channel to ask questions  
+**Description:** @mention Harry to ask a question without a slash command. Works in channels enabled with `/admin channels`; a bare @mention gets a greeting. One reply per person every 10 seconds. `@everyone`/`@here` never triggers it, and users targeted by `/fun target` get an insult instead.  
 **Usage:** `@Harry what are the recruiting rules?`
 
 ---

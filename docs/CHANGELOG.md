@@ -3,6 +3,14 @@
 Full release history for Harry. The bot's `/changelog` command shows the most recent releases;
 this file keeps everything. Generated from `src/cfb_bot/utils/version_manager.py`.
 
+## 3.17.0 — Harry Answers When You @ Him 💬 (2026-10-08)
+
+### AI Chat
+- NEW: @mention Harry in a channel and he answers, no slash command needed
+- Works in channels enabled with /admin channels, when the ai_chat module is on
+- A bare @mention gets a greeting; one reply per person every 10 seconds
+- Users targeted by /fun target still get their insults instead
+
 ## 3.16.2 — Quieter Logs, Shorter Changelog 🧹 (2026-10-02)
 
 ### Fixes
