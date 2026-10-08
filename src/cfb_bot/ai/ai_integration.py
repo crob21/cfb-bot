@@ -23,6 +23,29 @@ load_dotenv()
 
 logger = logging.getLogger('CFBBot.AI')
 
+def openai_request_body(model: str, system: str, prompt: str, max_tokens: int) -> dict:
+    """
+    Build the OpenAI chat-completions body for a model.
+
+    The GPT-5 and o-series models renamed max_tokens to max_completion_tokens and only
+    accept the default temperature, so sending the older parameters 400s every call.
+    """
+    body = {
+        'model': model,
+        'messages': [
+            {'role': 'system', 'content': system},
+            {'role': 'user', 'content': prompt},
+        ],
+    }
+    newer_model = model.startswith(('gpt-5', 'o1', 'o3', 'o4'))
+    if newer_model:
+        body['max_completion_tokens'] = max_tokens
+    else:
+        body['max_tokens'] = max_tokens
+        body['temperature'] = 0.7
+    return body
+
+
 class AICharterAssistant:
     """AI-powered assistant for league charter questions"""
 
@@ -259,15 +282,12 @@ class AICharterAssistant:
             - Do NOT make up specific league schedules, rosters, or game results
             """
 
-        data = {
-            'model': OPENAI_MODEL,
-            'messages': [
-                {'role': 'system', 'content': f'{personality} Be hilariously sarcastic and helpful.'},
-                {'role': 'user', 'content': prompt}
-            ],
-            'max_tokens': max_tokens,
-            'temperature': 0.7
-        }
+        data = openai_request_body(
+            OPENAI_MODEL,
+            f'{personality} Be hilariously sarcastic and helpful.',
+            prompt,
+            max_tokens,
+        )
 
         try:
             # Log the full prompt being sent

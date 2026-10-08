@@ -29,7 +29,8 @@ CHANGELOG: Dict[str, Dict] = {
                 "category": "AI",
                 "emoji": "🧠",
                 "changes": [
-                    "Upgraded OpenAI from the legacy gpt-3.5-turbo to gpt-4o-mini — sharper and cheaper",
+                    "Upgraded OpenAI from the legacy gpt-3.5-turbo to gpt-5-mini — a far better brain",
+                    "Request parameters adapt to the model family (GPT-5 and o-series renamed max_tokens)",
                     "NEW: OPENAI_MODEL and ANTHROPIC_MODEL env vars — swapping models is a host setting now",
                     "FIX: /admin ai and /admin budget priced every call as gpt-3.5-turbo, overstating spend",
                     "Cost estimates are env-configurable too (OPENAI_COST_PER_1K, ANTHROPIC_COST_PER_1K)"

@@ -23,12 +23,12 @@ GAME_NAME = os.getenv('GAME_NAME', 'CFB 27')
 
 # AI models. Both are env-configurable so a model swap is a host setting, not a code
 # change. OpenAI is tried first, Anthropic is the fallback (see ai/ai_integration.py).
-OPENAI_MODEL = os.getenv('OPENAI_MODEL', 'gpt-4o-mini')
+OPENAI_MODEL = os.getenv('OPENAI_MODEL', 'gpt-5-mini')
 ANTHROPIC_MODEL = os.getenv('ANTHROPIC_MODEL', 'claude-haiku-4-5')
 
 # Rough blended $/1k tokens for each model, used by /admin ai and /admin budget.
 # Update alongside the model, or override on the host if pricing changes.
-OPENAI_COST_PER_1K = float(os.getenv('OPENAI_COST_PER_1K', '0.00035'))
+OPENAI_COST_PER_1K = float(os.getenv('OPENAI_COST_PER_1K', '0.0009'))
 ANTHROPIC_COST_PER_1K = float(os.getenv('ANTHROPIC_COST_PER_1K', '0.002'))
 
 # Admin channel for notifications

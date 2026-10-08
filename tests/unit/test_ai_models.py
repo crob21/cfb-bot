@@ -19,18 +19,38 @@ AI_SOURCE = (pathlib.Path(__file__).resolve().parents[2]
 
 
 def test_requests_use_the_configured_models():
-    assert re.findall(r"'model': (\w+)", AI_SOURCE) == ['OPENAI_MODEL', 'ANTHROPIC_MODEL']
+    """Both request bodies name the config constants, never a literal."""
+    assert "openai_request_body(\n            OPENAI_MODEL," in AI_SOURCE
+    assert "'model': ANTHROPIC_MODEL," in AI_SOURCE
 
 
 def test_no_hardcoded_model_ids_in_source():
     offenders = [line.strip() for line in AI_SOURCE.splitlines()
-                 if re.search(r"['\"](?:gpt-|claude-|o\d-)[\w.-]+['\"]", line)]
+                 # the family-prefix check in openai_request_body is not a model ID
+                 if 'startswith' not in line
+                 and re.search(r"['\"](?:gpt-|claude-)[\w.-]*\d[\w.-]*['\"]", line)]
     assert not offenders, f"Hardcoded model IDs: {offenders}"
 
 
 def test_defaults_are_current_models():
-    assert OPENAI_MODEL == 'gpt-4o-mini'
+    assert OPENAI_MODEL == 'gpt-5-mini'
     assert ANTHROPIC_MODEL == 'claude-haiku-4-5'
+
+
+def test_request_body_matches_what_each_model_family_accepts():
+    """GPT-5 / o-series renamed max_tokens and reject a custom temperature."""
+    from cfb_bot.ai.ai_integration import openai_request_body
+
+    newer = openai_request_body('gpt-5-mini', 'sys', 'hi', 500)
+    assert newer['max_completion_tokens'] == 500
+    assert 'max_tokens' not in newer and 'temperature' not in newer
+
+    older = openai_request_body('gpt-4o-mini', 'sys', 'hi', 500)
+    assert older['max_tokens'] == 500 and older['temperature'] == 0.7
+    assert 'max_completion_tokens' not in older
+
+    assert openai_request_body('o3', 'sys', 'hi', 10)['max_completion_tokens'] == 10
+    assert [m['role'] for m in newer['messages']] == ['system', 'user']
 
 
 def test_models_and_costs_are_env_configurable(monkeypatch):
