@@ -8,7 +8,9 @@ These functions are used by cogs to verify that:
 3. The user has required permissions
 """
 
+import functools
 import logging
+import sys
 from typing import TYPE_CHECKING
 
 import discord
@@ -141,3 +143,51 @@ def is_server_admin(member: discord.Member) -> bool:
     """
     return member.guild_permissions.administrator
 
+
+
+# ==================== DECORATORS ====================
+# These run before the command body, so the command itself can't forget a check.
+# Apply them directly above the `async def`, below the app_commands decorators.
+
+def requires_admin(message: str = "❌ Nice try, but no."):
+    """
+    Refuse the command unless the caller is an admin.
+
+    Uses the cog's own `_is_league_admin` when it has one (league state is bot-wide,
+    so that check also scopes server admins to the league's home server), otherwise
+    the shared AdminManager.
+    """
+    def decorator(func):
+        @functools.wraps(func)
+        async def wrapper(self, interaction: discord.Interaction, *args, **kwargs):
+            if hasattr(self, '_is_league_admin'):
+                allowed = self._is_league_admin(interaction)
+            else:
+                admin_manager = getattr(self, 'admin_manager', None)
+                allowed = bool(admin_manager and admin_manager.is_admin(interaction.user, interaction))
+
+            if not allowed:
+                await interaction.response.send_message(message, ephemeral=True)
+                return
+            return await func(self, interaction, *args, **kwargs)
+        return wrapper
+    return decorator
+
+
+def requires_module(module: 'FeatureModule'):
+    """Refuse the command unless the module is enabled and the channel is allowed."""
+    def decorator(func):
+        @functools.wraps(func)
+        async def wrapper(self, interaction: discord.Interaction, *args, **kwargs):
+            # Read server_config from the cog's own module so tests that patch it there
+            # (e.g. patch('cfb_bot.cogs.league.server_config')) still take effect.
+            cog_module = sys.modules.get(func.__module__)
+            config = getattr(cog_module, 'server_config', None)
+            if config is None:
+                from ..utils.server_config import server_config as config
+
+            if not await check_module_enabled(interaction, module, config):
+                return
+            return await func(self, interaction, *args, **kwargs)
+        return wrapper
+    return decorator

@@ -27,7 +27,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from ..config import GAME_NAME, Colors
-from ..services.checks import check_module_enabled
+from ..services.checks import check_module_enabled, requires_admin, requires_module
 from ..utils.server_config import server_config, FeatureModule
 
 # The league charter lives in a shared Google Doc; CHARTER_URL overrides it per deployment.
@@ -66,10 +66,9 @@ class CharterCog(commands.Cog):
 
     @charter_group.command(name="lookup", description=f"Look up {GAME_NAME} league rules")
     @app_commands.describe(rule_name="Rule keyword or topic to search for")
+    @requires_module(FeatureModule.LEAGUE)
     async def lookup(self, interaction: discord.Interaction, rule_name: str):
         """Look up a specific league rule"""
-        if not await check_module_enabled(interaction, FeatureModule.LEAGUE, server_config):
-            return
 
         await interaction.response.send_message("📋 Looking up rule...", ephemeral=True)
 
@@ -102,10 +101,9 @@ class CharterCog(commands.Cog):
         await interaction.followup.send(embed=embed)
 
     @charter_group.command(name="link", description="Get link to the official league charter")
+    @requires_module(FeatureModule.LEAGUE)
     async def link(self, interaction: discord.Interaction):
         """Get the official league charter link"""
-        if not await check_module_enabled(interaction, FeatureModule.LEAGUE, server_config):
-            return
 
         embed = discord.Embed(
             title=f"📋 {GAME_NAME} League Charter",
@@ -133,6 +131,7 @@ class CharterCog(commands.Cog):
         channel="Channel to scan (e.g., #offseason-voting)",
         hours="Hours of history to scan (default: 168 = 1 week)"
     )
+    @requires_admin("❌ Only admins can scan for rule changes!")
     async def scan(
         self,
         interaction: discord.Interaction,
@@ -140,9 +139,6 @@ class CharterCog(commands.Cog):
         hours: int = 168
     ):
         """Scan a channel for rule changes"""
-        if not self.admin_manager or not self.admin_manager.is_admin(interaction.user, interaction):
-            await interaction.response.send_message("❌ Only admins can scan for rule changes!", ephemeral=True)
-            return
 
         if not self.charter_editor:
             await interaction.response.send_message("❌ Charter editor not available", ephemeral=True)
@@ -250,11 +246,9 @@ class CharterCog(commands.Cog):
 
     @charter_group.command(name="import", description="Import the charter from its Google Doc (Admin only)")
     @app_commands.describe(url="Charter document link (defaults to the league charter doc)")
+    @requires_admin("❌ Only admins can import the charter!")
     async def import_charter(self, interaction: discord.Interaction, url: Optional[str] = None):
         """Replace the stored charter with the text of the league's shared doc."""
-        if not self.admin_manager or not self.admin_manager.is_admin(interaction.user, interaction):
-            await interaction.response.send_message("❌ Only admins can import the charter!", ephemeral=True)
-            return
 
         if not self.charter_editor:
             await interaction.response.send_message("❌ Charter editor not available", ephemeral=True)
@@ -281,11 +275,9 @@ class CharterCog(commands.Cog):
         await interaction.followup.send(embed=embed, ephemeral=True)
 
     @charter_group.command(name="sync", description="Sync charter to Discord (Admin only)")
+    @requires_admin("❌ Only admins can sync the charter!")
     async def sync(self, interaction: discord.Interaction):
         """Manually sync the charter"""
-        if not self.admin_manager or not self.admin_manager.is_admin(interaction.user, interaction):
-            await interaction.response.send_message("❌ Only admins can sync the charter!", ephemeral=True)
-            return
 
         if not self.charter_editor:
             await interaction.response.send_message("❌ Charter editor not available", ephemeral=True)

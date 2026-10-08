@@ -23,7 +23,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from ..config import Colors, Footers
-from ..services.checks import check_module_enabled, check_module_enabled_deferred
+from ..services.checks import check_module_enabled, check_module_enabled_deferred, requires_module
 from ..utils.server_config import server_config, FeatureModule
 from ..utils.cfb_data import cfb_data
 
@@ -58,6 +58,7 @@ class CFBDataCog(commands.Cog):
         name="Player name to search for (e.g., 'James Smith')",
         team="Optional team name to filter results (e.g., 'Alabama')"
     )
+    @requires_module(FeatureModule.CFB_DATA)
     async def player(
         self,
         interaction: discord.Interaction,
@@ -66,8 +67,6 @@ class CFBDataCog(commands.Cog):
     ):
         """Look up player info from CollegeFootballData.com"""
         # Check module enabled BEFORE deferring so we can respond ephemerally if needed
-        if not await check_module_enabled(interaction, FeatureModule.CFB_DATA, server_config):
-            return
 
         # Now defer publicly (results will be public)
         await interaction.response.defer()
@@ -125,6 +124,7 @@ class CFBDataCog(commands.Cog):
     @app_commands.describe(
         player_list="Players separated by commas, e.g., 'James Smith (Bama DT); Isaiah Horton (Bama WR)'"
     )
+    @requires_module(FeatureModule.CFB_DATA)
     async def players(
         self,
         interaction: discord.Interaction,
@@ -132,9 +132,6 @@ class CFBDataCog(commands.Cog):
     ):
         """Look up multiple players at once"""
         await interaction.response.defer()
-
-        if not await check_module_enabled_deferred(interaction, FeatureModule.CFB_DATA, server_config):
-            return
 
         if not await self._check_cfb_available(interaction):
             return
@@ -199,6 +196,7 @@ class CFBDataCog(commands.Cog):
         poll="Poll type: AP, Coaches, or CFP",
         top="Number of teams to show (default: 10)"
     )
+    @requires_module(FeatureModule.CFB_DATA)
     async def rankings(
         self,
         interaction: discord.Interaction,
@@ -210,9 +208,6 @@ class CFBDataCog(commands.Cog):
     ):
         """Get CFB rankings - optionally filter by team, week, or poll"""
         await interaction.response.defer()
-
-        if not await check_module_enabled_deferred(interaction, FeatureModule.CFB_DATA, server_config):
-            return
 
         if not await self._check_cfb_available(interaction):
             return
@@ -276,6 +271,7 @@ class CFBDataCog(commands.Cog):
         team1="First team (e.g., 'Alabama')",
         team2="Second team (e.g., 'Auburn')"
     )
+    @requires_module(FeatureModule.CFB_DATA)
     async def matchup(
         self,
         interaction: discord.Interaction,
@@ -284,9 +280,6 @@ class CFBDataCog(commands.Cog):
     ):
         """Get all-time matchup history between two teams"""
         await interaction.response.defer()
-
-        if not await check_module_enabled_deferred(interaction, FeatureModule.CFB_DATA, server_config):
-            return
 
         if not await self._check_cfb_available(interaction):
             return
@@ -312,6 +305,7 @@ class CFBDataCog(commands.Cog):
         team="Team name (e.g., 'Nebraska')",
         year="Season year (default: current)"
     )
+    @requires_module(FeatureModule.CFB_DATA)
     async def schedule(
         self,
         interaction: discord.Interaction,
@@ -320,9 +314,6 @@ class CFBDataCog(commands.Cog):
     ):
         """Get a team's full schedule for a season"""
         await interaction.response.defer()
-
-        if not await check_module_enabled_deferred(interaction, FeatureModule.CFB_DATA, server_config):
-            return
 
         if not await self._check_cfb_available(interaction):
             return
@@ -348,6 +339,7 @@ class CFBDataCog(commands.Cog):
         team="Optional college team to filter by",
         year="Draft year (default: current year)"
     )
+    @requires_module(FeatureModule.CFB_DATA)
     async def draft(
         self,
         interaction: discord.Interaction,
@@ -356,9 +348,6 @@ class CFBDataCog(commands.Cog):
     ):
         """Get NFL draft picks, optionally filtered by college"""
         await interaction.response.defer()
-
-        if not await check_module_enabled_deferred(interaction, FeatureModule.CFB_DATA, server_config):
-            return
 
         if not await self._check_cfb_available(interaction):
             return
@@ -381,6 +370,7 @@ class CFBDataCog(commands.Cog):
         team="Team name (e.g., 'USC')",
         year="Year to check (default: current)"
     )
+    @requires_module(FeatureModule.CFB_DATA)
     async def transfers(
         self,
         interaction: discord.Interaction,
@@ -389,9 +379,6 @@ class CFBDataCog(commands.Cog):
     ):
         """Get transfer portal incoming and outgoing for a team"""
         await interaction.response.defer()
-
-        if not await check_module_enabled_deferred(interaction, FeatureModule.CFB_DATA, server_config):
-            return
 
         if not await self._check_cfb_available(interaction):
             return
@@ -418,6 +405,7 @@ class CFBDataCog(commands.Cog):
         year="Season year (default: current)",
         week="Week number (default: current)"
     )
+    @requires_module(FeatureModule.CFB_DATA)
     async def betting(
         self,
         interaction: discord.Interaction,
@@ -427,9 +415,6 @@ class CFBDataCog(commands.Cog):
     ):
         """Get betting lines for games"""
         await interaction.response.defer()
-
-        if not await check_module_enabled_deferred(interaction, FeatureModule.CFB_DATA, server_config):
-            return
 
         if not await self._check_cfb_available(interaction):
             return
@@ -468,6 +453,7 @@ class CFBDataCog(commands.Cog):
         team="Team name (e.g., 'Ohio State')",
         year="Season year (default: current)"
     )
+    @requires_module(FeatureModule.CFB_DATA)
     async def ratings(
         self,
         interaction: discord.Interaction,
@@ -476,9 +462,6 @@ class CFBDataCog(commands.Cog):
     ):
         """Get advanced analytics ratings for a team"""
         await interaction.response.defer()
-
-        if not await check_module_enabled_deferred(interaction, FeatureModule.CFB_DATA, server_config):
-            return
 
         if not await self._check_cfb_available(interaction):
             return
@@ -504,6 +487,7 @@ class CFBDataCog(commands.Cog):
         team="Team name (e.g., 'Washington')",
         year="Season year (default: current)"
     )
+    @requires_module(FeatureModule.CFB_DATA)
     async def teamstats(
         self,
         interaction: discord.Interaction,
@@ -512,9 +496,6 @@ class CFBDataCog(commands.Cog):
     ):
         """Get comprehensive team statistics for a season"""
         await interaction.response.defer()
-
-        if not await check_module_enabled_deferred(interaction, FeatureModule.CFB_DATA, server_config):
-            return
 
         if not await self._check_cfb_available(interaction):
             return

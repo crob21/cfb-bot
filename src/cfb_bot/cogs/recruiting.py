@@ -22,7 +22,7 @@ from discord.ext import commands
 
 from ..config import Colors, Footers
 from ..services.checks import (check_module_enabled,
-                               check_module_enabled_deferred)
+                               check_module_enabled_deferred, requires_module)
 from ..utils.cache import get_cache
 from ..utils.cfb_data import cfb_data
 from ..utils.on3_scraper import on3_scraper
@@ -78,6 +78,7 @@ class RecruitingCog(commands.Cog):
         app_commands.Choice(name="S - Safety", value="S"),
         app_commands.Choice(name="ATH - Athlete", value="ATH"),
     ])
+    @requires_module(FeatureModule.RECRUITING)
     async def player(
         self,
         interaction: discord.Interaction,
@@ -87,8 +88,6 @@ class RecruitingCog(commands.Cog):
         deep_search: bool = False
     ):
         """Look up a recruit from configured recruiting source"""
-        if not await check_module_enabled(interaction, FeatureModule.RECRUITING, server_config):
-            return
 
         # Defer immediately as PUBLIC - On3 searches can take 5-10+ seconds with retries/blocks
         # This means "not found" errors will also be public, but that's better than interaction timeout
@@ -376,6 +375,7 @@ class RecruitingCog(commands.Cog):
         app_commands.Choice(name="CB - Cornerback", value="CB"),
         app_commands.Choice(name="S - Safety", value="S"),
     ])
+    @requires_module(FeatureModule.RECRUITING)
     async def top(
         self,
         interaction: discord.Interaction,
@@ -389,9 +389,6 @@ class RecruitingCog(commands.Cog):
             await interaction.response.defer()
         except discord.errors.NotFound:
             logger.warning("/recruiting top interaction expired")
-            return
-
-        if not await check_module_enabled_deferred(interaction, FeatureModule.RECRUITING, server_config):
             return
 
         try:
@@ -445,6 +442,7 @@ class RecruitingCog(commands.Cog):
         team="Team name (e.g., 'Georgia', 'Ohio State')",
         year="Recruiting class year (default: current)"
     )
+    @requires_module(FeatureModule.RECRUITING)
     async def class_cmd(
         self,
         interaction: discord.Interaction,
@@ -456,9 +454,6 @@ class RecruitingCog(commands.Cog):
             await interaction.response.defer()
         except discord.errors.NotFound:
             logger.warning(f"/recruiting class interaction expired for {team}")
-            return
-
-        if not await check_module_enabled_deferred(interaction, FeatureModule.RECRUITING, server_config):
             return
 
         try:
@@ -495,6 +490,7 @@ class RecruitingCog(commands.Cog):
         year="Recruiting class year (default: current)",
         show="Number of commits to show (default: 30, max: 50)"
     )
+    @requires_module(FeatureModule.RECRUITING)
     async def commits(
         self,
         interaction: discord.Interaction,
@@ -507,9 +503,6 @@ class RecruitingCog(commands.Cog):
             await interaction.response.defer()
         except discord.errors.NotFound:
             logger.warning(f"/recruiting commits interaction expired for {team}")
-            return
-
-        if not await check_module_enabled_deferred(interaction, FeatureModule.RECRUITING, server_config):
             return
 
         try:
@@ -554,6 +547,7 @@ class RecruitingCog(commands.Cog):
         year="Recruiting class year (default: current)",
         top="Number of teams to show (default: 25)"
     )
+    @requires_module(FeatureModule.RECRUITING)
     async def rankings(
         self,
         interaction: discord.Interaction,
@@ -565,9 +559,6 @@ class RecruitingCog(commands.Cog):
             await interaction.response.defer()
         except discord.errors.NotFound:
             logger.warning("/recruiting rankings interaction expired")
-            return
-
-        if not await check_module_enabled_deferred(interaction, FeatureModule.RECRUITING, server_config):
             return
 
         try:
@@ -628,6 +619,7 @@ class RecruitingCog(commands.Cog):
         name="Player name (e.g., 'John Smith')",
         team="Previous/current team to help find the right player"
     )
+    @requires_module(FeatureModule.RECRUITING)
     async def portal(
         self,
         interaction: discord.Interaction,
@@ -639,9 +631,6 @@ class RecruitingCog(commands.Cog):
             await interaction.response.defer()
         except discord.errors.NotFound:
             logger.warning(f"/recruiting portal interaction expired for {name}")
-            return
-
-        if not await check_module_enabled_deferred(interaction, FeatureModule.RECRUITING, server_config):
             return
 
         try:
@@ -833,14 +822,13 @@ class RecruitingCog(commands.Cog):
         app_commands.Choice(name="On3/Rivals (default) - Server-side rendered, reliable", value="on3"),
         app_commands.Choice(name="247Sports Composite - Legacy, more data but slower", value="247"),
     ])
+    @requires_module(FeatureModule.RECRUITING)
     async def source(
         self,
         interaction: discord.Interaction,
         source: Optional[str] = None
     ):
         """Set or view the recruiting data source"""
-        if not await check_module_enabled(interaction, FeatureModule.RECRUITING, server_config):
-            return
 
         if not interaction.guild:
             await interaction.response.send_message("❌ This command only works in servers!", ephemeral=True)

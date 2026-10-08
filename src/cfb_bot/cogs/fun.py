@@ -21,6 +21,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from ..config import Colors
+from ..services.checks import requires_admin
 
 logger = logging.getLogger('CFBBot.Fun')
 
@@ -167,6 +168,7 @@ class FunCog(commands.Cog):
         engage="Should Harry argue back if they respond? (default: True)",
         everywhere="Troll them in every channel instead of just this one (default: False)"
     )
+    @requires_admin()
     async def target(
         self,
         interaction: discord.Interaction,
@@ -178,11 +180,6 @@ class FunCog(commands.Cog):
         """Enable trolling for a specific user"""
         # Check for duplicate interactions
         if self._is_duplicate_interaction(interaction):
-            return
-
-        # Admin check
-        if not self.admin_manager or not self.admin_manager.is_admin(interaction.user, interaction):
-            await interaction.response.send_message("❌ Nice try, but no.", ephemeral=True)
             return
 
         # Validation
@@ -236,15 +233,11 @@ class FunCog(commands.Cog):
 
     @fun_group.command(name="untarget", description="🛑 Stop trolling a user (Admin only)")
     @app_commands.describe(user="The user to stop trolling")
+    @requires_admin()
     async def untarget(self, interaction: discord.Interaction, user: discord.Member):
         """Disable trolling for a specific user"""
         # Check for duplicate interactions
         if self._is_duplicate_interaction(interaction):
-            return
-
-        # Admin check
-        if not self.admin_manager or not self.admin_manager.is_admin(interaction.user, interaction):
-            await interaction.response.send_message("❌ Nice try, but no.", ephemeral=True)
             return
 
         if not interaction.guild_id:
@@ -274,6 +267,7 @@ class FunCog(commands.Cog):
         user="The targeted user",
         timeout="New timeout in minutes"
     )
+    @requires_admin()
     async def set_timeout(
         self,
         interaction: discord.Interaction,
@@ -283,11 +277,6 @@ class FunCog(commands.Cog):
         """Adjust the timeout for a targeted user"""
         # Check for duplicate interactions
         if self._is_duplicate_interaction(interaction):
-            return
-
-        # Admin check
-        if not self.admin_manager or not self.admin_manager.is_admin(interaction.user, interaction):
-            await interaction.response.send_message("❌ Nice try, but no.", ephemeral=True)
             return
 
         # Validation
@@ -324,15 +313,11 @@ class FunCog(commands.Cog):
 
     @fun_group.command(name="toggle_engage", description="🔥 Toggle argument mode for a user (Admin only)")
     @app_commands.describe(user="The targeted user")
+    @requires_admin()
     async def toggle_engage(self, interaction: discord.Interaction, user: discord.Member):
         """Toggle whether Harry will argue back if they respond"""
         # Check for duplicate interactions
         if self._is_duplicate_interaction(interaction):
-            return
-
-        # Admin check
-        if not self.admin_manager or not self.admin_manager.is_admin(interaction.user, interaction):
-            await interaction.response.send_message("❌ Nice try, but no.", ephemeral=True)
             return
 
         if not interaction.guild_id:
@@ -369,15 +354,11 @@ class FunCog(commands.Cog):
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @fun_group.command(name="status", description="📋 Check trolling status (Admin only)")
+    @requires_admin()
     async def status(self, interaction: discord.Interaction):
         """View all currently targeted users"""
         # Check for duplicate interactions
         if self._is_duplicate_interaction(interaction):
-            return
-
-        # Admin check
-        if not self.admin_manager or not self.admin_manager.is_admin(interaction.user, interaction):
-            await interaction.response.send_message("❌ Nice try, but no.", ephemeral=True)
             return
 
         if not interaction.guild_id:
@@ -434,6 +415,7 @@ class FunCog(commands.Cog):
         engage="Should Harry argue back if they respond? (default: True)",
         everywhere="Troll them in every channel instead of just this one (default: False)"
     )
+    @requires_admin()
     async def target_all(
         self,
         interaction: discord.Interaction,
@@ -445,11 +427,6 @@ class FunCog(commands.Cog):
         """Enable trolling for multiple users at once"""
         # Check for duplicate interactions
         if self._is_duplicate_interaction(interaction):
-            return
-
-        # Admin check
-        if not self.admin_manager or not self.admin_manager.is_admin(interaction.user, interaction):
-            await interaction.response.send_message("❌ Nice try, but no.", ephemeral=True)
             return
 
         # Validation
@@ -550,15 +527,11 @@ class FunCog(commands.Cog):
 
     @fun_group.command(name="roast", description="🔥 Roast a user immediately (Admin only)")
     @app_commands.describe(user="The user to roast")
+    @requires_admin()
     async def roast(self, interaction: discord.Interaction, user: discord.Member):
         """Roast a user immediately"""
         # Check for duplicate interactions
         if self._is_duplicate_interaction(interaction):
-            return
-
-        # Admin check
-        if not self.admin_manager or not self.admin_manager.is_admin(interaction.user, interaction):
-            await interaction.response.send_message("❌ Nice try, but no.", ephemeral=True)
             return
 
         if user.bot:
@@ -591,15 +564,11 @@ Do NOT start with "Oh," or "Look," - start directly with the roast."""
             await interaction.followup.send(self._get_targeted_insult(user.mention))
 
     @fun_group.command(name="untarget_all", description="🛑 Stop trolling ALL users (Admin only)")
+    @requires_admin()
     async def untarget_all(self, interaction: discord.Interaction):
         """Disable trolling for all users at once"""
         # Check for duplicate interactions
         if self._is_duplicate_interaction(interaction):
-            return
-
-        # Admin check
-        if not self.admin_manager or not self.admin_manager.is_admin(interaction.user, interaction):
-            await interaction.response.send_message("❌ Nice try, but no.", ephemeral=True)
             return
 
         if not interaction.guild_id:
