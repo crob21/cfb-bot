@@ -3,6 +3,15 @@
 Full release history for Harry. The bot's `/changelog` command shows the most recent releases;
 this file keeps everything. Generated from `src/cfb_bot/utils/version_manager.py`.
 
+## 3.18.0 — Harry Answers the Question 🎯 (2026-10-08)
+
+### AI
+- FIX: Harry listed this week's games no matter what you asked him
+- FIX: He thought the user teams were last season's (Nebraska, Notre Dame, LSU...)
+- User teams now come from the uploaded schedule, so they're right every season
+- Schedule formatting rules only apply when he's actually listing games
+- Replies are shorter unless you ask for a list
+
 ## 3.17.4 — No More Silent /harry 💬 (2026-10-08)
 
 ### Fixes

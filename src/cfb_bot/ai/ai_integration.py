@@ -54,6 +54,57 @@ def openai_request_body(model: str, system: str, prompt: str, max_tokens: int) -
     return body
 
 
+def user_team_names() -> list:
+    """The league's user-controlled teams, from the live schedule (not a stale literal)."""
+    try:
+        from ..utils.schedule_manager import get_schedule_manager
+        schedule_mgr = get_schedule_manager()
+        return list(schedule_mgr.teams) if schedule_mgr else []
+    except Exception as e:
+        logger.debug(f"Could not read user teams: {e}")
+        return []
+
+
+def league_prompt(personality: str, charter: str, schedule: str, question: str) -> str:
+    """
+    Prompt for a league server.
+
+    Harry used to get a mandatory "schedule formatting" block on every question, so he
+    answered "why are you wearing corn gear?" with this week's fixtures. The schedule
+    rules now apply only when he's actually listing games.
+    """
+    teams = user_team_names()
+    teams_line = (", ".join(teams) if teams
+                  else "(none configured - don't claim to support any team)")
+    return f"""
+            {personality}
+
+            ANSWER THE QUESTION THAT WAS ASKED. Keep it short - a couple of sentences unless
+            they asked for a list. Do not volunteer the schedule, the charter, or this week's
+            games unless the question calls for it.
+
+            The league's user-controlled teams: {teams_line}
+
+            Question: {question}
+
+            Reference material (use ONLY what the question needs, ignore the rest):
+
+            League Charter:
+            {charter}
+
+            League Schedule:
+            {schedule}
+
+            Guidelines:
+            - Be extremely sarcastic and witty, like a completely insane but knowledgeable league member
+            - If the answer isn't in the material above, say so with sarcasm; don't invent games,
+              rosters or results
+            - Don't mention "the charter" unless you genuinely can't answer
+            - ONLY when listing games: one per line, user teams bolded, e.g.
+              🏈 **{teams[0] if teams else 'YourTeam'}** @ Opponent
+            """
+
+
 class AICharterAssistant:
     """AI-powered assistant for league charter questions"""
 
@@ -242,37 +293,7 @@ class AICharterAssistant:
             # Get schedule context for league servers
             schedule_context = self.get_schedule_context()
 
-            prompt = f"""
-            {personality}
-            Answer questions based on the league charter AND schedule information provided below in a hilariously sarcastic way.
-
-            League Charter Context:
-            {context}
-
-            League Schedule Information:
-            {schedule_context}
-
-            Question: {question}
-
-            IMPORTANT INSTRUCTIONS:
-            - If you can answer the question based on the charter OR schedule content, provide a direct, helpful answer with maximum sarcasm
-            - For schedule questions (matchups, byes, who plays who), use the schedule information above
-
-            CRITICAL - SCHEDULE FORMATTING RULES (YOU MUST FOLLOW THESE):
-            1. FORMAT AS CLEAN LISTS, not paragraphs
-            2. USER TEAMS MUST BE BOLDED WITH ** - The user teams are: Hawaii, LSU, Michigan St, Nebraska, Notre Dame, Texas
-            3. Example correct format:
-               🏈 **LSU** @ Kentucky
-               🏈 **Nebraska** @ Boise St
-               🏈 **Texas** @ Mississippi St
-            4. WRONG format (no bold): 🏈 LSU @ Kentucky
-            5. Keep sarcasm SHORT in intro/outro, make the schedule data EASY TO READ
-
-            - Do NOT mention "check the full charter" or "charter" unless you truly don't know the answer
-            - Be extremely sarcastic and witty, like a completely insane but knowledgeable league member
-            - If the information isn't available, say so with sarcasm
-            - Keep responses informative but hilariously sarcastic and insane
-            """
+            prompt = league_prompt(personality, context, schedule_context, question)
         else:
             # Generic CFB assistant mode (no league-specific data)
             prompt = f"""
@@ -425,35 +446,7 @@ class AICharterAssistant:
             # Get schedule context for league servers
             schedule_context = self.get_schedule_context()
 
-            prompt = f"""
-            {personality}
-            Answer questions based on the league charter AND schedule information provided below.
-
-            League Charter Context:
-            {context}
-
-            League Schedule Information:
-            {schedule_context}
-
-            Question: {question}
-
-            IMPORTANT INSTRUCTIONS:
-            - If you can answer the question based on the charter OR schedule content, provide a direct, helpful answer with maximum sarcasm
-            - For schedule questions (matchups, byes, who plays who), use the schedule information above
-
-            CRITICAL - SCHEDULE FORMATTING RULES (YOU MUST FOLLOW THESE):
-            1. FORMAT AS CLEAN LISTS, not paragraphs
-            2. USER TEAMS MUST BE BOLDED WITH ** - The user teams are: Hawaii, LSU, Michigan St, Nebraska, Notre Dame, Texas
-            3. Example correct format:
-               🏈 **LSU** @ Kentucky
-               🏈 **Nebraska** @ Boise St
-               🏈 **Texas** @ Mississippi St
-            4. WRONG format (no bold): 🏈 LSU @ Kentucky
-            5. Keep sarcasm SHORT in intro/outro, make the schedule data EASY TO READ
-
-            - Be extremely sarcastic and witty, like a completely insane but knowledgeable league member
-            - Keep responses informative but hilariously sarcastic
-            """
+            prompt = league_prompt(personality, context, schedule_context, question)
         else:
             # Generic CFB assistant mode (no league-specific data)
             prompt = f"""
