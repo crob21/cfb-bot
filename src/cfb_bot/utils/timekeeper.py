@@ -35,25 +35,25 @@ logger = logging.getLogger('CFBBot.Timekeeper')
 # (only regular-season steps have one).
 CFB_DYNASTY_WEEKS = {
     # Preseason (1)
-    1: {"name": "Preseason", "short": "Preseason", "phase": "Preseason", "game_week": None, "actions": "Season begins", "notes": ""},
+    1: {"name": "Preseason", "short": "Preseason", "phase": "Preseason", "game_week": None},
     # Regular Season (2-16) - Week 0 through Week 14
     **{
-        step: {"name": f"Week {step - 2}", "short": f"Week {step - 2}", "phase": "Regular Season", "game_week": step - 2, "actions": "", "notes": ""}
+        step: {"name": f"Week {step - 2}", "short": f"Week {step - 2}", "phase": "Regular Season", "game_week": step - 2}
         for step in range(2, 17)
     },
     # Postseason (17-22)
-    17: {"name": "Conference Championship", "short": "Conf Champ", "phase": "Postseason", "game_week": None, "actions": "Play Championship Games", "notes": ""},
-    18: {"name": "Bowl Week 1", "short": "Bowl Wk 1", "phase": "Postseason", "game_week": None, "actions": "Bowl Games", "notes": ""},
-    19: {"name": "Bowl Week 2 / CFP Quarterfinals", "short": "Bowl Wk 2 / CFP QF", "phase": "Postseason", "game_week": None, "actions": "CFP Quarterfinals", "notes": ""},
-    20: {"name": "Bowl Week 3 / CFP Semifinals", "short": "Bowl Wk 3 / CFP SF", "phase": "Postseason", "game_week": None, "actions": "CFP Semifinals", "notes": ""},
-    21: {"name": "Bowl Week 4", "short": "Bowl Wk 4", "phase": "Postseason", "game_week": None, "actions": "Bowl Games", "notes": ""},
-    22: {"name": "National Championship", "short": "Natl Champ", "phase": "Postseason", "game_week": None, "actions": "National Championship", "notes": ""},
+    17: {"name": "Conference Championship", "short": "Conf Champ", "phase": "Postseason", "game_week": None},
+    18: {"name": "Bowl Week 1", "short": "Bowl Wk 1", "phase": "Postseason", "game_week": None},
+    19: {"name": "Bowl Week 2 / CFP Quarterfinals", "short": "Bowl Wk 2 / CFP QF", "phase": "Postseason", "game_week": None},
+    20: {"name": "Bowl Week 3 / CFP Semifinals", "short": "Bowl Wk 3 / CFP SF", "phase": "Postseason", "game_week": None},
+    21: {"name": "Bowl Week 4", "short": "Bowl Wk 4", "phase": "Postseason", "game_week": None},
+    22: {"name": "National Championship", "short": "Natl Champ", "phase": "Postseason", "game_week": None},
     # Offseason (23-27)
-    23: {"name": "Staff Moves", "short": "Staff Moves", "phase": "Offseason", "game_week": None, "actions": "Coaching staff hires/fires", "notes": ""},
-    24: {"name": "Transfer Portal Stage 1 (Open)", "short": "Portal 1 (Open)", "phase": "Offseason", "game_week": None, "actions": "Transfer Portal opens", "notes": ""},
-    25: {"name": "Transfer Portal Stage 2 (Close)", "short": "Portal 2 (Close)", "phase": "Offseason", "game_week": None, "actions": "Transfer Portal closes", "notes": ""},
-    26: {"name": "National Signing Day", "short": "Signing Day", "phase": "Offseason", "game_week": None, "actions": "National Signing Day", "notes": ""},
-    27: {"name": "Training Results", "short": "Training", "phase": "Offseason", "game_week": None, "actions": "Training Results", "notes": "Advancing resets to Preseason of the next season"},
+    23: {"name": "Staff Moves", "short": "Staff Moves", "phase": "Offseason", "game_week": None},
+    24: {"name": "Transfer Portal Stage 1 (Open)", "short": "Portal 1 (Open)", "phase": "Offseason", "game_week": None},
+    25: {"name": "Transfer Portal Stage 2 (Close)", "short": "Portal 2 (Close)", "phase": "Offseason", "game_week": None},
+    26: {"name": "National Signing Day", "short": "Signing Day", "phase": "Offseason", "game_week": None},
+    27: {"name": "Training Results", "short": "Training", "phase": "Offseason", "game_week": None},
 }
 
 FIRST_WEEK = 1  # Preseason
@@ -168,34 +168,6 @@ def get_game_week(week: Optional[int]) -> Optional[int]:
     return None
 
 
-def get_week_actions(week: int) -> str:
-    """
-    Get the available actions for a given step.
-
-    Args:
-        week: The step number (1-27)
-
-    Returns:
-        String describing available actions, or empty string
-    """
-    if week in CFB_DYNASTY_WEEKS:
-        return CFB_DYNASTY_WEEKS[week].get("actions", "")
-    return ""
-
-
-def get_week_notes(week: int) -> str:
-    """
-    Get any important notes for a given step.
-
-    Args:
-        week: The step number (1-27)
-
-    Returns:
-        String with notes, or empty string
-    """
-    if week in CFB_DYNASTY_WEEKS:
-        return CFB_DYNASTY_WEEKS[week].get("notes", "")
-    return ""
 
 
 def get_week_info(week: int) -> Dict:
@@ -206,7 +178,7 @@ def get_week_info(week: int) -> Dict:
         week: The step number (1-27)
 
     Returns:
-        Dict with name, short name, phase, game_week, actions, and notes
+        Dict with name, short name, phase, and game_week
     """
     if week in CFB_DYNASTY_WEEKS:
         return CFB_DYNASTY_WEEKS[week].copy()
@@ -215,8 +187,6 @@ def get_week_info(week: int) -> Dict:
         "short": get_week_name(week, short=True),
         "phase": get_week_phase(week),
         "game_week": None,
-        "actions": "",
-        "notes": ""
     }
 
 
