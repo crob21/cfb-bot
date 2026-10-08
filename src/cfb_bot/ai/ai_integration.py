@@ -23,6 +23,10 @@ load_dotenv()
 
 logger = logging.getLogger('CFBBot.AI')
 
+# Reasoning models bill thinking against the completion cap; give the answer room.
+REASONING_TOKEN_HEADROOM = 4
+
+
 def openai_request_body(model: str, system: str, prompt: str, max_tokens: int) -> dict:
     """
     Build the OpenAI chat-completions body for a model.
@@ -39,7 +43,11 @@ def openai_request_body(model: str, system: str, prompt: str, max_tokens: int) -
     }
     newer_model = model.startswith(('gpt-5', 'o1', 'o3', 'o4'))
     if newer_model:
-        body['max_completion_tokens'] = max_tokens
+        # These models spend tokens on internal reasoning out of the same budget, so a
+        # tight cap gets used up before any visible text and the reply comes back blank.
+        # Keep reasoning light and leave room for the answer.
+        body['max_completion_tokens'] = max(max_tokens * REASONING_TOKEN_HEADROOM, 2000)
+        body['reasoning_effort'] = 'low'
     else:
         body['max_tokens'] = max_tokens
         body['temperature'] = 0.7
@@ -349,8 +357,23 @@ class AICharterAssistant:
 
                         logger.info(f"Total OpenAI tokens used: {self.total_openai_tokens} (across {self.total_requests} requests)")
 
-                        response_text = result['choices'][0]['message']['content'].strip()
+                        choice = result['choices'][0]
+                        response_text = (choice['message'].get('content') or '').strip()
                         logger.info(f"Response length: {len(response_text)} characters")
+
+                        if not response_text:
+                            # Usually a reasoning model using the whole completion budget
+                            # before writing anything; say so instead of failing silently.
+                            reasoning_tokens = (usage.get('completion_tokens_details', {})
+                                                .get('reasoning_tokens', 0))
+                            logger.error(
+                                f"OpenAI returned no text (model={OPENAI_MODEL}, "
+                                f"finish_reason={choice.get('finish_reason')}, "
+                                f"completion_tokens={completion_tokens}, "
+                                f"reasoning_tokens={reasoning_tokens}) - "
+                                f"raise the token cap or lower reasoning_effort"
+                            )
+                            return None
 
                         # Never send keys/secrets to users (sneaky prompts)
                         response_text = sanitize_ai_response(response_text)

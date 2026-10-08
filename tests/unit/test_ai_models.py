@@ -42,14 +42,16 @@ def test_request_body_matches_what_each_model_family_accepts():
     from cfb_bot.ai.ai_integration import openai_request_body
 
     newer = openai_request_body('gpt-5-mini', 'sys', 'hi', 500)
-    assert newer['max_completion_tokens'] == 500
     assert 'max_tokens' not in newer and 'temperature' not in newer
+    # reasoning is billed against the completion cap, so the answer needs headroom
+    assert newer['max_completion_tokens'] >= 2000
+    assert newer['reasoning_effort'] == 'low'
 
     older = openai_request_body('gpt-4o-mini', 'sys', 'hi', 500)
     assert older['max_tokens'] == 500 and older['temperature'] == 0.7
     assert 'max_completion_tokens' not in older
 
-    assert openai_request_body('o3', 'sys', 'hi', 10)['max_completion_tokens'] == 10
+    assert openai_request_body('o3', 'sys', 'hi', 10)['max_completion_tokens'] >= 2000
     assert [m['role'] for m in newer['messages']] == ['system', 'user']
 
 
@@ -71,3 +73,11 @@ def test_assistant_prices_calls_with_the_configured_rates():
     assistant = AICharterAssistant()
     assert assistant.openai_cost_per_1k == OPENAI_COST_PER_1K
     assert assistant.anthropic_cost_per_1k == ANTHROPIC_COST_PER_1K
+
+
+def test_reasoning_models_get_room_beyond_the_visible_answer():
+    """A 500-token cap left gpt-5-mini no budget for text after thinking — blank replies."""
+    from cfb_bot.ai.ai_integration import openai_request_body
+
+    assert openai_request_body('gpt-5-mini', 'sys', 'hi', 500)['max_completion_tokens'] > 500
+    assert openai_request_body('gpt-5-mini', 'sys', 'hi', 1000)['max_completion_tokens'] >= 4000
