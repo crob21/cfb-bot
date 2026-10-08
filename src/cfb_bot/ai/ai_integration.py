@@ -194,6 +194,35 @@ class AICharterAssistant:
         logger.info("No charter content available - using fallback context")
         return None
 
+    @staticmethod
+    def _timer_context(timekeeper) -> list:
+        """
+        Lines describing the live advance countdown.
+
+        Without these Harry falls back to the charter's written cadence ("Tuesday and
+        Friday at 9am"), which is the policy, not the deadline people actually face.
+        """
+        try:
+            from ..utils.timekeeper import format_est_time
+
+            channel = timekeeper.get_advance_channel()
+            status = timekeeper.get_status(channel) if channel else {'active': False}
+
+            if not status.get('active'):
+                return ["**ADVANCE TIMER: not running right now.** Nobody is on the clock.", ""]
+
+            deadline = format_est_time(status.get('end_time'), '%A, %B %d at %I:%M %p')
+            return [
+                f"**ADVANCE TIMER: {status['hours']}h {status['minutes']}m left** "
+                f"(deadline {deadline}).",
+                "IMPORTANT: For 'when is the advance / how long have we got', use this live "
+                "countdown. The charter's advance cadence is league policy, not the current deadline.",
+                "",
+            ]
+        except Exception as e:
+            logger.debug(f"Could not get timer context: {e}")
+            return []
+
     def get_schedule_context(self) -> str:
         """Get schedule context for AI queries, including current week info"""
         context_parts = []
@@ -218,6 +247,8 @@ class AICharterAssistant:
                     else:
                         context_parts.append(f"IMPORTANT: It is currently {week_name} ({phase}), so there are no regular-season schedule games this week.")
                     context_parts.append("")
+
+                context_parts.extend(self._timer_context(bot_module.timekeeper_manager))
         except Exception as e:
             logger.debug(f"Could not get current week context: {e}")
 
