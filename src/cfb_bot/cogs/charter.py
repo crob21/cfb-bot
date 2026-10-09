@@ -429,8 +429,17 @@ class CharterCog(commands.Cog):
     @app_commands.describe(
         instruction="What to change, in plain English (e.g. 'advances run on a 48h timer, not Tue/Fri')",
         summary="Short title for the pull request",
+        channel="Optional: read this channel's recent discussion and base the change on it",
+        hours="How far back to read that channel (default: 168 = 1 week)",
     )
-    async def propose(self, interaction: discord.Interaction, instruction: str, summary: str):
+    async def propose(
+        self,
+        interaction: discord.Interaction,
+        instruction: str,
+        summary: str,
+        channel: Optional[discord.TextChannel] = None,
+        hours: int = 168,
+    ):
         """
         Draft a charter revision and open a PR for it.
 
@@ -462,7 +471,18 @@ class CharterCog(commands.Cog):
         await interaction.response.defer()
 
         try:
-            revised = await self.charter_editor.revise_charter(instruction, self._league_facts())
+            discussion = []
+            if channel:
+                discussion = await self._channel_discussion(channel, hours)
+                if not discussion:
+                    await interaction.followup.send(
+                        f"❌ Nothing to read in {channel.mention} from the last {hours} hours.",
+                        ephemeral=True)
+                    return
+                logger.info(f"Charter proposal reading {len(discussion)} messages from #{channel.name}")
+
+            revised = await self.charter_editor.revise_charter(
+                instruction, self._league_facts(), discussion)
             if not revised:
                 await interaction.followup.send(
                     "❌ Couldn't draft that revision — the charter came back empty or truncated, "
@@ -482,7 +502,8 @@ class CharterCog(commands.Cog):
                 title="📜 Charter Change Proposed",
                 description=(
                     f"**{summary}**\n\n{instruction}\n\n"
-                    f"[Review and merge the pull request]({result})"
+                    + (f"Based on the last {hours}h of {channel.mention}.\n\n" if channel else "")
+                    + f"[Review and merge the pull request]({result})"
                 ),
                 color=Colors.SUCCESS,
             )
@@ -492,6 +513,30 @@ class CharterCog(commands.Cog):
         except Exception as e:
             logger.error(f"Error proposing charter change: {e}")
             await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
+
+    async def _channel_discussion(self, channel, hours: int) -> list:
+        """Recent messages from a channel, polls included, formatted one per line."""
+        if not self.channel_summarizer:
+            return []
+
+        messages = await self.channel_summarizer.fetch_messages(channel, hours=hours, limit=500)
+        formatted = []
+        for msg in messages or []:
+            if msg.content:
+                formatted.append(f"[{msg.author.display_name}]: {msg.content}")
+            try:
+                if hasattr(msg, 'poll') and msg.poll:
+                    poll = msg.poll
+                    poll_text = f"[{msg.author.display_name}] POLL: {poll.question}"
+                    for answer in getattr(poll, 'answers', []) or []:
+                        poll_text += (f"\n  - {getattr(answer, 'text', str(answer))} "
+                                      f"({getattr(answer, 'vote_count', 0)} votes)")
+                    if getattr(poll, 'is_finalized', False):
+                        poll_text += f"\n  STATUS: CLOSED (Total: {getattr(poll, 'total_votes', 0)} votes)"
+                    formatted.append(poll_text)
+            except Exception:
+                pass
+        return formatted
 
     @staticmethod
     def _league_facts() -> str:

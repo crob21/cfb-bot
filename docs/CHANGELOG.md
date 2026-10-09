@@ -3,6 +3,14 @@
 Full release history for Harry. The bot's `/changelog` command shows the most recent releases;
 this file keeps everything. Generated from `src/cfb_bot/utils/version_manager.py`.
 
+## 3.20.0 — Charter Updates From the Chat 💬 (2026-10-09)
+
+### Charter
+- NEW: /charter propose can read a channel and draft the change from what the league agreed
+- Polls and their results are included, so a passed vote becomes a rule
+- Chat is treated as reference data — nobody can talk Harry into rewriting the charter
+- Still a pull request you review and merge
+
 ## 3.19.0 — Harry Proposes, You Merge 📜 (2026-10-08)
 
 ### Charter
