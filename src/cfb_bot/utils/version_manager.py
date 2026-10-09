@@ -34,6 +34,14 @@ CHANGELOG: Dict[str, Dict] = {
                     "Chat is treated as reference data — nobody can talk Harry into rewriting the charter",
                     "Still a pull request you review and merge"
                 ]
+            },
+            {
+                "category": "Fixes",
+                "emoji": "🔧",
+                "changes": [
+                    "FIX: Commands that save settings could die with 'Unknown interaction' on a busy bot",
+                    "/charter propose and 9 other commands now answer Discord before doing any work"
+                ]
             }
         ]
     },

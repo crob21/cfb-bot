@@ -11,6 +11,10 @@ this file keeps everything. Generated from `src/cfb_bot/utils/version_manager.py
 - Chat is treated as reference data — nobody can talk Harry into rewriting the charter
 - Still a pull request you review and merge
 
+### Fixes
+- FIX: Commands that save settings could die with "Unknown interaction" on a busy bot
+- /charter propose and 9 other commands now answer Discord before doing any work
+
 ## 3.19.0 — Harry Proposes, You Merge 📜 (2026-10-08)
 
 ### Charter
