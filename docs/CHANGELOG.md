@@ -3,6 +3,12 @@
 Full release history for Harry. The bot's `/changelog` command shows the most recent releases;
 this file keeps everything. Generated from `src/cfb_bot/utils/version_manager.py`.
 
+## 3.20.1 — No More "Unknown Interaction" 🔧 (2026-10-09)
+
+### Fixes
+- FIX: /charter propose died with "Unknown interaction" when the bot was busy
+- It and 9 other settings commands now answer Discord before doing any work
+
 ## 3.20.0 — Charter Updates From the Chat 💬 (2026-10-09)
 
 ### Charter

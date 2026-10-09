@@ -276,7 +276,10 @@ class TestRecruitingSource:
             cog = RecruitingCog(MagicMock())
             await cog.source.callback(cog, mock_interaction, source=None)
 
-            mock_interaction.response.send_message.assert_called_once()
+            # acknowledged first (storage writes can outlast Discord's 3s window),
+            # so the reply arrives as a followup
+            mock_interaction.response.defer.assert_awaited_once()
+            mock_interaction.followup.send.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_change_source_requires_admin(self, mock_interaction, mock_server_config):
@@ -292,7 +295,7 @@ class TestRecruitingSource:
             await cog.source.callback(cog, mock_interaction, source="247")
 
             # Should send error
-            call_kwargs = mock_interaction.response.send_message.call_args
+            call_kwargs = mock_interaction.followup.send.call_args
             assert call_kwargs.kwargs.get('ephemeral') == True
 
 
