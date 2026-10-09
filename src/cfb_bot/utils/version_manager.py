@@ -15,11 +15,26 @@ def version_key(version: str) -> tuple:
     return tuple(int(part) for part in version.split('.'))
 
 # Current version
-CURRENT_VERSION = "3.20.0"
+CURRENT_VERSION = "3.20.1"
 
 # Recent releases, newest first. /changelog reads these; the full history is in
 # docs/CHANGELOG.md. Add new releases at the top.
 CHANGELOG: Dict[str, Dict] = {
+    "3.20.1": {
+        "date": "2026-10-09",
+        "title": "No More 'Unknown Interaction' 🔧",
+        "emoji": "🔧",
+        "features": [
+            {
+                "category": "Fixes",
+                "emoji": "🔧",
+                "changes": [
+                    "FIX: /charter propose died with 'Unknown interaction' when the bot was busy",
+                    "It and 9 other settings commands now answer Discord before doing any work"
+                ]
+            }
+        ]
+    },
     "3.20.0": {
         "date": "2026-10-09",
         "title": "Charter Updates From the Chat 💬",

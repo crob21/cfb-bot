@@ -280,9 +280,10 @@ class LeagueCog(commands.Cog):
     @requires_admin("❌ Only admins can stop timers!")
     async def side_timer_stop(self, interaction: discord.Interaction, league: str):
         """Stop a named side-league countdown."""
+        await interaction.response.defer(ephemeral=True)
 
         if not self.timekeeper_manager:
-            await interaction.response.send_message("❌ Timekeeper not available", ephemeral=True)
+            await interaction.followup.send("❌ Timekeeper not available", ephemeral=True)
             return
 
         stopped = await self.timekeeper_manager.stop_side_timer(league)
@@ -292,7 +293,7 @@ class LeagueCog(commands.Cog):
             running = self.timekeeper_manager.get_side_timers()
             names = ", ".join(f"**{t['label']}**" for t in running) if running else "_none_"
             message = f"⚠️ No **{league.strip()}** countdown running. Active side timers: {names}"
-        await interaction.response.send_message(message, ephemeral=True)
+        await interaction.followup.send(message, ephemeral=True)
 
     @league_group.command(name="timer_status", description="Check the current advance countdown status")
     @requires_module(FeatureModule.LEAGUE)
@@ -390,9 +391,10 @@ class LeagueCog(commands.Cog):
     @requires_admin("❌ Only admins can stop timers!")
     async def timer_stop(self, interaction: discord.Interaction):
         """Stop the current advance countdown"""
+        await interaction.response.defer(ephemeral=True)
 
         if not self.timekeeper_manager:
-            await interaction.response.send_message("❌ Timekeeper not available", ephemeral=True)
+            await interaction.followup.send("❌ Timekeeper not available", ephemeral=True)
             return
 
         stopped = await self.timekeeper_manager.stop_all_timers()
@@ -401,7 +403,7 @@ class LeagueCog(commands.Cog):
             description="The advance countdown has been stopped." if stopped else "No countdown was running.",
             color=Colors.WARNING
         )
-        await interaction.response.send_message(embed=embed)
+        await interaction.followup.send(embed=embed)
 
     @league_group.command(name="timers", description="List all active advance timers and stop them (Admin only)")
     @requires_module(FeatureModule.LEAGUE)
@@ -827,13 +829,14 @@ class LeagueCog(commands.Cog):
     @requires_admin("❌ Only admins can set season/week!")
     async def set_week(self, interaction: discord.Interaction, season: int, week: int):
         """Set the current season and week"""
+        await interaction.response.defer(ephemeral=True)
 
         if not self.timekeeper_manager:
-            await interaction.response.send_message("❌ Timekeeper not available", ephemeral=True)
+            await interaction.followup.send("❌ Timekeeper not available", ephemeral=True)
             return
 
         if season < 1 or not is_valid_week(week):
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 f"❌ Invalid season/week! Season must be ≥ 1 and week must be a step number {FIRST_WEEK}-{LAST_WEEK} (see `/league weeks`).",
                 ephemeral=True,
             )
@@ -848,9 +851,9 @@ class LeagueCog(commands.Cog):
                 description=f"**Season {season}** - {week_info['name']}",
                 color=Colors.SUCCESS
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await interaction.followup.send(embed=embed, ephemeral=True)
         else:
-            await interaction.response.send_message("❌ Failed to set season/week!", ephemeral=True)
+            await interaction.followup.send("❌ Failed to set season/week!", ephemeral=True)
 
     @league_group.command(name="upload_schedule", description="Upload a full schedule JSON file (Admin only)")
     @app_commands.describe(file="A .json schedule file (see /league schedule_template for the format)")
@@ -909,12 +912,13 @@ class LeagueCog(commands.Cog):
     @requires_admin("❌ Only admins can edit the schedule!")
     async def set_week_games(self, interaction: discord.Interaction, week: int, games: str, byes: Optional[str] = None):
         """Edit a single week's schedule from Discord without a file."""
+        await interaction.response.defer(ephemeral=True)
 
         if not self.schedule_manager:
-            await interaction.response.send_message("❌ Schedule manager not available", ephemeral=True)
+            await interaction.followup.send("❌ Schedule manager not available", ephemeral=True)
             return
         if week < 0 or week > MAX_GAME_WEEK:
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 f"❌ Week must be 0-{MAX_GAME_WEEK}.", ephemeral=True
             )
             return
@@ -927,14 +931,14 @@ class LeagueCog(commands.Cog):
                 continue
             sep = '@' if '@' in token else (' vs ' if ' vs ' in token else (' at ' if ' at ' in token else None))
             if not sep:
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     f"❌ Couldn't read matchup `{token}` — use `away@home` (e.g. `Stanford@Texas`).",
                     ephemeral=True,
                 )
                 return
             away, home = [p.strip() for p in token.split(sep, 1)]
             if not away or not home:
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     f"❌ Matchup `{token}` is missing a team.", ephemeral=True
                 )
                 return
@@ -957,7 +961,7 @@ class LeagueCog(commands.Cog):
             color=Colors.SUCCESS,
         )
         embed.set_footer(text="Harry's Schedule Tracker 🏈")
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.followup.send(embed=embed, ephemeral=True)
 
     @league_group.command(name="schedule_template", description="Show the schedule JSON format for uploads")
     async def schedule_template(self, interaction: discord.Interaction):
@@ -993,9 +997,10 @@ class LeagueCog(commands.Cog):
     @requires_admin("❌ Only admins can set the timer channel!")
     async def timer_channel(self, interaction: discord.Interaction, channel: discord.TextChannel):
         """Set the notification channel"""
+        await interaction.response.defer(ephemeral=True)
 
         if not self.timekeeper_manager:
-            await interaction.response.send_message("❌ Timekeeper not available", ephemeral=True)
+            await interaction.followup.send("❌ Timekeeper not available", ephemeral=True)
             return
 
         success = await self.timekeeper_manager.set_notification_channel(channel.id)
@@ -1005,9 +1010,9 @@ class LeagueCog(commands.Cog):
                 description=f"Timer notifications will go to: **#{channel.name}**",
                 color=Colors.SUCCESS
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await interaction.followup.send(embed=embed, ephemeral=True)
         else:
-            await interaction.response.send_message("❌ Failed to save!", ephemeral=True)
+            await interaction.followup.send("❌ Failed to save!", ephemeral=True)
 
     @league_group.command(name="staff", description="View the current league owner and co-commissioner")
     async def staff(self, interaction: discord.Interaction):
@@ -1037,9 +1042,10 @@ class LeagueCog(commands.Cog):
     @requires_admin("❌ Only admins can set the league owner!")
     async def set_owner(self, interaction: discord.Interaction, user: discord.User):
         """Set the league owner"""
+        await interaction.response.defer(ephemeral=True)
 
         if not self.timekeeper_manager:
-            await interaction.response.send_message("❌ Timekeeper not available", ephemeral=True)
+            await interaction.followup.send("❌ Timekeeper not available", ephemeral=True)
             return
 
         await self.timekeeper_manager.set_league_owner(user.id, user.display_name)
@@ -1048,7 +1054,7 @@ class LeagueCog(commands.Cog):
             description=f"**{user.display_name}** is now the league owner!",
             color=Colors.SUCCESS
         )
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.followup.send(embed=embed, ephemeral=True)
 
     @league_group.command(name="set_commish", description="Set the co-commissioner (Admin only)")
     @app_commands.describe(
@@ -1178,6 +1184,7 @@ class LeagueCog(commands.Cog):
     ])
     async def nag(self, interaction: discord.Interaction, action: str = "start", interval: int = 5):
         """Start or stop nagging the league owner."""
+        await interaction.response.defer(ephemeral=True)
         try:
             app_info = await self.bot.application_info()
             bot_owner_id = app_info.owner.id if app_info.owner else None
@@ -1185,11 +1192,11 @@ class LeagueCog(commands.Cog):
             bot_owner_id = None
 
         if not bot_owner_id or interaction.user.id != bot_owner_id:
-            await interaction.response.send_message("❌ Only the bot owner can use this!", ephemeral=True)
+            await interaction.followup.send("❌ Only the bot owner can use this!", ephemeral=True)
             return
 
         if not self.timekeeper_manager:
-            await interaction.response.send_message("❌ Timekeeper not available", ephemeral=True)
+            await interaction.followup.send("❌ Timekeeper not available", ephemeral=True)
             return
 
         if action == "stop":
@@ -1199,23 +1206,23 @@ class LeagueCog(commands.Cog):
                 description="The owner gets a break... for now." if stopped else "Wasn't nagging anyone, mate.",
                 color=Colors.SUCCESS
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await interaction.followup.send(embed=embed, ephemeral=True)
             return
 
         if interval < 1 or interval > 1440:
-            await interaction.response.send_message("❌ Interval must be 1-1440 minutes.", ephemeral=True)
+            await interaction.followup.send("❌ Interval must be 1-1440 minutes.", ephemeral=True)
             return
 
         staff = self.timekeeper_manager.get_league_staff()
         if not staff.get('owner_id'):
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 "❌ No league owner set — use `/league set_owner` first.", ephemeral=True
             )
             return
 
         started = await self.timekeeper_manager.start_nagging(interval)
         if not started:
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 "⚠️ Already nagging — use `/league nag action:stop` first.", ephemeral=True
             )
             return
@@ -1228,7 +1235,7 @@ class LeagueCog(commands.Cog):
             ),
             color=Colors.WARNING
         )
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.followup.send(embed=embed, ephemeral=True)
 
 
 async def setup(bot: commands.Bot):

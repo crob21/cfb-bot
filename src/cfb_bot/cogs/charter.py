@@ -446,11 +446,20 @@ class CharterCog(commands.Cog):
         Harry proposes, a human merges. Restricted to the Discord IDs in
         CHARTER_EDITOR_IDS, separately from Discord admin or bot admin.
         """
+        # Acknowledge before anything else: Discord discards the interaction after 3
+        # seconds, and a busy process (a redeploy, a scrape in flight) can eat that
+        # window before the permission checks finish.
+        try:
+            await interaction.response.defer()
+        except discord.NotFound:
+            logger.warning("/charter propose: interaction expired before it could be acknowledged")
+            return
+
         from ..utils.charter_git import (CharterPullRequest, is_configured,
                                          may_propose_charter_change)
 
         if not may_propose_charter_change(interaction.user.id):
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 "❌ Not your charter to change, mate. Only the league's charter editors "
                 "can propose changes.",
                 ephemeral=True,
@@ -458,17 +467,15 @@ class CharterCog(commands.Cog):
             return
 
         if not is_configured():
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 "❌ Charter PRs aren't set up — needs `GITHUB_TOKEN` and `GITHUB_REPO`.",
                 ephemeral=True,
             )
             return
 
         if not self.charter_editor:
-            await interaction.response.send_message("❌ Charter editor not available", ephemeral=True)
+            await interaction.followup.send("❌ Charter editor not available", ephemeral=True)
             return
-
-        await interaction.response.defer()
 
         try:
             discussion = []
