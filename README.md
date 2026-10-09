@@ -58,7 +58,9 @@ Ask Harry anything — or just **@mention him**, no slash command needed. He ans
 ### 📜 Charter (`/charter`)
 The charter lives in the repo as [`data/charter.md`](data/charter.md). Link it, search it, edit it in natural language, and keep version history with backups and restore.
 
-**Harry can propose rule changes, but never land them.** `/charter propose` has him redraft the charter against your instruction — using the league's *current* teams and week, so stale details get corrected — then open a **pull request** you review and merge. Two gates: only Discord IDs in `CHARTER_EDITOR_IDS` may propose, and there is no merge call anywhere in that code path.
+**Harry can propose rule changes, but never land them.** `/charter propose` has him redraft the charter against your instruction — using the league's *current* teams and week, so stale details get corrected — then open a **pull request** you review and merge. Point it at a channel (`channel:#rules-voting`) and he'll draft the change from what the league actually agreed, polls and vote counts included.
+
+Two gates: only Discord IDs in `CHARTER_EDITOR_IDS` may propose, and there is no merge call anywhere in that code path. Chat read from a channel is treated as reference data, so nobody can talk Harry into rewriting the rulebook from a message.
 
 ### ⚙️ Admin (`/admin`)
 Per-server module toggles, channel whitelisting, bot admins, API usage and cost tracking, cache control, monthly budget alerts, and command sync.
