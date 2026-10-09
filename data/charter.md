@@ -81,16 +81,27 @@ Current Week: Week 10 (step 12 of 27)
 
 ### Active Members
 
-*   
-* BoozeRob - Washington  
-* havron24 - Nebraska Cornhuskers  
-* robinsonn1 - Texas  
-* MB - Colorado  
-* Sedelhammer - Pittsburgh  
-* Vicktorious - Virginia Tech  
-* wustyman - Ole Miss  
-* Yesko19 - Florida State  
-* Zschrode - UCLA
+* California  
+  * Team control: User-controlled (California)  
+  * Current roster: Refer to in-game roster for Season 4, Week 10 (do not modify here).  
+* Duke  
+  * Team control: User-controlled (Duke)  
+  * Current roster: Refer to in-game roster for Season 4, Week 10 (do not modify here).  
+* Oklahoma State  
+  * Team control: User-controlled (Oklahoma State)  
+  * Current roster: Refer to in-game roster for Season 4, Week 10 (do not modify here).  
+* North Carolina  
+  * Team control: User-controlled (North Carolina)  
+  * Current roster: Refer to in-game roster for Season 4, Week 10 (do not modify here).  
+* Minnesota  
+  * Team control: User-controlled (Minnesota)  
+  * Current roster: Refer to in-game roster for Season 4, Week 10 (do not modify here).  
+* South Carolina  
+  * Team control: User-controlled (South Carolina)  
+  * Current roster: Refer to in-game roster for Season 4, Week 10 (do not modify here).  
+* Arizona State  
+  * Team control: User-controlled (Arizona State)  
+  * Current roster: Refer to in-game roster for Season 4, Week 10 (do not modify here).
 
 ### Retired Members
 
