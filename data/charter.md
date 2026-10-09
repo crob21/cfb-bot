@@ -17,15 +17,15 @@ Discord Owner: BOOZEROB
 * Injuries: Off  
 * Wear and Tear: Off
 
-**1.2. Scheduling** 
+**1.2 Scheduling** 
 
-* All games must be played by the specified advance day cadence (Tuesday and Friday at 9am EST). If a game is not played by the deadline, the league will force advance.  
+* All games must be played within a rolling 48-hour timer. The timer begins when the league is advanced and restarts each time the league advances. If a game is not played before the rolling 48-hour timer expires, the league will force advance.  
   * Special circumstances (e.g., vacation, work trip) will be evaluated on a case-by-case basis by the commissioner.  
   * Simulations against RANKED opponents or in games that impact conference champions, playoffs, or bowl games will be simulated by the computers  
   * Games against unranked opponents may be simmed as a force win for the user. This can be determined at the discretion of the commish.  
-* If the league advances early (before the scheduled advance day), the next forced advance will be on the following scheduled advance day. For example, if the league advances on Monday instead of Tuesday, the next forced advance will be Friday morning, not Tuesday.  
+* If the league advances early (before the rolling 48-hour timer expires), the timer resets at the time of that advance; the next forced advance will occur 48 hours after the advance. For example, if the league advances on Monday, the next forced advance will occur 48 hours later (Wednesday), not on a fixed weekday.  
 * Holiday breaks and breaks between seasons will be voted on by the league.  
-* Do not tag or bug other users to play their games. The regular advance cadence is designed to prevent this.
+* Do not tag or bug other users to play their games. The rolling advance timer is designed to prevent this.
 
 **1.3 Rule Changes**
 
@@ -98,7 +98,7 @@ Discord Owner: BOOZEROB
 
 ### 2025 Season
 
-**National Champion:** **havron24 - Nebraska CornHuskies**
+**National Champion:** **havron24 - Nebraska CornHuskers**
 
 **Playoff Participants:**
 
