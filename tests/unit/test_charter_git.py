@@ -120,8 +120,8 @@ class TestProposeCommandGate:
             await cog.propose.callback(cog, interaction, instruction="rewrite it", summary="nope")
 
         opened.assert_not_awaited()
-        interaction.response.defer.assert_not_awaited()
-        assert "charter editors" in interaction.response.send_message.await_args[0][0]
+        interaction.response.defer.assert_awaited_once()  # acknowledged first, then refused
+        assert "charter editors" in interaction.followup.send.await_args[0][0]
 
     @pytest.mark.asyncio
     async def test_editor_without_github_configured_is_told_so(self):
@@ -133,6 +133,7 @@ class TestProposeCommandGate:
         interaction.user.id = 111
         interaction.response.send_message = AsyncMock()
         interaction.response.defer = AsyncMock()
+        interaction.followup.send = AsyncMock()
 
         with patch.object(charter_git, 'CHARTER_EDITOR_IDS', [111]), \
              patch.object(charter_git, 'GITHUB_TOKEN', ''), \
@@ -140,7 +141,7 @@ class TestProposeCommandGate:
             await cog.propose.callback(cog, interaction, instruction="rewrite it", summary="nope")
 
         opened.assert_not_awaited()
-        assert "GITHUB_TOKEN" in interaction.response.send_message.await_args[0][0]
+        assert "GITHUB_TOKEN" in interaction.followup.send.await_args[0][0]
 
 
 class TestTruncationGuard:
@@ -204,3 +205,44 @@ class TestProposalFromChannelDiscussion:
         prompt = editor.ai_assistant.ask_ai.await_args[0][0]
         excerpt = prompt.split('"""')[1]
         assert len(excerpt) <= editor.MAX_DISCUSSION_CHARS + 2
+
+
+class TestInteractionIsAcknowledgedFirst:
+    """
+    Discord discards an interaction after 3 seconds. /charter propose ran its
+    permission checks first and died with `404 Unknown interaction` on a busy process.
+    """
+
+    @pytest.mark.asyncio
+    async def test_defer_happens_before_any_checks(self):
+        from cfb_bot.cogs.charter import CharterCog
+
+        order = []
+        cog = CharterCog(MagicMock())
+        cog.charter_editor = MagicMock()
+        interaction = MagicMock()
+        interaction.user.id = 999                      # not an editor: refused after the ack
+        interaction.response.defer = AsyncMock(side_effect=lambda *a, **k: order.append('defer'))
+        interaction.followup.send = AsyncMock(side_effect=lambda *a, **k: order.append('reply'))
+
+        with patch.object(charter_git, 'CHARTER_EDITOR_IDS', [111]):
+            await cog.propose.callback(cog, interaction, instruction="x", summary="y")
+
+        assert order == ['defer', 'reply']
+
+    @pytest.mark.asyncio
+    async def test_an_expired_interaction_is_logged_not_raised(self):
+        import discord
+
+        from cfb_bot.cogs.charter import CharterCog
+
+        cog = CharterCog(MagicMock())
+        cog.charter_editor = MagicMock()
+        interaction = MagicMock()
+        interaction.response.defer = AsyncMock(
+            side_effect=discord.NotFound(MagicMock(status=404), {'code': 10062}))
+        interaction.followup.send = AsyncMock()
+
+        await cog.propose.callback(cog, interaction, instruction="x", summary="y")
+
+        interaction.followup.send.assert_not_awaited()

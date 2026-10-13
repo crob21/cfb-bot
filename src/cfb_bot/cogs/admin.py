@@ -71,9 +71,10 @@ class AdminCog(commands.Cog):
         channel_id: Optional[str] = None
     ):
         """Set the admin notification channel"""
+        await interaction.response.defer(ephemeral=True)
 
         if not interaction.guild:
-            await interaction.response.send_message("❌ This only works in servers!", ephemeral=True)
+            await interaction.followup.send("❌ This only works in servers!", ephemeral=True)
             return
 
         if channel:
@@ -85,10 +86,10 @@ class AdminCog(commands.Cog):
                 fetched = interaction.guild.get_channel(target_channel_id)
                 channel_name = f"#{fetched.name}" if fetched else f"<#{target_channel_id}>"
             except ValueError:
-                await interaction.response.send_message("❌ Invalid channel ID!", ephemeral=True)
+                await interaction.followup.send("❌ Invalid channel ID!", ephemeral=True)
                 return
         else:
-            await interaction.response.send_message("❌ Provide a channel or channel_id!", ephemeral=True)
+            await interaction.followup.send("❌ Provide a channel or channel_id!", ephemeral=True)
             return
 
         guild_id = interaction.guild.id
@@ -101,7 +102,7 @@ class AdminCog(commands.Cog):
             color=Colors.SUCCESS
         )
         embed.set_footer(text=Footers.CONFIG)
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.followup.send(embed=embed, ephemeral=True)
 
     @admin_group.command(name="add", description="Add a user as bot admin")
     @app_commands.describe(user="The user to make a bot admin")

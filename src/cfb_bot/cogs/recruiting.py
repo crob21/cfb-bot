@@ -859,9 +859,10 @@ class RecruitingCog(commands.Cog):
         source: Optional[str] = None
     ):
         """Set or view the recruiting data source"""
+        await interaction.response.defer(ephemeral=True)
 
         if not interaction.guild:
-            await interaction.response.send_message("❌ This command only works in servers!", ephemeral=True)
+            await interaction.followup.send("❌ This command only works in servers!", ephemeral=True)
             return
 
         guild_id = interaction.guild.id
@@ -890,7 +891,7 @@ class RecruitingCog(commands.Cog):
                 inline=False
             )
             embed.set_footer(text=Footers.CONFIG)
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await interaction.followup.send(embed=embed, ephemeral=True)
             return
 
         # Check admin permission
@@ -899,7 +900,7 @@ class RecruitingCog(commands.Cog):
             is_admin = is_admin or self.admin_manager.is_admin(interaction.user, interaction)
 
         if not is_admin:
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 "❌ Only server admins can change the recruiting source!",
                 ephemeral=True
             )
@@ -907,7 +908,7 @@ class RecruitingCog(commands.Cog):
 
         # Set the source
         if source not in [RecruitingSource.ON3, RecruitingSource.SPORTS247]:
-            await interaction.response.send_message(f"❌ Invalid source: {source}", ephemeral=True)
+            await interaction.followup.send(f"❌ Invalid source: {source}", ephemeral=True)
             return
 
         server_config.set_recruiting_source(guild_id, source)
@@ -926,7 +927,7 @@ class RecruitingCog(commands.Cog):
             inline=False
         )
         embed.set_footer(text=Footers.CONFIG)
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.followup.send(embed=embed, ephemeral=True)
 
 
 async def setup(bot: commands.Bot):

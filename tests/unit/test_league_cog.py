@@ -532,5 +532,6 @@ class TestSideLeagueTimers:
         with patch('cfb_bot.cogs.league.server_config', mock_server_config):
             await admin_cog.side_timer_stop.callback(admin_cog, mock_interaction, league="NBA2K")
 
-        reply = mock_interaction.response.send_message.call_args[0][0]
+        # the command acknowledges first, so its reply comes back as a followup
+        reply = mock_interaction.followup.send.call_args[0][0]
         assert "No **NBA2K**" in reply and "Madden" in reply
