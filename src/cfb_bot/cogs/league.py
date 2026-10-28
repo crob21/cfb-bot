@@ -45,7 +45,7 @@ from ..utils.server_config import server_config, FeatureModule
 # Week schedule constants and helpers live in one canonical place: utils/timekeeper.py.
 # That module also drives advance/increment and season rollover, so reusing it here
 # guarantees the week names/phases shown by /league match the timer's internal week
-# numbering. (A dynasty season runs 27 steps: Preseason, Weeks 0-14, Postseason, Offseason.)
+# numbering. (A dynasty season runs 30 steps: Preseason, Weeks 0-14, Postseason, Offseason.)
 from ..utils.timekeeper import (CFB_DYNASTY_WEEKS, FIRST_WEEK, LAST_WEEK,
                                 get_game_week, get_week_info, get_week_name,
                                 is_valid_week)

@@ -10,7 +10,8 @@ import pytest
 from cfb_bot.utils.timekeeper import (CFB_DYNASTY_WEEKS, FIRST_WEEK, LAST_WEEK,
                                       TOTAL_WEEKS_PER_SEASON, get_game_week,
                                       get_week_name, get_week_phase,
-                                      is_valid_week, migrate_legacy_week)
+                                      is_valid_week, migrate_legacy_week,
+                                      migrate_saved_week)
 
 EXPECTED = [
     (1, "Preseason", "Preseason"),
@@ -21,19 +22,19 @@ EXPECTED = [
     (20, "Postseason", "Bowl Week 3 / CFP Semifinals"),
     (21, "Postseason", "Bowl Week 4"),
     (22, "Postseason", "National Championship"),
-    (23, "Offseason", "Staff Moves"),
-    (24, "Offseason", "Transfer Portal Stage 1 (Open)"),
-    (25, "Offseason", "Transfer Portal Stage 2 (Close)"),
-    (26, "Offseason", "National Signing Day"),
-    (27, "Offseason", "Training Results"),
+    (23, "Offseason", "End of Season Recap"),
+    (24, "Offseason", "Players Leaving"),
+    *[(n + 24, "Offseason", f"Offseason Recruiting Week {n}") for n in range(1, 5)],
+    (29, "Offseason", "National Signing Day"),
+    (30, "Offseason", "Training Results"),
 ]
 
 
 class TestWeekTable:
     def test_matches_dynasty_structure(self):
-        assert sorted(CFB_DYNASTY_WEEKS) == list(range(1, 28))
-        assert TOTAL_WEEKS_PER_SEASON == 27
-        assert (FIRST_WEEK, LAST_WEEK) == (1, 27)
+        assert sorted(CFB_DYNASTY_WEEKS) == list(range(1, 31))
+        assert TOTAL_WEEKS_PER_SEASON == 30
+        assert (FIRST_WEEK, LAST_WEEK) == (1, 30)
         for step, phase, name in EXPECTED:
             assert get_week_name(step) == name
             assert get_week_phase(step) == phase
@@ -42,21 +43,32 @@ class TestWeekTable:
         assert get_game_week(1) is None
         assert get_game_week(2) == 0
         assert get_game_week(16) == 14
-        assert all(get_game_week(s) is None for s in range(17, 28))
+        assert all(get_game_week(s) is None for s in range(17, 31))
         assert get_game_week(None) is None
 
     def test_is_valid_week(self):
         assert not is_valid_week(0)
         assert is_valid_week(1)
-        assert is_valid_week(27)
-        assert not is_valid_week(28)
+        assert is_valid_week(30)
+        assert not is_valid_week(31)
 
     def test_legacy_migration(self):
         assert migrate_legacy_week(0) == 1
         assert migrate_legacy_week(5) == 7  # Week 5
         assert get_week_name(migrate_legacy_week(14)) == "Conference Championship"
         assert get_week_name(migrate_legacy_week(25)) == "Training Results"
+        assert get_week_name(migrate_legacy_week(24)) == "Offseason Recruiting Week 4"
         assert migrate_legacy_week(None) is None
+
+    def test_cfb26_scheme_migration(self):
+        assert migrate_saved_week(14, 2) == 14  # regular season unchanged
+        assert migrate_saved_week(22, 2) == 22  # National Championship unchanged
+        assert get_week_name(migrate_saved_week(23, 2)) == "End of Season Recap"
+        assert get_week_name(migrate_saved_week(24, 2)) == "Offseason Recruiting Week 1"
+        assert get_week_name(migrate_saved_week(25, 2)) == "Offseason Recruiting Week 3"
+        assert get_week_name(migrate_saved_week(26, 2)) == "National Signing Day"
+        assert get_week_name(migrate_saved_week(27, 2)) == "Training Results"
+        assert migrate_saved_week(25, None) == migrate_legacy_week(25)  # no scheme = version 1
 
 
 class TestIncrementWeek:
@@ -66,7 +78,7 @@ class TestIncrementWeek:
 
         manager = TimekeeperManager.__new__(TimekeeperManager)
         manager.season = 3
-        manager.week = 27
+        manager.week = 30
         manager._save_season_week_state = AsyncMock()
 
         await manager.increment_week()
@@ -83,7 +95,7 @@ class TestIncrementWeek:
         manager = TimekeeperManager.__new__(TimekeeperManager)
         manager._save_season_week_state = AsyncMock()
         assert not await manager.set_season_week(1, 0)
-        assert not await manager.set_season_week(1, 28)
+        assert not await manager.set_season_week(1, 31)
         assert await manager.set_season_week(1, 17)
         assert manager.week == 17
 
@@ -229,7 +241,7 @@ class TestPrevWeek:
         from cfb_bot.utils.timekeeper import get_prev_week
         assert get_prev_week(3) == 2   # Week 1 -> Week 0
         assert get_prev_week(2) == 1   # Week 0 -> Preseason
-        assert get_prev_week(1) == 27  # Preseason -> previous season's Training Results
+        assert get_prev_week(1) == 30  # Preseason -> previous season's Training Results
 
 
 class TestCharterImportHelpers:

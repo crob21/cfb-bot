@@ -3,6 +3,14 @@
 Full release history for Harry. The bot's `/changelog` command shows the most recent releases;
 this file keeps everything. Generated from `src/cfb_bot/utils/version_manager.py`.
 
+## 3.21.0 — The Real Offseason 🗓️ (2026-10-28)
+
+### League
+- FIX: Offseason weeks now match the new game's dynasty calendar
+- End of Season Recap, Players Leaving, Offseason Recruiting Weeks 1-4, Signing Day, Training Results
+- A season is now 30 steps; /league set_week takes 1-30
+- A week saved under the old table is moved to the matching new step on startup
+
 ## 3.20.1 — No More "Unknown Interaction" 🔧 (2026-10-09)
 
 ### Fixes

@@ -561,12 +561,13 @@ class CharterCog(commands.Cog):
 
         try:
             from .. import bot_main as bot_module
+            from ..utils.timekeeper import TOTAL_WEEKS_PER_SEASON
             timekeeper = getattr(bot_module, 'timekeeper_manager', None)
             if timekeeper:
                 season_info = timekeeper.get_season_week()
                 if season_info.get('week_name'):
                     facts.append(f"Current week: {season_info['week_name']} "
-                                 f"(step {season_info['week']} of 27)")
+                                 f"(step {season_info['week']} of {TOTAL_WEEKS_PER_SEASON})")
         except Exception as e:
             logger.debug(f"No timekeeper facts for charter revision: {e}")
 
