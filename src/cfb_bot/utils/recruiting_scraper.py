@@ -190,7 +190,7 @@ class RecruitingScraper:
         if not year:
             year = self._get_current_recruiting_year()
 
-        cache_key = f"recruit:{name.lower()}:{year}:{max_pages}"
+        cache_key = f"recruit:{name.lower()}:{year}:{max_pages}:{(position or '').upper()}"
         cached = self._get_cached(cache_key)
         if cached:
             return cached
@@ -268,18 +268,21 @@ class RecruitingScraper:
 
         # Now fetch the full profile page
         recruit = await self._scrape_player_profile(profile_url, year)
-        if recruit:
-            # Check position filter if specified
-            if position:
-                recruit_pos = (recruit.get('position') or '').upper()
-                if recruit_pos != position.upper():
-                    logger.warning(f"Position mismatch: Found {player_name or name} but position is {recruit_pos}, not {position}")
-                    logger.info("Tip: This might be a different player with the same name")
-                    # Still return the recruit, but log the warning
+        if recruit and not self._position_matches(recruit, position):
+            # Same name, different player: look through the rankings for the right one
+            logger.info(f"{player_name or name} is not a {position}; searching rankings for the {position}")
+            profile_url, player_name = await self._search_composite_rankings(name, year, max_pages=max_pages, position_filter=position)
+            recruit = await self._scrape_player_profile(profile_url, year) if profile_url else None
 
+        if recruit:
             self._set_cached(cache_key, recruit)
 
         return recruit
+
+    @staticmethod
+    def _position_matches(recruit: Dict[str, Any], position: Optional[str]) -> bool:
+        """True when no position was asked for, or the recruit plays it."""
+        return not position or (recruit.get('position') or '').upper() == position.upper()
 
     async def _search_composite_rankings(
         self,
@@ -362,6 +365,11 @@ class RecruitingScraper:
                             profile_url = 'https:' + profile_url
                         elif profile_url.startswith('/'):
                             profile_url = self.BASE_URL + profile_url
+
+                        if position_filter:
+                            candidate = await self._scrape_player_profile(profile_url, year)
+                            if not candidate or not self._position_matches(candidate, position_filter):
+                                continue  # same name, wrong position
 
                         logger.info(f"Found on page {page_num}: {link_text} -> {profile_url}")
                         return profile_url, link_text
