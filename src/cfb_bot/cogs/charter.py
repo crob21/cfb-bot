@@ -29,6 +29,7 @@ from discord.ext import commands
 from ..config import GAME_NAME, Colors
 from ..services.checks import check_module_enabled, check_module_enabled_deferred, requires_admin, requires_module
 from ..utils.server_config import server_config, FeatureModule
+from ..services.oops import oops
 
 # The league charter lives in a shared Google Doc; CHARTER_URL overrides it per deployment.
 CHARTER_URL = os.getenv(
@@ -132,7 +133,7 @@ class CharterCog(commands.Cog):
         hours="Hours of history to scan (default: 168 = 1 week)"
     )
     @requires_module(FeatureModule.LEAGUE)
-    @requires_admin("❌ Only admins can scan for rule changes!")
+    @requires_admin()
     async def scan(
         self,
         interaction: discord.Interaction,
@@ -243,12 +244,12 @@ class CharterCog(commands.Cog):
 
         except Exception as e:
             logger.error(f"Error scanning rules: {e}", exc_info=True)
-            await interaction.followup.send(f"❌ Error scanning for rules: {str(e)}")
+            await oops(interaction, e)
 
     @charter_group.command(name="import", description="Import the charter from its Google Doc (Admin only)")
     @app_commands.describe(url="Charter document link (defaults to the league charter doc)")
     @requires_module(FeatureModule.LEAGUE)
-    @requires_admin("❌ Only admins can import the charter!")
+    @requires_admin()
     async def import_charter(self, interaction: discord.Interaction, url: Optional[str] = None):
         """Replace the stored charter with the text of the league's shared doc."""
 
@@ -278,7 +279,7 @@ class CharterCog(commands.Cog):
 
     @charter_group.command(name="sync", description="Sync charter to Discord (Admin only)")
     @requires_module(FeatureModule.LEAGUE)
-    @requires_admin("❌ Only admins can sync the charter!")
+    @requires_admin()
     async def sync(self, interaction: discord.Interaction):
         """Manually sync the charter"""
 
@@ -297,7 +298,7 @@ class CharterCog(commands.Cog):
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
         except Exception as e:
-            await interaction.followup.send(f"❌ Error syncing: {str(e)}", ephemeral=True)
+            await oops(interaction, e)
 
     @charter_group.command(name="history", description="View recent charter changes")
     @requires_module(FeatureModule.LEAGUE)
@@ -388,7 +389,7 @@ class CharterCog(commands.Cog):
         position="Where to add: 'end' or 'start' (default: end)"
     )
     @requires_module(FeatureModule.LEAGUE)
-    @requires_admin("❌ Only admins can add rules!")
+    @requires_admin()
     async def add(
         self,
         interaction: discord.Interaction,
@@ -424,7 +425,7 @@ class CharterCog(commands.Cog):
 
         except Exception as e:
             logger.error(f"Error adding rule: {e}")
-            await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
+            await oops(interaction, e)
 
     @charter_group.command(
         name="propose",
@@ -524,7 +525,7 @@ class CharterCog(commands.Cog):
 
         except Exception as e:
             logger.error(f"Error proposing charter change: {e}")
-            await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
+            await oops(interaction, e)
 
     async def _channel_discussion(self, channel, hours: int) -> list:
         """Recent messages from a channel, polls included, formatted one per line."""
@@ -584,7 +585,7 @@ class CharterCog(commands.Cog):
         new_content="New content for the section"
     )
     @requires_module(FeatureModule.LEAGUE)
-    @requires_admin("❌ Only admins can update rules!")
+    @requires_admin()
     async def update(
         self,
         interaction: discord.Interaction,
@@ -618,11 +619,11 @@ class CharterCog(commands.Cog):
 
         except Exception as e:
             logger.error(f"Error updating rule: {e}")
-            await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
+            await oops(interaction, e)
 
     @charter_group.command(name="backups", description="View available backups (Admin only)")
     @requires_module(FeatureModule.LEAGUE)
-    @requires_admin("❌ Only admins can view charter backups!")
+    @requires_admin()
     async def backups(self, interaction: discord.Interaction):
         """View available charter backups"""
         if not self.charter_editor:
@@ -660,12 +661,12 @@ class CharterCog(commands.Cog):
 
         except Exception as e:
             logger.error(f"Error viewing backups: {e}")
-            await interaction.response.send_message(f"❌ Error: {str(e)}", ephemeral=True)
+            await oops(interaction, e)
 
     @charter_group.command(name="restore", description="Restore from backup (Admin only)")
     @app_commands.describe(backup_filename="Name of the backup file to restore")
     @requires_module(FeatureModule.LEAGUE)
-    @requires_admin("❌ Only admins can restore the charter!")
+    @requires_admin()
     async def restore(self, interaction: discord.Interaction, backup_filename: str):
         """Restore the charter from a backup"""
         if not self.charter_editor:
@@ -690,7 +691,7 @@ class CharterCog(commands.Cog):
 
         except Exception as e:
             logger.error(f"Error restoring backup: {e}")
-            await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
+            await oops(interaction, e)
 
 
 async def setup(bot: commands.Bot):

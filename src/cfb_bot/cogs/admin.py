@@ -26,7 +26,8 @@ from discord.ext import commands
 
 from ..config import Colors, Footers
 from ..utils.server_config import server_config, FeatureModule
-from ..services.checks import requires_admin
+from ..services.checks import ADMINS_ONLY, requires_admin
+from ..services.oops import oops
 
 logger = logging.getLogger('CFBBot.Admin')
 
@@ -63,7 +64,7 @@ class AdminCog(commands.Cog):
         channel="Select a channel",
         channel_id="Or paste a channel ID"
     )
-    @requires_admin("❌ Only admins can set the admin channel!")
+    @requires_admin()
     async def set_channel(
         self,
         interaction: discord.Interaction,
@@ -106,7 +107,7 @@ class AdminCog(commands.Cog):
 
     @admin_group.command(name="add", description="Add a user as bot admin")
     @app_commands.describe(user="The user to make a bot admin")
-    @requires_admin("❌ You need to be a bot admin!")
+    @requires_admin()
     async def add(self, interaction: discord.Interaction, user: discord.Member):
         """Add a bot admin"""
         if not self.admin_manager:
@@ -131,7 +132,7 @@ class AdminCog(commands.Cog):
 
     @admin_group.command(name="remove", description="Remove a user as bot admin")
     @app_commands.describe(user="The user to remove as bot admin")
-    @requires_admin("❌ You need to be a bot admin!")
+    @requires_admin()
     async def remove(self, interaction: discord.Interaction, user: discord.Member):
         """Remove a bot admin"""
         if not self.admin_manager:
@@ -188,7 +189,7 @@ class AdminCog(commands.Cog):
 
     @admin_group.command(name="block", description="Block unprompted responses in a channel")
     @app_commands.describe(channel="The channel to block")
-    @requires_admin("❌ Only admins can block channels!")
+    @requires_admin()
     async def block(self, interaction: discord.Interaction, channel: discord.TextChannel):
         """Block unprompted responses"""
 
@@ -214,7 +215,7 @@ class AdminCog(commands.Cog):
 
     @admin_group.command(name="unblock", description="Allow unprompted responses in a channel")
     @app_commands.describe(channel="The channel to unblock")
-    @requires_admin("❌ Only admins can unblock channels!")
+    @requires_admin()
     async def unblock(self, interaction: discord.Interaction, channel: discord.TextChannel):
         """Allow unprompted responses"""
 
@@ -317,7 +318,7 @@ class AdminCog(commands.Cog):
                 (self.admin_manager and self.admin_manager.is_admin(interaction.user, interaction))
             )
             if not is_admin:
-                await interaction.response.send_message("❌ Only admins can change settings!", ephemeral=True)
+                await interaction.response.send_message(ADMINS_ONLY, ephemeral=True)
                 return
 
         if action == "view":
@@ -518,7 +519,7 @@ class AdminCog(commands.Cog):
             await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @admin_group.command(name="sync", description="Force sync slash commands")
-    @requires_admin("❌ Only admins can sync commands!")
+    @requires_admin()
     async def sync_commands(self, interaction: discord.Interaction):
         """Force sync slash commands"""
 
@@ -541,7 +542,7 @@ class AdminCog(commands.Cog):
                 )
             await interaction.followup.send(embed=embed, ephemeral=True)
         except Exception as e:
-            await interaction.followup.send(f"❌ Sync failed: {str(e)}", ephemeral=True)
+            await oops(interaction, e)
 
     @admin_group.command(name="channels", description="View/manage which channels Harry can respond in")
     @app_commands.describe(
@@ -607,7 +608,7 @@ class AdminCog(commands.Cog):
                 (self.admin_manager and self.admin_manager.is_admin(interaction.user, interaction))
             )
             if not is_admin:
-                await interaction.response.send_message("❌ Only admins can change channel settings!", ephemeral=True)
+                await interaction.response.send_message(ADMINS_ONLY, ephemeral=True)
                 return
 
             if action == "enable":
@@ -650,7 +651,7 @@ class AdminCog(commands.Cog):
         app_commands.Choice(name="🌐 Zyte API (Official - Last 30 Days)", value="api"),
         app_commands.Choice(name="📋 Both (Side by Side)", value="both")
     ])
-    @requires_admin("❌ Only admins can view Zyte usage!")
+    @requires_admin()
     async def zyte_usage(self, interaction: discord.Interaction, view: str = "local"):
         """Check Zyte API usage statistics"""
         if not interaction.guild:
@@ -884,7 +885,7 @@ class AdminCog(commands.Cog):
         app_commands.Choice(name="🌐 OpenAI API (Official - Today Only)", value="api"),
         app_commands.Choice(name="📋 Both (Side by Side)", value="both")
     ])
-    @requires_admin("❌ Only admins can view AI usage!")
+    @requires_admin()
     async def ai_usage(self, interaction: discord.Interaction, view: str = "local"):
         """Check AI token usage and cost statistics"""
         if not interaction.guild:
@@ -1099,7 +1100,7 @@ class AdminCog(commands.Cog):
         app_commands.Choice(name="🗑️ Clear Recruiting Cache", value="clear_recruiting"),
         app_commands.Choice(name="🗑️ Clear All Cache", value="clear_all")
     ])
-    @requires_admin("❌ Only admins can manage cache!")
+    @requires_admin()
     async def cache_management(self, interaction: discord.Interaction, action: str = "stats"):
         """Manage bot cache"""
         if not interaction.guild:
@@ -1198,7 +1199,7 @@ class AdminCog(commands.Cog):
         app_commands.Choice(name="View (current)", value="view"),
         app_commands.Choice(name="Reconcile from Zyte & OpenAI", value="reconcile"),
     ])
-    @requires_admin("❌ Only admins can view budget!")
+    @requires_admin()
     async def budget_status(self, interaction: discord.Interaction, action: str = "view"):
         """View monthly budget status, or reconcile from provider APIs."""
         if not interaction.guild:
@@ -1338,7 +1339,7 @@ class AdminCog(commands.Cog):
         app_commands.Choice(name="📊 View Now", value="view"),
         app_commands.Choice(name="📧 Send to All Admins", value="send")
     ])
-    @requires_admin("❌ Only admins can view digest!")
+    @requires_admin()
     async def weekly_digest(self, interaction: discord.Interaction, action: str = "view"):
         """View or send the weekly digest"""
         if not interaction.guild:
@@ -1362,7 +1363,7 @@ class AdminCog(commands.Cog):
             )
 
     @admin_group.command(name="schedule_reload", description="Reload the league schedule from file (Admin only)")
-    @requires_admin("❌ Only admins can reload the schedule!")
+    @requires_admin()
     async def schedule_reload(self, interaction: discord.Interaction):
         """Reload the schedule from schedule.json without restarting the bot"""
 

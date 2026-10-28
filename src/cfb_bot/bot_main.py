@@ -425,7 +425,8 @@ async def on_app_command_error(interaction: discord.Interaction, error):
         logger.error(f"Error in /{command_name}: {original}", exc_info=original)
         from .utils.error_reporter import get_error_reporter
         await get_error_reporter().report(original, f"/{command_name}")
-        message = "❌ That went wrong, mate. The bot owner's been told."
+        from .services.oops import OOPS
+        message = OOPS
 
     try:
         if interaction.response.is_done():

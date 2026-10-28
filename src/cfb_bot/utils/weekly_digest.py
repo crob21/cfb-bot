@@ -11,6 +11,7 @@ import discord
 
 from .storage import get_storage
 from .cache import get_cache
+from ..services.oops import oops
 
 logger = logging.getLogger('CFBBot.WeeklyDigest')
 
@@ -159,10 +160,7 @@ class WeeklyDigest:
             await interaction.followup.send(embed=embed, ephemeral=True)
         except Exception as e:
             logger.error(f"Error generating manual digest: {e}")
-            await interaction.followup.send(
-                f"❌ Error generating digest: {str(e)}",
-                ephemeral=True
-            )
+            await oops(interaction, e)
 
 
 # Global instance

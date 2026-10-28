@@ -23,6 +23,7 @@ from discord.ext import commands
 from ..config import GAME_NAME, Colors
 from ..utils.server_config import server_config, FeatureModule
 from ..utils.input_validation import sanitize_string, MAX_INPUT_LENGTH
+from ..services.oops import report
 
 logger = logging.getLogger('CFBBot.AIChat')
 
@@ -119,7 +120,8 @@ class AIChatCog(commands.Cog):
                     embed.add_field(name="💬 Responding to:", value=f"*{question}*", inline=False)
 
             except Exception as e:
-                embed.description = f"Oops! Something went wrong: {str(e)}"
+                await report(interaction, e)
+                embed.description = "That went wrong, mate. The bot owner's been told."
                 embed.add_field(name="💬 Responding to:", value=f"*{question}*", inline=False)
         else:
             logger.error("/harry ran with no AI configured - set OPENAI_API_KEY or ANTHROPIC_API_KEY")
@@ -189,7 +191,8 @@ class AIChatCog(commands.Cog):
                 embed.add_field(name="💬 Responding to:", value=f"*{question}*", inline=False)
 
             except Exception as e:
-                embed.description = f"Oops! Something went wrong: {str(e)}"
+                await report(interaction, e)
+                embed.description = "That went wrong, mate. The bot owner's been told."
                 embed.add_field(name="💬 Responding to:", value=f"*{question}*", inline=False)
         else:
             embed.description = "I'm having some technical difficulties right now."
@@ -289,9 +292,10 @@ class AIChatCog(commands.Cog):
             await interaction.followup.send(embed=embed)
         except Exception as e:
             logger.error(f"Error generating summary: {e}")
+            await report(interaction, e)
             embed = discord.Embed(
                 title="❌ Summary Failed",
-                description=f"Something went wrong: `{str(e)}`",
+                description="That went wrong, mate. The bot owner's been told.",
                 color=Colors.ERROR
             )
             await interaction.followup.send(embed=embed, ephemeral=True)

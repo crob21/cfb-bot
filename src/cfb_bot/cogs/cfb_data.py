@@ -26,6 +26,7 @@ from ..config import Colors, Footers
 from ..services.checks import check_module_enabled, check_module_enabled_deferred, requires_module
 from ..utils.server_config import server_config, FeatureModule
 from ..utils.cfb_data import cfb_data
+from ..services.oops import oops
 
 logger = logging.getLogger('CFBBot.CFBData')
 
@@ -118,7 +119,7 @@ class CFBDataCog(commands.Cog):
                 await interaction.delete_original_response()
             except Exception:
                 pass  # May already be deleted or expired
-            await interaction.followup.send(f"❌ Error looking up player: {str(e)}", ephemeral=True)
+            await oops(interaction, e)
 
     @cfb_group.command(name="players", description="Look up multiple players at once")
     @app_commands.describe(
@@ -186,7 +187,7 @@ class CFBDataCog(commands.Cog):
 
         except Exception as e:
             logger.error(f"Error in /cfb players: {e}", exc_info=True)
-            await interaction.followup.send(f"❌ Error looking up players: {str(e)}", ephemeral=True)
+            await oops(interaction, e)
 
     @cfb_group.command(name="rankings", description="Get college football rankings (AP, Coaches, CFP)")
     @app_commands.describe(
@@ -264,7 +265,7 @@ class CFBDataCog(commands.Cog):
 
         except Exception as e:
             logger.error(f"Error in /cfb rankings: {e}", exc_info=True)
-            await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
+            await oops(interaction, e)
 
     @cfb_group.command(name="matchup", description="Get historical matchup data between two teams")
     @app_commands.describe(
@@ -298,7 +299,7 @@ class CFBDataCog(commands.Cog):
 
         except Exception as e:
             logger.error(f"Error in /cfb matchup: {e}", exc_info=True)
-            await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
+            await oops(interaction, e)
 
     @cfb_group.command(name="schedule", description="Get a team's schedule and results")
     @app_commands.describe(
@@ -332,7 +333,7 @@ class CFBDataCog(commands.Cog):
 
         except Exception as e:
             logger.error(f"Error in /cfb schedule: {e}", exc_info=True)
-            await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
+            await oops(interaction, e)
 
     @cfb_group.command(name="draft", description="Get NFL draft picks from a college")
     @app_commands.describe(
@@ -363,7 +364,7 @@ class CFBDataCog(commands.Cog):
 
         except Exception as e:
             logger.error(f"Error in /cfb draft: {e}", exc_info=True)
-            await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
+            await oops(interaction, e)
 
     @cfb_group.command(name="transfers", description="Get transfer portal activity for a team")
     @app_commands.describe(
@@ -397,7 +398,7 @@ class CFBDataCog(commands.Cog):
 
         except Exception as e:
             logger.error(f"Error in /cfb transfers: {e}", exc_info=True)
-            await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
+            await oops(interaction, e)
 
     @cfb_group.command(name="betting", description="Get betting lines for games")
     @app_commands.describe(
@@ -446,7 +447,7 @@ class CFBDataCog(commands.Cog):
 
         except Exception as e:
             logger.error(f"Error in /cfb betting: {e}", exc_info=True)
-            await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
+            await oops(interaction, e)
 
     @cfb_group.command(name="ratings", description="Get advanced ratings (SP+, SRS, Elo) for a team")
     @app_commands.describe(
@@ -480,7 +481,7 @@ class CFBDataCog(commands.Cog):
 
         except Exception as e:
             logger.error(f"Error in /cfb ratings: {e}", exc_info=True)
-            await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
+            await oops(interaction, e)
 
     @cfb_group.command(name="teamstats", description="Get full season statistics for a team (offense & defense)")
     @app_commands.describe(
@@ -564,7 +565,7 @@ class CFBDataCog(commands.Cog):
 
         except Exception as e:
             logger.error(f"Error in /cfb teamstats: {e}", exc_info=True)
-            await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
+            await oops(interaction, e)
 
 
 async def setup(bot: commands.Bot):

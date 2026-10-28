@@ -21,7 +21,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from ..config import Colors, Footers
-from ..services.checks import (check_module_enabled,
+from ..services.checks import (ADMINS_ONLY, check_module_enabled,
                                check_module_enabled_deferred, requires_module)
 from ..utils.cache import get_cache
 from ..utils.cfb_data import cfb_data
@@ -29,6 +29,7 @@ from ..utils.on3_scraper import on3_scraper
 from ..utils.recruiting_scraper import recruiting_scraper
 from ..utils.server_config import (FeatureModule, RecruitingSource,
                                    server_config)
+from ..services.oops import oops
 
 logger = logging.getLogger('CFBBot.Recruiting')
 
@@ -384,7 +385,7 @@ class RecruitingCog(commands.Cog):
                 await self._send_not_found(interaction, name, source_name, position, deep_search)
         except Exception as e:
             logger.error(f"Error in /recruiting player: {e}", exc_info=True)
-            await interaction.followup.send(f"❌ Error looking up recruit: {str(e)}")
+            await oops(interaction, e)
 
     @recruiting_group.command(name="top", description="Get top recruits by position or state")
     @app_commands.describe(
@@ -465,7 +466,7 @@ class RecruitingCog(commands.Cog):
 
         except Exception as e:
             logger.error(f"Error in /recruiting top: {e}", exc_info=True)
-            await interaction.followup.send(f"❌ Error getting recruits: {str(e)}", ephemeral=True)
+            await oops(interaction, e)
 
     @recruiting_group.command(name="class", description="Get a team's recruiting class ranking")
     @app_commands.describe(
@@ -512,7 +513,7 @@ class RecruitingCog(commands.Cog):
 
         except Exception as e:
             logger.error(f"Error in /recruiting class: {e}", exc_info=True)
-            await interaction.followup.send(f"❌ Error getting class: {str(e)}", ephemeral=True)
+            await oops(interaction, e)
 
     @recruiting_group.command(name="commits", description="List all committed recruits for a team")
     @app_commands.describe(
@@ -570,7 +571,7 @@ class RecruitingCog(commands.Cog):
 
         except Exception as e:
             logger.error(f"Error in /recruiting commits: {e}", exc_info=True)
-            await interaction.followup.send(f"❌ Error getting commits: {str(e)}", ephemeral=True)
+            await oops(interaction, e)
 
     @recruiting_group.command(name="rankings", description="Get top team recruiting class rankings")
     @app_commands.describe(
@@ -844,7 +845,7 @@ class RecruitingCog(commands.Cog):
 
         except Exception as e:
             logger.error(f"Error in /recruiting portal: {e}", exc_info=True)
-            await interaction.followup.send(f"❌ Error looking up portal player: {str(e)}", ephemeral=True)
+            await oops(interaction, e)
 
     @recruiting_group.command(name="source", description="Set the recruiting data source")
     @app_commands.describe(source="Which recruiting data source to use")
@@ -901,7 +902,7 @@ class RecruitingCog(commands.Cog):
 
         if not is_admin:
             await interaction.followup.send(
-                "❌ Only server admins can change the recruiting source!",
+                ADMINS_ONLY,
                 ephemeral=True
             )
             return
