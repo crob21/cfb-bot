@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 import discord
 
 if TYPE_CHECKING:  # type hints only; a runtime import here would be circular
-    from ..utils.server_config import FeatureModule, ServerConfig
+    from ..utils.server_config import FeatureModule, ServerConfigManager as ServerConfig
 
 logger = logging.getLogger('CFBBot.Checks')
 

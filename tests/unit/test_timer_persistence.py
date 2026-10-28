@@ -88,3 +88,15 @@ async def test_no_dm_no_save():
     with patch('cfb_bot.utils.owner_dm.get_owner_dm', AsyncMock(return_value=None)):
         assert not await m._save_state_to_discord({'channel_id': 5})
         assert await m._load_state_from_discord() is None
+
+
+@pytest.mark.asyncio
+async def test_co_commissioner_can_be_set_and_cleared():
+    """/league set_commish called a method that didn't exist."""
+    m = TimekeeperManager(MagicMock())
+    m._save_league_staff_state = AsyncMock()
+    assert await m.set_co_commissioner(7, "Rob")
+    assert m.get_league_staff()['co_commish_name'] == "Rob" and m.get_league_staff()['has_co_commish']
+    assert await m.set_co_commissioner(None)
+    assert not m.get_league_staff()['has_co_commish']
+    assert m._save_league_staff_state.await_count == 2

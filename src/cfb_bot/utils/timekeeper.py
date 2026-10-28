@@ -16,14 +16,7 @@ from typing import Dict, Optional
 import discord
 from ..config import Colors
 
-try:
-    from zoneinfo import ZoneInfo  # Python 3.9+
-except ImportError:
-    # Fallback for older Python versions
-    try:
-        from backports.zoneinfo import ZoneInfo
-    except ImportError:
-        ZoneInfo = None
+from zoneinfo import ZoneInfo
 
 logger = logging.getLogger('CFBBot.Timekeeper')
 
@@ -228,31 +221,21 @@ def get_week_info(week: int) -> Dict:
     }
 
 
-# EST/EDT timezone (America/New_York handles DST automatically)
-EST_TIMEZONE = ZoneInfo('America/New_York') if ZoneInfo else None
+# The league runs on Eastern time (America/New_York handles DST)
+EST_TIMEZONE = ZoneInfo('America/New_York')
+
 
 def to_est(dt: datetime) -> datetime:
-    """Convert a datetime to EST/EDT"""
-    if not dt:
-        return dt
-    if EST_TIMEZONE and ZoneInfo:
-        # If datetime is naive, assume it's UTC
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=ZoneInfo('UTC'))
-        # Convert to EST
-        return dt.astimezone(EST_TIMEZONE)
-    return dt  # Fallback if timezone not available
+    """Convert a datetime to Eastern. Naive datetimes are local time (datetime.now())."""
+    return dt.astimezone(EST_TIMEZONE) if dt else dt
+
 
 def format_est_time(dt: datetime, format_str: str = '%I:%M %p on %B %d') -> str:
-    """Format a datetime in EST/EDT"""
+    """Format a datetime in Eastern time."""
     if not dt:
         return "N/A"
-    est_dt = to_est(dt)
-    if EST_TIMEZONE:
-        return est_dt.strftime(format_str) + ' EST/EDT'
-    return est_dt.strftime(format_str)
+    return to_est(dt).strftime(format_str) + ' EST/EDT'
 
-# Timer state file location
 
 # Hours-remaining warnings sent during a countdown
 NOTIFICATION_THRESHOLDS = (24, 12, 6, 1)
@@ -1135,6 +1118,18 @@ class TimekeeperManager:
             return True
         except Exception as e:
             logger.error(f"Failed to set league owner: {e}")
+            return False
+
+    async def set_co_commissioner(self, user_id: Optional[int], name: Optional[str] = None) -> bool:
+        """Set the co-commissioner, or clear it with user_id=None."""
+        try:
+            self.co_commish_id = user_id
+            self.co_commish_name = name if user_id else self.NO_CO_COMMISH
+            await self._save_league_staff_state()
+            logger.info(f"Co-commissioner set to {self.co_commish_name} (ID: {user_id})")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to set co-commissioner: {e}")
             return False
 
     async def set_notification_channel(self, channel_id: int) -> bool:

@@ -842,7 +842,7 @@ class CharterCog(commands.Cog):
         await interaction.response.defer()
 
         try:
-            success = self.charter_editor.restore_backup(backup_filename)
+            success = await self.charter_editor.restore_backup(backup_filename)
 
             if success:
                 embed = discord.Embed(

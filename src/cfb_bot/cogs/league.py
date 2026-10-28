@@ -37,7 +37,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from ..config import CHARTER_URL, GAME_NAME, Colors
+from ..config import GAME_NAME, Colors
 from ..services.checks import ADMINS_ONLY, requires_admin, requires_module
 from ..utils.server_config import server_config, FeatureModule  # noqa: F401 (requires_module reads server_config here)
 # Week schedule constants and helpers live in one canonical place: utils/timekeeper.py.
@@ -265,19 +265,11 @@ class LeagueCog(commands.Cog):
             end_time = status.get('end_time')
             timezone_info = ""
             if end_time:
-                from datetime import datetime
-                import pytz
-
-                # Convert to timezone-aware datetime if needed
-                if isinstance(end_time, str):
-                    end_time = datetime.fromisoformat(end_time.replace('Z', '+00:00'))
-                elif not hasattr(end_time, 'tzinfo') or end_time.tzinfo is None:
-                    end_time = pytz.utc.localize(end_time)
-
-                # Convert to different timezones
-                eastern = end_time.astimezone(pytz.timezone('US/Eastern'))
-                central = end_time.astimezone(pytz.timezone('US/Central'))
-                pacific = end_time.astimezone(pytz.timezone('US/Pacific'))
+                from zoneinfo import ZoneInfo
+                # Timer times are naive local times; astimezone() reads them as such
+                eastern = end_time.astimezone(ZoneInfo('America/New_York'))
+                central = end_time.astimezone(ZoneInfo('America/Chicago'))
+                pacific = end_time.astimezone(ZoneInfo('America/Los_Angeles'))
 
                 timezone_info = (
                     f"\n\n**Countdown Ends:**\n"
@@ -1051,7 +1043,7 @@ class LeagueCog(commands.Cog):
             return
 
         if none:
-            await self.timekeeper_manager.set_co_commissioner(None, "We don't have one")
+            await self.timekeeper_manager.set_co_commissioner(None)
             embed = discord.Embed(
                 title="👔 Co-Commissioner Cleared",
                 description="Co-commissioner has been cleared.",
