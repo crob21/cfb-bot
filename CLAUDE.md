@@ -1,13 +1,6 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
 ## Commands
-
-### Run the bot
-```bash
-python main.py
-```
 
 ### Run tests
 ```bash
@@ -19,11 +12,6 @@ pytest tests/unit/ -v --cov=src/cfb_bot --cov-report=term-missing
 
 # Integration smoke tests (may fail without env vars)
 pytest tests/integration/test_bot_startup.py -v
-```
-
-### Run the optional web dashboard
-```bash
-python run_dashboard.py
 ```
 
 ### Install dependencies
@@ -47,9 +35,6 @@ Copy `config/env.example` to `.env`. Only `DISCORD_BOT_TOKEN` is required. All o
 
 ## Architecture
 
-### Entry point flow
-`main.py` → `src/cfb_bot/__init__.py` → `src/cfb_bot/bot_main.py`
-
 discord.py 2.x **Cog-based architecture**. All slash commands are grouped into cogs loaded at startup. Cog dependencies are injected via `set_dependencies()` in `on_ready` after all cogs load.
 
 ### Module system
@@ -59,12 +44,6 @@ Every cog command must call `check_module_enabled()` or `check_module_enabled_de
 
 ### Storage
 `DiscordDMStorage` in `utils/storage.py`: JSON stored as edited messages in a DM to the bot owner. Free, survives redeploys, one Discord message (2,000 chars) per namespace — oversize saves are refused and DM the owner. `utils/owner_dm.py` is the one place that opens that DM.
-
-### Key singletons
-- `server_config` (`utils/server_config.py`) — per-guild feature flags and settings
-- `cfb_data` (`utils/cfb_data.py`) — CollegeFootballData.com API wrapper
-- `on3_scraper` / `recruiting_scraper` (`utils/`) — web scrapers for On3/Rivals and 247Sports
-- `get_cache()` (`utils/cache.py`) — in-memory TTL cache for expensive results
 
 ## Key Patterns and Conventions
 
