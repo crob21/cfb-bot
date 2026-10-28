@@ -25,9 +25,8 @@ Commands:
 - /league staff - View league staff
 - /league set_owner - Set league owner (admin)
 - /league set_commish - Set co-commissioner (admin)
-- /league pick_commish - AI picks co-commissioner
-- /league nag - Start nagging owner (bot owner)
-- /league stop_nag - Stop nagging (bot owner)
+- /league pick_commish - Most active members, for co-commissioner (admin)
+- /league nag - Start or stop nagging the owner (bot owner)
 """
 
 import logging
@@ -47,7 +46,7 @@ from ..utils.server_config import server_config, FeatureModule  # noqa: F401 (re
 from ..utils.timekeeper import (CFB_DYNASTY_WEEKS, FIRST_WEEK, LAST_WEEK, MAX_GAME_WEEK,
                                 get_game_week, get_week_info, get_week_name,
                                 is_valid_week)
-from ..services.oops import NOT_READY, NO_AI, oops
+from ..services.oops import NOT_READY, oops
 
 
 logger = logging.getLogger('CFBBot.League')
@@ -1062,7 +1061,7 @@ class LeagueCog(commands.Cog):
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    @league_group.command(name="pick_commish", description="Harry analyzes the chat and picks a co-commissioner")
+    @league_group.command(name="pick_commish", description="Rank the chat's most active members for co-commissioner (Admin only)")
     @app_commands.describe(
         channel="Channel to analyze",
         hours="Hours of chat history (default: 168 = 1 week)"
@@ -1074,7 +1073,7 @@ class LeagueCog(commands.Cog):
         channel: Optional[discord.TextChannel] = None,
         hours: int = 168
     ):
-        """Have Harry analyze chat and recommend a co-commissioner"""
+        """Recommend a co-commissioner: whoever's posted the most in the channel."""
         await interaction.response.defer()
 
         if not self._is_league_admin(interaction):
@@ -1083,10 +1082,6 @@ class LeagueCog(commands.Cog):
 
         if not self.channel_summarizer:
             await interaction.followup.send(NOT_READY, ephemeral=True)
-            return
-
-        if not self.AI_AVAILABLE or not self.ai_assistant:
-            await interaction.followup.send(NO_AI, ephemeral=True)
             return
 
         if hours < 24 or hours > 720:

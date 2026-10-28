@@ -50,7 +50,7 @@ MaxPreps stats for a player, or a whole list at once with `/hs bulk`.
 - **Advance timer** — countdown with 24h / 12h / 6h / 1h warnings. Post `@everyone advanced` in the timer channel and Harry advances the week and restarts the clock.
 - **Schedule** — `/league games`, `find_game`, `byes`. Upload a season with `/league upload_schedule`, or type one week with `/league set_week_games`. Your teams are **bolded** everywhere they appear, user-vs-user games get a ⚔️, and `/league ghost` puts a 👻 next to teams whose coach never shows up.
 - **Week tracking** — the real 31-step dynasty calendar, not a guess.
-- **Staff** — owner and co-commish, including `/league pick_commish`, where Harry reads the chat and nominates someone.
+- **Staff** — owner and co-commish, including `/league pick_commish`, which ranks the chat's most active members as candidates.
 
 ### 🤖 AI (`/harry`, `/ask`, `/summarize`)
 Ask Harry anything — or just **@mention him**, no slash command needed. He answers with your charter and current week in context. `/summarize` catches you up on a channel you ignored for a week. Works with OpenAI or Anthropic; models are a config setting, not a code change.

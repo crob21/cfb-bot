@@ -59,7 +59,7 @@ Module: `league`
 | `/league staff` | View the current league owner and co-commissioner | - |
 | `/league set_owner` | Set the league owner (Admin only) | `user` |
 | `/league set_commish` | Set the co-commissioner (Admin only) | `user`?, `none`? |
-| `/league pick_commish` | Harry analyzes the chat and picks a co-commissioner | `channel`?, `hours`? |
+| `/league pick_commish` | Rank the chat's most active members for co-commissioner (Admin only) | `channel`?, `hours`? |
 | `/league nag` | Nag the league owner to advance (Bot Owner only) | `action`?, `interval`? |
 
 ## 📜 Charter (`/charter`)

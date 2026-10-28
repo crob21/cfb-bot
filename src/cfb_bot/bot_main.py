@@ -630,10 +630,14 @@ async def main():
         logger.error("DISCORD_BOT_TOKEN environment variable not set!")
         sys.exit(1)
 
-    # Load cogs
     async with bot:
         await load_cogs()
-        await bot.start(token)
+        try:
+            await bot.start(token)
+        finally:
+            # Playwright's headless Chromium outlives the bot otherwise
+            from .utils.on3_scraper import on3_scraper
+            await on3_scraper.cleanup()
 
 
 def run():
