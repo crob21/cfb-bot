@@ -117,20 +117,6 @@ class LeagueCog(commands.Cog):
         )
         await interaction.followup.send(embed=embed)
 
-    @league_group.command(name="team", description="Get team information")
-    @app_commands.describe(team_name="Team name to look up")
-    @requires_module(FeatureModule.LEAGUE)
-    async def team(self, interaction: discord.Interaction, team_name: str):
-        """Get information about a college football team"""
-        await interaction.response.defer()
-        embed = discord.Embed(
-            title=f"Team: {team_name.title()}",
-            description="Team lookup functionality coming soon!",
-            color=Colors.SUCCESS
-        )
-        embed.add_field(name="Status", value="🚧 Under Development", inline=False)
-        await interaction.followup.send(embed=embed)
-
     @league_group.command(name="dynasty", description="Get dynasty management rules")
     @app_commands.describe(topic="Dynasty topic to look up")
     @requires_module(FeatureModule.LEAGUE)
@@ -972,7 +958,52 @@ class LeagueCog(commands.Cog):
         embed.set_footer(text="Harry's Schedule Tracker 🏈")
         await interaction.followup.send(embed=embed, ephemeral=True)
 
-    @league_group.command(name="schedule_template", description="Show the schedule JSON format for uploads")
+    @league_group.command(name="ghost", description="Mark or unmark a team whose coach never shows up 👻 (Admin only)")
+    @app_commands.describe(team="A league team. Run it again to bring them back from the dead.")
+    @requires_module(FeatureModule.LEAGUE)
+    @requires_admin()
+    async def ghost(self, interaction: discord.Interaction, team: str):
+        """Toggle a league team's 👻 without re-uploading the schedule."""
+        await interaction.response.defer(ephemeral=True)
+
+        if not self.schedule_manager:
+            await interaction.followup.send(NOT_READY, ephemeral=True)
+            return
+
+        name, now_ghost = self.schedule_manager.toggle_ghost(team)
+        if not name:
+            teams = ", ".join(self.schedule_manager.teams) or "none set"
+            await interaction.followup.send(
+                f"❌ **{team}** isn't one of ours, mate. League teams: {teams}", ephemeral=True
+            )
+            return
+
+        saved = await self.schedule_manager.save_to_discord()
+        if self.ai_assistant:
+            self.ai_assistant.clear_response_cache()  # old answers have the old ghosts
+
+        verdict = (f"👻 **{name}** is a ghost. Haven't seen 'em in weeks." if now_ghost
+                   else f"🙌 **{name}** lives! Ghost status lifted.")
+        ghosts = ", ".join(self.schedule_manager.ghost_teams) or "nobody, for once"
+        note = "✅ Saved & backed up." if saved else "⚠️ Saved locally, but Discord backup failed."
+        embed = discord.Embed(
+            title="👻 Ghost Watch",
+            description=f"{verdict}\n\nCurrent ghosts: {ghosts}\n\n{note}",
+            color=Colors.SUCCESS,
+        )
+        embed.set_footer(text="Harry's Schedule Tracker 🏈")
+        await interaction.followup.send(embed=embed, ephemeral=True)
+
+    @ghost.autocomplete('team')
+    async def ghost_team_autocomplete(self, interaction: discord.Interaction, current: str):
+        teams = self.schedule_manager.teams if self.schedule_manager else []
+        ghosts = self.schedule_manager.ghost_teams if self.schedule_manager else []
+        return [
+            app_commands.Choice(name=f"{t} 👻" if t in ghosts else t, value=t)
+            for t in teams if current.lower() in t.lower()
+        ][:25]
+
+    @league_group.command(name="schedule_template",description="Show the schedule JSON format for uploads")
     @requires_module(FeatureModule.LEAGUE)
     async def schedule_template(self, interaction: discord.Interaction):
         """Post the expected JSON shape for /league upload_schedule."""
@@ -995,7 +1026,7 @@ class LeagueCog(commands.Cog):
                 f"• Week keys are strings (`\"0\"`–`\"{MAX_GAME_WEEK}\"`).\n"
                 "• Each game needs `away` and `home`.\n"
                 "• `teams` (optional) are your user-controlled teams — Harry bolds them.\n"
-                "• `ghost_teams` (optional) get a 👻 wherever they show up.\n\n"
+                "• `ghost_teams` (optional) get a 👻 wherever they show up. Or use `/league ghost`.\n\n"
                 "To edit just one week without a file, use `/league set_week_games`."
             ),
             color=Colors.SUCCESS,

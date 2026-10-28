@@ -186,6 +186,22 @@ class ScheduleManager:
         """League teams whose coaches never show up. Listed per season in the schedule JSON."""
         return self.schedule_data.get('ghost_teams', [])
 
+    def toggle_ghost(self, team_name: str) -> Tuple[Optional[str], bool]:
+        """Flip a league team's ghost status in memory.
+
+        Returns (team as spelled in the schedule, now a ghost?), or (None, False)
+        if the team isn't one of the league's teams.
+        """
+        team = next((t for t in self.teams if t.lower() == team_name.strip().lower()), None)
+        if not team:
+            return None, False
+        ghosts = [g for g in self.ghost_teams if g != team]
+        now_ghost = team not in self.ghost_teams
+        if now_ghost:
+            ghosts.append(team)
+        self.schedule_data['ghost_teams'] = ghosts
+        return team, now_ghost
+
     def format_team(self, team_name: str) -> str:
         """Format a team name: user-controlled teams in bold, ghost teams with a 👻."""
         name = f"**{team_name}**" if team_name in self.teams else team_name

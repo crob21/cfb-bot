@@ -449,3 +449,42 @@ class TestGhostTeams:
         import json
         from cfb_bot.utils.schedule_manager import SCHEDULE_FILE
         assert json.loads(SCHEDULE_FILE.read_text())["ghost_teams"] == ["South Carolina", "Syracuse"]
+
+
+class TestGhostCommand:
+    """/league ghost flips a team's 👻 and saves, no re-upload needed."""
+
+    def _manager(self):
+        from cfb_bot.utils.schedule_manager import ScheduleManager
+        m = ScheduleManager()
+        m.load_from_dict({"season": 5, "teams": ["Syracuse", "Duke"], "ghost_teams": ["Syracuse"],
+                          "schedule": {"0": {"bye_teams": [], "games": []}}})
+        return m
+
+    def test_toggle_marks_and_unmarks(self):
+        m = self._manager()
+        assert m.toggle_ghost("duke") == ("Duke", True)
+        assert m.format_team("Duke") == "**Duke** 👻"
+        assert m.toggle_ghost("Syracuse") == ("Syracuse", False)
+        assert m.ghost_teams == ["Duke"]
+
+    def test_only_league_teams_can_be_ghosts(self):
+        m = self._manager()
+        assert m.toggle_ghost("Alabama") == (None, False)
+        assert m.ghost_teams == ["Syracuse"]
+
+    @pytest.mark.asyncio
+    async def test_command_saves_and_clears_harrys_cache(self, mock_interaction, mock_server_config):
+        from unittest.mock import AsyncMock, MagicMock, patch
+        from cfb_bot.cogs.league import LeagueCog
+        m = self._manager()
+        m.save_to_discord = AsyncMock(return_value=True)
+        with patch('cfb_bot.cogs.league.server_config', mock_server_config):
+            cog = LeagueCog(MagicMock())
+            cog.schedule_manager = m
+            cog.ai_assistant = MagicMock()
+            cog._is_league_admin = MagicMock(return_value=True)
+            await cog.ghost.callback(cog, mock_interaction, "Duke")
+        assert "Duke" in m.ghost_teams
+        m.save_to_discord.assert_awaited_once()
+        cog.ai_assistant.clear_response_cache.assert_called_once()

@@ -3,6 +3,13 @@
 Full release history for Harry. The bot's `/changelog` command shows the most recent releases;
 this file keeps everything. Generated from `src/cfb_bot/utils/version_manager.py`.
 
+## 3.24.0 — Ghost Watch 👻 (2026-10-28)
+
+### League
+- NEW: /league ghost marks a team whose coach never shows up (admins); run it again to unmark
+- Saved straight away, so no need to re-upload the schedule
+- Removed /league team, which only ever said "coming soon"
+
 ## 3.23.0 — Ghosts of the League 👻 (2026-10-28)
 
 ### League
