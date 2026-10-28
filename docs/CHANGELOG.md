@@ -3,6 +3,15 @@
 Full release history for Harry. The bot's `/changelog` command shows the most recent releases;
 this file keeps everything. Generated from `src/cfb_bot/utils/version_manager.py`.
 
+## 3.22.0 — One Harry 🎭 (2026-10-28)
+
+### AI & Checks
+- FIX: /fun roast and Harry's argument comebacks now actually use the AI (they only ever used canned lines)
+- Charter edits get a plain rulebook voice — no jokes written into the charter
+- Charter and league commands now respect the League module toggle and channel whitelist
+- Charter admin commands use the same admin check as the rest (bot admins or server admins)
+- Anthropic replies now get Harry's persona as the system prompt, like OpenAI
+
 ## 3.21.2 — Audit Fixes 🔧 (2026-10-28)
 
 ### Fixes

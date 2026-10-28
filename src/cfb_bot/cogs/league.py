@@ -86,6 +86,7 @@ class LeagueCog(commands.Cog):
 
     @league_group.command(name="rules", description="Get recruiting rules and policies")
     @app_commands.describe(topic="Rule topic to look up")
+    @requires_module(FeatureModule.LEAGUE)
     async def rules(self, interaction: discord.Interaction, topic: str):
         """Get information about recruiting rules"""
         await interaction.response.defer()
@@ -117,6 +118,7 @@ class LeagueCog(commands.Cog):
 
     @league_group.command(name="team", description="Get team information")
     @app_commands.describe(team_name="Team name to look up")
+    @requires_module(FeatureModule.LEAGUE)
     async def team(self, interaction: discord.Interaction, team_name: str):
         """Get information about a college football team"""
         await interaction.response.defer()
@@ -130,6 +132,7 @@ class LeagueCog(commands.Cog):
 
     @league_group.command(name="dynasty", description="Get dynasty management rules")
     @app_commands.describe(topic="Dynasty topic to look up")
+    @requires_module(FeatureModule.LEAGUE)
     async def dynasty(self, interaction: discord.Interaction, topic: str):
         """Get information about dynasty management rules"""
         await interaction.response.defer()
@@ -482,6 +485,7 @@ class LeagueCog(commands.Cog):
         await interaction.response.send_message(embed=embed, view=make_view(active), ephemeral=True)
 
     @league_group.command(name="week", description="Check the current season and week")
+    @requires_module(FeatureModule.LEAGUE)
     async def week(self, interaction: discord.Interaction):
         """Check the current season and week"""
         if not self.timekeeper_manager:
@@ -513,6 +517,7 @@ class LeagueCog(commands.Cog):
         await interaction.response.send_message(embed=embed)
 
     @league_group.command(name="weeks", description=f"View the full {GAME_NAME} Dynasty week schedule")
+    @requires_module(FeatureModule.LEAGUE)
     async def weeks(self, interaction: discord.Interaction):
         """View the full week schedule"""
         current_week = None
@@ -963,6 +968,7 @@ class LeagueCog(commands.Cog):
         await interaction.followup.send(embed=embed, ephemeral=True)
 
     @league_group.command(name="schedule_template", description="Show the schedule JSON format for uploads")
+    @requires_module(FeatureModule.LEAGUE)
     async def schedule_template(self, interaction: discord.Interaction):
         """Post the expected JSON shape for /league upload_schedule."""
         example = (
@@ -1014,6 +1020,7 @@ class LeagueCog(commands.Cog):
             await interaction.followup.send("❌ Failed to save!", ephemeral=True)
 
     @league_group.command(name="staff", description="View the current league owner and co-commissioner")
+    @requires_module(FeatureModule.LEAGUE)
     async def staff(self, interaction: discord.Interaction):
         """View current league staff"""
         if not self.timekeeper_manager:
@@ -1181,6 +1188,7 @@ class LeagueCog(commands.Cog):
         app_commands.Choice(name="start - DM the owner until they advance", value="start"),
         app_commands.Choice(name="stop - give the owner a break", value="stop"),
     ])
+    @requires_module(FeatureModule.LEAGUE)
     async def nag(self, interaction: discord.Interaction, action: str = "start", interval: int = 5):
         """Start or stop nagging the league owner."""
         await interaction.response.defer(ephemeral=True)

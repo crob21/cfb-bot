@@ -16,6 +16,14 @@ from cfb_bot.utils import charter_git
 GIT_SOURCE = pathlib.Path(charter_git.__file__).read_text()
 
 
+
+@pytest.fixture(autouse=True)
+def league_enabled(mock_server_config):
+    """The charter commands need the league module; these tests are about the PR gate."""
+    mock_server_config.get_enabled_channels.return_value = []  # no channel whitelist
+    with patch('cfb_bot.cogs.charter.server_config', mock_server_config):
+        yield
+
 class TestWhoMayPropose:
     def test_listed_editor_may_propose(self):
         with patch.object(charter_git, 'CHARTER_EDITOR_IDS', [111]):
@@ -246,3 +254,20 @@ class TestInteractionIsAcknowledgedFirst:
         await cog.propose.callback(cog, interaction, instruction="x", summary="y")
 
         interaction.followup.send.assert_not_awaited()
+
+
+class TestCharterNeedsTheLeagueModule:
+    @pytest.mark.asyncio
+    async def test_propose_refuses_when_league_is_off(self, mock_server_config):
+        from cfb_bot.cogs.charter import CharterCog
+        mock_server_config.is_module_enabled.return_value = False
+        cog = CharterCog(MagicMock())
+        interaction = MagicMock()
+        interaction.response.defer = AsyncMock()
+        interaction.followup.send = AsyncMock()
+        with patch.object(charter_git, 'CHARTER_EDITOR_IDS', [111]), \
+             patch.object(charter_git.CharterPullRequest, 'open', AsyncMock()) as opened:
+            await cog.propose.callback(cog, interaction, instruction="x", summary="y")
+        interaction.response.defer.assert_awaited_once()  # still acknowledged first
+        assert "module is disabled" in interaction.followup.send.call_args.args[0]
+        opened.assert_not_awaited()

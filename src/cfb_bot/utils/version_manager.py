@@ -15,11 +15,29 @@ def version_key(version: str) -> tuple:
     return tuple(int(part) for part in version.split('.'))
 
 # Current version
-CURRENT_VERSION = "3.21.2"
+CURRENT_VERSION = "3.22.0"
 
 # Recent releases, newest first. /changelog reads these; the full history is in
 # docs/CHANGELOG.md. Add new releases at the top.
 CHANGELOG: Dict[str, Dict] = {
+    "3.22.0": {
+        "date": "2026-10-28",
+        "title": "One Harry 🎭",
+        "emoji": "🎭",
+        "features": [
+            {
+                "category": "AI & Checks",
+                "emoji": "🤖",
+                "changes": [
+                    "FIX: /fun roast and Harry's argument comebacks now actually use the AI (they only ever used canned lines)",
+                    "Charter edits get a plain rulebook voice — no jokes written into the charter",
+                    "Charter and league commands now respect the League module toggle and channel whitelist",
+                    "Charter admin commands use the same admin check as the rest (bot admins or server admins)",
+                    "Anthropic replies now get Harry's persona as the system prompt, like OpenAI"
+                ]
+            }
+        ]
+    },
     "3.21.2": {
         "date": "2026-10-28",
         "title": "Audit Fixes 🔧",
