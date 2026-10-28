@@ -72,14 +72,14 @@ Per-server module toggles, channel whitelisting, bot admins, API usage and cost 
 
 ## The dynasty calendar
 
-Harry tracks all 27 advances of a season, so "what week is it?" always has a real answer:
+Harry tracks all 31 advances of a season, so "what week is it?" always has a real answer:
 
 | Steps | Phase | |
 |---|---|---|
 | 1 | Preseason | |
-| 2–16 | Regular Season | Week 0 through Week 14 |
-| 17–22 | Postseason | Conference Championship, Bowl Weeks 1–4 (CFP QF/SF), National Championship |
-| 23–27 | Offseason | Staff Moves, Transfer Portal (open/close), National Signing Day, Training Results |
+| 2–17 | Regular Season | Week 0 through Week 15 |
+| 18–23 | Postseason | Conference Championship, Bowl Weeks 1–4 (CFP QF/SF), National Championship |
+| 24–31 | Offseason | End of Season Recap, Players Leaving, Offseason Recruiting Weeks 1–4 (portal), National Signing Day, Training Results |
 
 Advancing past Training Results rolls over to Preseason of the next season.
 
