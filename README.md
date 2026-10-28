@@ -49,7 +49,7 @@ MaxPreps stats for a player, or a whole list at once with `/hs bulk`.
 ### ⏰ League (`/league`)
 - **Advance timer** — countdown with 24h / 12h / 6h / 1h warnings. Post `@everyone advanced` in the timer channel and Harry advances the week and restarts the clock.
 - **Schedule** — `/league games`, `find_game`, `byes`. Upload a season with `/league upload_schedule`, or type one week with `/league set_week_games`. Your teams are **bolded** everywhere they appear.
-- **Week tracking** — the real 27-step dynasty calendar, not a guess.
+- **Week tracking** — the real 31-step dynasty calendar, not a guess.
 - **Staff** — owner and co-commish, including `/league pick_commish`, where Harry reads the chat and nominates someone.
 
 ### 🤖 AI (`/harry`, `/ask`, `/summarize`)
@@ -72,14 +72,14 @@ Per-server module toggles, channel whitelisting, bot admins, API usage and cost 
 
 ## The dynasty calendar
 
-Harry tracks all 27 advances of a season, so "what week is it?" always has a real answer:
+Harry tracks all 31 advances of a season, so "what week is it?" always has a real answer:
 
 | Steps | Phase | |
 |---|---|---|
 | 1 | Preseason | |
-| 2–16 | Regular Season | Week 0 through Week 14 |
-| 17–22 | Postseason | Conference Championship, Bowl Weeks 1–4 (CFP QF/SF), National Championship |
-| 23–27 | Offseason | Staff Moves, Transfer Portal (open/close), National Signing Day, Training Results |
+| 2–17 | Regular Season | Week 0 through Week 15 |
+| 18–23 | Postseason | Conference Championship, Bowl Weeks 1–4 (CFP QF/SF), National Championship |
+| 24–31 | Offseason | End of Season Recap, Players Leaving, Offseason Recruiting Weeks 1–4 (portal), National Signing Day, Training Results |
 
 Advancing past Training Results rolls over to Preseason of the next season.
 

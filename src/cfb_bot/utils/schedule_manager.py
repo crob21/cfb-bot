@@ -10,6 +10,8 @@ import logging
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+from .timekeeper import MAX_GAME_WEEK
+
 logger = logging.getLogger('CFBBot.Schedule')
 
 # Schedule data file location
@@ -197,7 +199,7 @@ class ScheduleManager:
         Get the schedule for a specific week.
 
         Args:
-            week: Game week number (0-14 for regular season)
+            week: Game week number (0-15 for regular season)
 
         Returns:
             Dict with 'bye_teams' and 'games' lists, or None if not found
@@ -343,7 +345,7 @@ class ScheduleManager:
             List of game info for each week
         """
         schedule = []
-        for week in range(15):  # Weeks 0-14
+        for week in range(MAX_GAME_WEEK + 1):
             game = self.get_team_game(team, week)
             if game:
                 game['week'] = week

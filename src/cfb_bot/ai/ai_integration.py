@@ -236,6 +236,7 @@ class AICharterAssistant:
         # Current week/season from the live timekeeper in bot_main
         try:
             from .. import bot_main as bot_module
+            from ..utils.timekeeper import TOTAL_WEEKS_PER_SEASON
             if hasattr(bot_module, 'timekeeper_manager') and bot_module.timekeeper_manager:
                 season_info = bot_module.timekeeper_manager.get_season_week()
                 if season_info.get('season') and season_info.get('week') is not None:
@@ -246,7 +247,7 @@ class AICharterAssistant:
 
                     game_week = season_info.get('game_week')
 
-                    context_parts.append(f"**CURRENT STATUS: Season {current_season}, {week_name} (step {current_week} of 27)**")
+                    context_parts.append(f"**CURRENT STATUS: Season {current_season}, {week_name} (step {current_week} of {TOTAL_WEEKS_PER_SEASON})**")
                     context_parts.append(f"Phase: {phase}")
                     if game_week is not None:
                         context_parts.append(f"IMPORTANT: When the user says 'this week' or 'current week', they mean Week {game_week} in the schedule below.")

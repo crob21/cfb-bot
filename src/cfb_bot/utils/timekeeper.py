@@ -28,64 +28,90 @@ except ImportError:
 logger = logging.getLogger('CFBBot.Timekeeper')
 
 # Dynasty Season Week Structure
-# A full online-dynasty season is exactly 27 sequential advances, keyed by step number (1-27):
-#   Preseason (1), Regular Season Weeks 0-14 (2-16), Postseason (17-22), Offseason (23-27).
-# Advancing past step 27 rolls over to step 1 (Preseason) of the next season.
+# A full online-dynasty season is exactly 31 sequential advances, keyed by step number (1-31):
+#   Preseason (1), Regular Season Weeks 0-15 (2-17), Postseason (18-23), Offseason (24-31).
+# Advancing past step 31 rolls over to step 1 (Preseason) of the next season.
+# The current game added a Week 15 before Conference Championships, moved the coaching carousel
+# into the postseason, and runs the portal as four weekly "Offseason Recruiting" advances;
+# National Signing Day is the 7th advance after the title game.
 # "game_week" is the in-game week number used as the key in the league schedule JSON
 # (only regular-season steps have one).
 CFB_DYNASTY_WEEKS = {
     # Preseason (1)
     1: {"name": "Preseason", "short": "Preseason", "phase": "Preseason", "game_week": None},
-    # Regular Season (2-16) - Week 0 through Week 14
+    # Regular Season (2-17) - Week 0 through Week 15
     **{
         step: {"name": f"Week {step - 2}", "short": f"Week {step - 2}", "phase": "Regular Season", "game_week": step - 2}
-        for step in range(2, 17)
+        for step in range(2, 18)
     },
-    # Postseason (17-22)
-    17: {"name": "Conference Championship", "short": "Conf Champ", "phase": "Postseason", "game_week": None},
-    18: {"name": "Bowl Week 1", "short": "Bowl Wk 1", "phase": "Postseason", "game_week": None},
-    19: {"name": "Bowl Week 2 / CFP Quarterfinals", "short": "Bowl Wk 2 / CFP QF", "phase": "Postseason", "game_week": None},
-    20: {"name": "Bowl Week 3 / CFP Semifinals", "short": "Bowl Wk 3 / CFP SF", "phase": "Postseason", "game_week": None},
-    21: {"name": "Bowl Week 4", "short": "Bowl Wk 4", "phase": "Postseason", "game_week": None},
-    22: {"name": "National Championship", "short": "Natl Champ", "phase": "Postseason", "game_week": None},
-    # Offseason (23-27)
-    23: {"name": "Staff Moves", "short": "Staff Moves", "phase": "Offseason", "game_week": None},
-    24: {"name": "Transfer Portal Stage 1 (Open)", "short": "Portal 1 (Open)", "phase": "Offseason", "game_week": None},
-    25: {"name": "Transfer Portal Stage 2 (Close)", "short": "Portal 2 (Close)", "phase": "Offseason", "game_week": None},
-    26: {"name": "National Signing Day", "short": "Signing Day", "phase": "Offseason", "game_week": None},
-    27: {"name": "Training Results", "short": "Training", "phase": "Offseason", "game_week": None},
+    # Postseason (18-23)
+    18: {"name": "Conference Championship", "short": "Conf Champ", "phase": "Postseason", "game_week": None},
+    19: {"name": "Bowl Week 1", "short": "Bowl Wk 1", "phase": "Postseason", "game_week": None},
+    20: {"name": "Bowl Week 2 / CFP Quarterfinals", "short": "Bowl Wk 2 / CFP QF", "phase": "Postseason", "game_week": None},
+    21: {"name": "Bowl Week 3 / CFP Semifinals", "short": "Bowl Wk 3 / CFP SF", "phase": "Postseason", "game_week": None},
+    22: {"name": "Bowl Week 4", "short": "Bowl Wk 4", "phase": "Postseason", "game_week": None},
+    23: {"name": "National Championship", "short": "Natl Champ", "phase": "Postseason", "game_week": None},
+    # Offseason (24-31)
+    24: {"name": "End of Season Recap", "short": "Season Recap", "phase": "Offseason", "game_week": None},
+    25: {"name": "Players Leaving", "short": "Players Leaving", "phase": "Offseason", "game_week": None},
+    **{
+        step: {"name": f"Offseason Recruiting Week {step - 25}", "short": f"Off. Recruiting Wk {step - 25}",
+               "phase": "Offseason", "game_week": None}
+        for step in range(26, 30)
+    },
+    30: {"name": "National Signing Day", "short": "Signing Day", "phase": "Offseason", "game_week": None},
+    31: {"name": "Training Results", "short": "Training", "phase": "Offseason", "game_week": None},
 }
 
 FIRST_WEEK = 1  # Preseason
-TOTAL_WEEKS_PER_SEASON = 27  # Steps 1-27
+TOTAL_WEEKS_PER_SEASON = 31  # Steps 1-31
 LAST_WEEK = TOTAL_WEEKS_PER_SEASON  # Training Results
+MAX_GAME_WEEK = max(w["game_week"] for w in CFB_DYNASTY_WEEKS.values() if w["game_week"] is not None)  # Week 15
 
-# Persisted season/week state format. Version 1 used the old 26-stage table (indices 0-25).
-WEEK_SCHEME_VERSION = 2
+# Persisted season/week state format. Version 1 used the old 26-stage table (indices 0-25),
+# version 2 the previous game's 27-step table (Weeks 0-14, offseason 23-27).
+WEEK_SCHEME_VERSION = 3
 
-# Best-effort mapping from the old 0-25 index table to the new 1-27 step numbers
+# Best-effort mapping from the old 0-25 index table to the current step numbers
 _LEGACY_WEEK_MAP = {
     0: 1,                                       # Preseason (Week 0) -> Preseason
     **{i: i + 2 for i in range(1, 14)},         # Week 1-13 -> Week 1-13
-    14: 17,                                     # Week 14 (Conf Champs) -> Conference Championship
-    15: 18, 16: 19, 17: 20,                     # Bowl Weeks 1-3
-    18: 22,                                     # Bowl Week 4 (Natl Champ) -> National Championship
-    19: 23, 20: 23,                             # Carousel / Players Leaving -> Staff Moves
-    21: 24, 22: 24,                             # Portal Wk 1-2 -> Portal Stage 1
-    23: 25, 24: 25,                             # Portal Wk 3-4 -> Portal Stage 2
-    25: 27,                                     # Training -> Training Results
+    14: 18,                                     # Week 14 (Conf Champs) -> Conference Championship
+    15: 19, 16: 20, 17: 21,                     # Bowl Weeks 1-3
+    18: 23,                                     # Bowl Week 4 (Natl Champ) -> National Championship
+    19: 24, 20: 25,                             # Carousel -> Season Recap, Players Leaving
+    21: 26, 22: 27, 23: 28, 24: 29,             # Portal Wk 1-4 -> Offseason Recruiting Wk 1-4
+    25: 31,                                     # Training -> Training Results
+}
+
+# Previous game's steps (scheme 2) -> current steps. Preseason and Weeks 0-14 (1-16) are
+# unchanged; the postseason shifts by one for the new Week 15.
+_SCHEME_2_WEEK_MAP = {
+    **{step: step + 1 for step in range(17, 23)},  # Conf Champ .. National Championship
+    23: 24,  # Staff Moves -> End of Season Recap
+    24: 26,  # Portal Stage 1 (Open) -> Offseason Recruiting Week 1
+    25: 28,  # Portal Stage 2 (Close) -> Offseason Recruiting Week 3
+    26: 30,  # National Signing Day
+    27: 31,  # Training Results
 }
 
 
 def migrate_legacy_week(week: Optional[int]) -> Optional[int]:
-    """Convert a week index saved under the old 0-25 table to a 1-27 step number."""
+    """Convert a week index saved under the old 0-25 table to a current step number."""
     if week is None:
         return None
     return _LEGACY_WEEK_MAP.get(week, FIRST_WEEK)
 
 
+def migrate_saved_week(week: Optional[int], scheme: Optional[int]) -> Optional[int]:
+    """Convert a week saved under an older scheme (missing scheme = version 1) to a current step number."""
+    if scheme == 2:
+        return _SCHEME_2_WEEK_MAP.get(week, week)
+    return migrate_legacy_week(week)
+
+
 def is_valid_week(week: int) -> bool:
-    """True if week is a valid step number (1-27)."""
+    """True if week is a valid step number (1-31)."""
     return week in CFB_DYNASTY_WEEKS
 
 
@@ -121,7 +147,7 @@ def is_advance_trigger(message, advance_channel_id: Optional[int]) -> bool:
 
 
 def get_prev_week(week: int) -> int:
-    """Step number before week, wrapping Preseason (1) back to Training Results (27)."""
+    """Step number before week, wrapping Preseason (1) back to Training Results (31)."""
     return LAST_WEEK if week <= FIRST_WEEK else week - 1
 
 
@@ -130,7 +156,7 @@ def get_week_name(week: int, short: bool = False) -> str:
     Get the display name for a given step number.
 
     Args:
-        week: The step number (1-27)
+        week: The step number (1-31)
         short: If True, return the short name
 
     Returns:
@@ -147,7 +173,7 @@ def get_week_phase(week: int) -> str:
     Get the season phase for a given step number.
 
     Args:
-        week: The step number (1-27)
+        week: The step number (1-31)
 
     Returns:
         The phase name (Preseason, Regular Season, Postseason, or Offseason)
@@ -159,7 +185,7 @@ def get_week_phase(week: int) -> str:
 
 def get_game_week(week: Optional[int]) -> Optional[int]:
     """
-    Get the in-game schedule week (0-14) for a step number.
+    Get the in-game schedule week (0-15) for a step number.
 
     Returns None for steps with no regular-season games (Preseason, Postseason, Offseason).
     """
@@ -175,7 +201,7 @@ def get_week_info(week: int) -> Dict:
     Get full information about a step.
 
     Args:
-        week: The step number (1-27)
+        week: The step number (1-31)
 
     Returns:
         Dict with name, short name, phase, and game_week
@@ -1177,7 +1203,7 @@ class TimekeeperManager:
     async def increment_week(self) -> bool:
         """
         Increment the week (called when advance happens).
-        Automatically rolls over to a new season after Training Results (step 27).
+        Automatically rolls over to a new season after Training Results (step 31).
         """
         if self.week is None:
             logger.warning("Cannot increment week - week not set")
@@ -1186,7 +1212,7 @@ class TimekeeperManager:
         old_week = self.week
         old_week_name = get_week_name(old_week)
 
-        # Check if we're at Training Results (step 27) - time to start a new season!
+        # Check if we're at Training Results (step 31) - time to start a new season!
         if self.week >= LAST_WEEK:
             self.week = FIRST_WEEK  # Reset to Preseason
             if self.season:
@@ -1291,9 +1317,9 @@ class TimekeeperManager:
 
         if state.get('scheme') != WEEK_SCHEME_VERSION:
             legacy_week = self.week
-            self.week = migrate_legacy_week(legacy_week)
+            self.week = migrate_saved_week(legacy_week, state.get('scheme'))
             logger.warning(
-                f"Migrated legacy week index {legacy_week} → step {self.week} "
+                f"Migrated saved week {legacy_week} → step {self.week} "
                 f"({get_week_name(self.week) if self.week else '?'}). Verify with /league week."
             )
             await self._save_season_week_state()
