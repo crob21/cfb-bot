@@ -547,6 +547,16 @@ async def _handle_advance(message):
                 else:
                     await message.channel.send(embed=schedule_embed)
                     logger.info(f"Sent Week {week_num} schedule")
+
+            # Season's over: Harry opens a thread to write it into League History. In the
+            # background, since reading the chat takes a minute.
+            from .utils.server_config import FeatureModule
+            from .utils.timekeeper import SEASON_RECAP_WEEK
+            charter_cog = bot.get_cog('CharterCog')
+            if (season_info.get('week') == SEASON_RECAP_WEEK and charter_cog
+                    and server_config.is_module_enabled(message.guild.id, FeatureModule.LEAGUE)):
+                asyncio.create_task(charter_cog.announce_season_history(message.channel, season_info['season']))
+                logger.info(f"Season {season_info['season']} over - Harry's writing the history")
         else:
             from .config import Colors
             embed = discord.Embed(
@@ -586,6 +596,12 @@ async def on_message(message):
 
         # Don't process this message further - timer restart was handled
         return
+
+    # "done" from a charter editor in Harry's season history thread opens the charter PR
+    if isinstance(message.channel, discord.Thread):
+        charter_cog = bot.get_cog('CharterCog')
+        if charter_cog and await charter_cog.handle_history_reply(message):
+            return
 
     # RIVALRY RESPONSES - Team banter (Fuck Oregon!, etc.)
     # Only if message is in a guild and FUN_GAMES module is enabled

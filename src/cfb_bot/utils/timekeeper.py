@@ -67,6 +67,7 @@ CFB_DYNASTY_WEEKS = {
 FIRST_WEEK = 1  # Preseason
 TOTAL_WEEKS_PER_SEASON = 31  # Steps 1-31
 LAST_WEEK = TOTAL_WEEKS_PER_SEASON  # Training Results
+SEASON_RECAP_WEEK = next(n for n, w in CFB_DYNASTY_WEEKS.items() if w["name"] == "End of Season Recap")
 MAX_GAME_WEEK = max(w["game_week"] for w in CFB_DYNASTY_WEEKS.values() if w["game_week"] is not None)  # Week 15
 
 # Persisted season/week state format. Version 1 used the old 26-stage table (indices 0-25),

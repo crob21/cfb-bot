@@ -60,6 +60,8 @@ The charter lives in the repo as [`data/charter.md`](data/charter.md). Link it, 
 
 **Harry can propose rule changes, but never land them.** `/charter propose` has him redraft the charter against your instruction — using the league's *current* teams and week, so stale details get corrected — then open a **pull request** you review and merge. Point it at a channel (`channel:#rules-voting`) and he'll draft the change from what the league actually agreed, polls and vote counts included.
 
+**Harry's also the league historian.** When the week advances into End of Season Recap, he reads the league chat and opens a **📜 Season N History** thread with what he found and questions for anything missing (champion, playoff teams, job changes). Answer him there, then a charter editor says **done** and he opens a charter PR adding the season to League History. `/charter season_recap` starts it by hand, or finishes it when run in the thread. Harry needs permission to create threads.
+
 Two gates: only Discord IDs in `CHARTER_EDITOR_IDS` may propose, and there is no merge call anywhere in that code path. Chat read from a channel is treated as reference data, so nobody can talk Harry into rewriting the rulebook from a message.
 
 ### ⚙️ Admin (`/admin`)
@@ -126,7 +128,7 @@ Only the bot token is required. Everything else unlocks a feature.
 | `ZYTE_API_KEY` | No | [Zyte](https://www.zyte.com/) — recruiting scraping through Cloudflare |
 | `BOT_ADMIN_IDS` | No | Comma-separated Discord user IDs for bot admins |
 | `GAME_NAME` | No | The game your league plays (default `CFB 27`) |
-| `CHARTER_EDITOR_IDS` | No | Discord IDs allowed to run `/charter propose` (empty = nobody) |
+| `CHARTER_EDITOR_IDS` | No | Discord IDs allowed to run `/charter propose` and finish season histories (empty = nobody) |
 | `GITHUB_TOKEN` / `GITHUB_REPO` | No | Lets Harry open charter pull requests |
 | `OPENAI_MODEL` | No | Default `gpt-5-mini` — swap models without touching code |
 | `ANTHROPIC_MODEL` | No | Default `claude-haiku-4-5` |
@@ -150,7 +152,7 @@ Every command group maps to a module you toggle with `/admin config`. On by defa
 | `/recruiting` | player, top, class, commits, rankings, portal, source |
 | `/hs` | stats, bulk |
 | `/league` | timer, timer_status, timers, side_timer, games, schedule, week, weeks, find_game, byes, staff, set_week, upload_schedule, set_week_games, ghost, pick_commish, … |
-| `/charter` | lookup, search, add, update, propose, history, backups, restore, link, scan, sync, import |
+| `/charter` | lookup, search, add, update, propose, season_recap, history, backups, restore, link, scan, sync, import |
 | `/harry`, `/ask`, `/summarize` | AI — or just @mention him |
 | `/fun` | target, untarget, target_all, untarget_all, roast, status, timeout, toggle_engage |
 | `/admin` | config, channels, set_channel, block/unblock, add/remove admins, ai, zyte, cache, budget, digest, sync |
