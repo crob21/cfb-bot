@@ -83,25 +83,25 @@ Current Week: Week 10 (step 12 of 27)
 
 * California  
   * Team control: User-controlled (California)  
-  * Current roster: Refer to in-game roster for Season 4, Week 10 (do not modify here).  
+  * Current roster: Refer to in-game roster for Season 5 (do not modify here).  
 * Duke  
   * Team control: User-controlled (Duke)  
-  * Current roster: Refer to in-game roster for Season 4, Week 10 (do not modify here).  
+  * Current roster: Refer to in-game roster for Season 5 (do not modify here).  
 * Oklahoma State  
   * Team control: User-controlled (Oklahoma State)  
-  * Current roster: Refer to in-game roster for Season 4, Week 10 (do not modify here).  
-* North Carolina  
-  * Team control: User-controlled (North Carolina)  
-  * Current roster: Refer to in-game roster for Season 4, Week 10 (do not modify here).  
-* Minnesota  
-  * Team control: User-controlled (Minnesota)  
-  * Current roster: Refer to in-game roster for Season 4, Week 10 (do not modify here).  
+  * Current roster: Refer to in-game roster for Season 5 (do not modify here).  
+* Michigan State  
+  * Team control: User-controlled (Michigan State)  
+  * Current roster: Refer to in-game roster for Season 5 (do not modify here).  
 * South Carolina  
   * Team control: User-controlled (South Carolina)  
-  * Current roster: Refer to in-game roster for Season 4, Week 10 (do not modify here).  
+  * Current roster: Refer to in-game roster for Season 5 (do not modify here).  
+* Syracuse  
+  * Team control: User-controlled (Syracuse)  
+  * Current roster: Refer to in-game roster for Season 5 (do not modify here).  
 * Arizona State  
   * Team control: User-controlled (Arizona State)  
-  * Current roster: Refer to in-game roster for Season 4, Week 10 (do not modify here).
+  * Current roster: Refer to in-game roster for Season 5 (do not modify here).
 
 ### Retired Members
 
