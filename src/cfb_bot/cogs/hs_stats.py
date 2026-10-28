@@ -17,8 +17,8 @@ from discord import app_commands
 from discord.ext import commands
 
 from ..config import Colors, Footers
-from ..services.checks import check_module_enabled_deferred, requires_module
-from ..utils.server_config import server_config, FeatureModule
+from ..services.checks import requires_module
+from ..utils.server_config import server_config, FeatureModule  # noqa: F401 (requires_module reads server_config here)
 from ..utils.hs_stats_scraper import hs_stats_scraper
 from ..services.oops import oops
 

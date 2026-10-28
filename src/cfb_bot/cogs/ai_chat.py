@@ -20,12 +20,17 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from ..config import GAME_NAME, Colors
+from ..config import CHARTER_URL, GAME_NAME, Colors
 from ..utils.server_config import server_config, FeatureModule
 from ..utils.input_validation import sanitize_string, MAX_INPUT_LENGTH
-from ..services.oops import NOT_READY, report
+from ..services.oops import NO_AI, NOT_READY, report
 
 logger = logging.getLogger('CFBBot.AIChat')
+
+
+def _echo(question: str) -> str:
+    """The question, italicised, cut to fit an embed field (1024 chars max)."""
+    return f"*{question[:1000]}*" + ("…" if len(question) > 1000 else "")
 
 
 class AIChatCog(commands.Cog):
@@ -111,29 +116,29 @@ class AIChatCog(commands.Cog):
                 )
 
                 if response:
-                    embed.description = response
-                    embed.add_field(name="💬 Responding to:", value=f"*{question}*", inline=False)
+                    embed.description = response[:4000]
+                    embed.add_field(name="💬 Responding to:", value=_echo(question), inline=False)
                     if league_enabled:
                         embed.add_field(name="💡 Need More Info?", value="Ask me anything about league rules!", inline=False)
                 else:
                     embed.description = "Sorry, I couldn't get a response right now. Try again!"
-                    embed.add_field(name="💬 Responding to:", value=f"*{question}*", inline=False)
+                    embed.add_field(name="💬 Responding to:", value=_echo(question), inline=False)
 
             except Exception as e:
                 await report(interaction, e)
                 embed.description = "That went wrong, mate. The bot owner's been told."
-                embed.add_field(name="💬 Responding to:", value=f"*{question}*", inline=False)
+                embed.add_field(name="💬 Responding to:", value=_echo(question), inline=False)
         else:
             logger.error("/harry ran with no AI configured - set OPENAI_API_KEY or ANTHROPIC_API_KEY")
             embed.description = ("My brain's not plugged in — no AI key is configured. "
                                  "An admin needs to set `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`.")
-            embed.add_field(name="💬 Responding to:", value=f"*{question}*", inline=False)
+            embed.add_field(name="💬 Responding to:", value=_echo(question), inline=False)
 
         # Only add charter link if LEAGUE module is enabled
         if league_enabled:
             embed.add_field(
                 name="📖 Full League Charter",
-                value="[Open Charter](https://docs.google.com/document/d/1lX28DlMmH0P77aficBA_1Vo9ykEm_bAroSTpwMhWr_8/edit)",
+                value=f"[Open Charter]({CHARTER_URL})",
                 inline=False
             )
 
@@ -144,6 +149,15 @@ class AIChatCog(commands.Cog):
     @app_commands.describe(question="Your general question")
     async def ask(self, interaction: discord.Interaction, question: str):
         """Ask AI general questions"""
+        if len(question) > MAX_INPUT_LENGTH:
+            await interaction.response.send_message(
+                f"❌ That's an essay, mate. Keep it under {MAX_INPUT_LENGTH} characters "
+                f"(that was {len(question)}).",
+                ephemeral=True
+            )
+            return
+        question = sanitize_string(question)
+
         guild_id = interaction.guild.id if interaction.guild else 0
         channel_id = interaction.channel.id if interaction.channel else 0
 
@@ -184,19 +198,19 @@ class AIChatCog(commands.Cog):
                 )
 
                 if response:
-                    embed.description = response
+                    embed.description = response[:4000]
                 else:
                     embed.description = "Sorry, I couldn't get a response right now."
 
-                embed.add_field(name="💬 Responding to:", value=f"*{question}*", inline=False)
+                embed.add_field(name="💬 Responding to:", value=_echo(question), inline=False)
 
             except Exception as e:
                 await report(interaction, e)
                 embed.description = "That went wrong, mate. The bot owner's been told."
-                embed.add_field(name="💬 Responding to:", value=f"*{question}*", inline=False)
+                embed.add_field(name="💬 Responding to:", value=_echo(question), inline=False)
         else:
-            embed.description = "I'm having some technical difficulties right now."
-            embed.add_field(name="💬 Responding to:", value=f"*{question}*", inline=False)
+            embed.description = NO_AI
+            embed.add_field(name="💬 Responding to:", value=_echo(question), inline=False)
 
         embed.set_footer(text="Harry's AI Assistant 🤖")
         await interaction.followup.send(embed=embed)

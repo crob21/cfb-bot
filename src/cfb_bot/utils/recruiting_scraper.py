@@ -15,7 +15,7 @@ Site structure changes may require updates to this module.
 import asyncio
 import logging
 import re
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 from urllib.parse import quote_plus
 

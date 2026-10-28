@@ -10,7 +10,6 @@ Prevents sensitive data from appearing in logs:
 """
 
 import re
-import logging
 from typing import Any
 
 from ..security import LOG_MESSAGE_TRUNCATE, REDACT_PATTERNS

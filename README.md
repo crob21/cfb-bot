@@ -152,7 +152,7 @@ Every command group maps to a module you toggle with `/admin config`. On by defa
 | `/recruiting` | player, top, class, commits, rankings, portal, source |
 | `/hs` | stats, bulk |
 | `/league` | timer, timer_status, timers, side_timer, games, schedule, week, weeks, find_game, byes, staff, set_week, upload_schedule, set_week_games, ghost, pick_commish, … |
-| `/charter` | lookup, search, add, update, propose, season_recap, history, backups, restore, link, scan, sync, import |
+| `/charter` | search, add, update, propose, season_recap, history, backups, restore, link, scan, sync, import |
 | `/harry`, `/ask`, `/summarize` | AI — or just @mention him |
 | `/fun` | target, untarget, target_all, untarget_all, roast, status, timeout, toggle_engage |
 | `/admin` | config, channels, set_channel, block/unblock, add/remove admins, ai, zyte, cache, budget, digest, sync |

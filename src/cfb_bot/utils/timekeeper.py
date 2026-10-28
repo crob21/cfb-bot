@@ -646,7 +646,6 @@ class TimekeeperManager:
                 bot_owner_id = app_info.owner.id if app_info.owner else None
             except Exception as e:
                 logger.debug(f"Could not get application info: {e}")
-                pass
 
             # If we have bot owner, use DM channel (invisible to users)
             if bot_owner_id:

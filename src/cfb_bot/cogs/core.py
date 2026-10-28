@@ -109,7 +109,7 @@ class CoreCog(commands.Cog):
                 name="🏆 `/league`",
                 value=(
                     "**Season:** `week`, `weeks`, `games`, `schedule`, `byes`, `set_week`\n"
-                    "**Schedule (admin):** `upload_schedule`, `set_week_games`, `schedule_template`\n"
+                    "**Schedule (admin):** `upload_schedule`, `set_week_games`, `ghost`, `schedule_template`\n"
                     "**Timer:** `timer`, `timer_status`, `timer_stop`, `timers`\n"
                     "**Staff:** `staff`, `set_owner`, `set_commish`"
                 ),
@@ -118,10 +118,10 @@ class CoreCog(commands.Cog):
             embed.add_field(
                 name="📜 `/charter`",
                 value=(
-                    "`lookup` - Find a rule\n"
-                    "`search` - Search charter\n"
+                    "`search` - Find a rule\n"
                     "`link` - Charter URL\n"
                     "`history` - Recent changes\n"
+                    "`propose` / `season_recap` - Charter PRs (editors)\n"
                     "`import` - Refresh from the doc (admin)"
                 ),
                 inline=True

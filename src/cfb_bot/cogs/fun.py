@@ -27,6 +27,50 @@ from ..services.oops import SERVERS_ONLY
 
 logger = logging.getLogger('CFBBot.Fun')
 
+# Whole words only: "hello" isn't "hell", "class" isn't "ass", "both" isn't "bot".
+INSULT_WORDS = re.compile(r"\b(fuck\w*|shit\w*|bot|ass|asshole|damn|hell|stupid|dumb|sucks?)\b")
+
+# Team banter for anyone who names a team. The longest name wins, so "Oregon State" gets
+# BEAVS! rather than the Oregon line, and a name mapped to None (a league team that
+# contains a rival's name) gets nothing.
+RIVALRY_RESPONSES = {
+    'oregon state': 'BEAVS!',
+    'oregon ducks': 'Fuck Oregon! 🦆💩',
+    'oregon': 'Fuck Oregon! 🦆💩',
+    'ducks': 'Ducks are assholes! 🦆💩',
+    'detroit lions': 'Go Lions! 🦁',
+    'lions': 'Go Lions! 🦁',
+    'tampa bay buccaneers': 'Go Bucs! 🏴‍☠️',
+    'buccaneers': 'Go Bucs! 🏴‍☠️',
+    'bucs': 'Go Bucs! 🏴‍☠️',
+    'chicago bears': 'Da Bears! 🧸',
+    'bears': 'Da Bears! 🧸',
+    'washington state': None,
+    'washington': 'Go Huskies! 🐕',
+    'huskies': 'Go Huskies! 🐕',
+    'uw': 'Go Huskies! 🐕',
+    'alabama': 'Roll Tide! 🐘',
+    'crimson tide': 'Roll Tide! 🐘',
+    'georgia tech': None,
+    'georgia state': None,
+    'georgia': 'Wrong Dawgs...',
+    'bulldogs': 'Wrong Dawgs...',
+    'ohio state': 'Ohio sucks! 🌰',
+    'buckeyes': 'Ohio sucks! 🌰',
+    'michigan state': None,
+    'michigan': 'Go Blue! 💙',
+    'wolverines': 'Go Blue! 💙',
+}
+_RIVALRY_PATTERN = re.compile(
+    r"\b(" + "|".join(re.escape(k) for k in sorted(RIVALRY_RESPONSES, key=len, reverse=True)) + r")\b")
+
+
+def rivalry_response(text: str):
+    """Harry's banter line for the first team named in the text, or None."""
+    match = _RIVALRY_PATTERN.search((text or "").lower())
+    return RIVALRY_RESPONSES[match.group(1)] if match else None
+
+
 # Ready-made cockney insults hurled at a targeted user.
 # Each entry MUST contain a single "{mention}" placeholder (filled with the user's @mention).
 # Kept deliberately crude and over-the-top — this only ever fires at an admin-chosen target.
@@ -657,8 +701,7 @@ Do NOT start with "Oh," or "Look," - start directly with the roast."""
         if message.author.id in guild_targets:
             target_info = guild_targets[message.author.id]
             if target_info.get('engage'):
-                insult_keywords = ['fuck', 'shit', 'bot', 'ass', 'damn', 'hell', 'stupid', 'dumb', 'suck']
-                has_insult = any(k in message_lower for k in insult_keywords)
+                has_insult = bool(INSULT_WORDS.search(message_lower))
                 if has_insult and target_info.get('argument_count', 0) < 5:
                     await self._handle_direct_insult(message, target_info)
                     return

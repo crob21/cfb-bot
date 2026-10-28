@@ -4,7 +4,6 @@ Charter Cog for CFB League Bot
 
 Provides commands to manage and view the league charter.
 Commands:
-- /charter lookup - Look up a rule
 - /charter link - Get charter URL
 - /charter scan - Scan channel for rule changes
 - /charter import - Import from the league's Google Doc (admin)
@@ -19,7 +18,6 @@ Commands:
 """
 
 import logging
-import os
 import re
 from datetime import datetime
 from typing import Optional, Tuple
@@ -28,16 +26,10 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from ..config import GAME_NAME, Colors
-from ..services.checks import check_module_enabled, check_module_enabled_deferred, requires_admin, requires_module
+from ..config import CHARTER_URL, GAME_NAME, Colors
+from ..services.checks import check_module_enabled_deferred, requires_admin, requires_module
 from ..utils.server_config import server_config, FeatureModule
 from ..services.oops import NOT_READY, oops
-
-# The league charter lives in a shared Google Doc; CHARTER_URL overrides it per deployment.
-CHARTER_URL = os.getenv(
-    'CHARTER_URL',
-    'https://docs.google.com/document/d/1lX28DlMmH0P77aficBA_1Vo9ykEm_bAroSTpwMhWr_8/edit'
-)
 
 logger = logging.getLogger('CFBBot.Charter')
 
@@ -122,42 +114,6 @@ class CharterCog(commands.Cog):
         description="📜 League charter rules and management"
     )
 
-    @charter_group.command(name="lookup", description=f"Look up {GAME_NAME} league rules")
-    @app_commands.describe(rule_name="Rule keyword or topic to search for")
-    @requires_module(FeatureModule.LEAGUE)
-    async def lookup(self, interaction: discord.Interaction, rule_name: str):
-        """Look up a specific league rule"""
-
-        await interaction.response.send_message("📋 Looking up rule...", ephemeral=True)
-
-        rule_found = False
-        embed = discord.Embed(
-            title=f"{GAME_NAME} League Rule: {rule_name.title()}",
-            color=Colors.PRIMARY
-        )
-
-        # Search through league rules
-        if hasattr(self.bot, 'league_data') and 'rules' in self.bot.league_data:
-            for category, rules in self.bot.league_data['rules'].items():
-                if rule_name.lower() in category.lower():
-                    embed.description = rules.get('description', 'Rule information available')
-                    if 'topics' in rules:
-                        topics_text = '\n'.join([f"• {topic}" for topic in rules['topics'].keys()])
-                        embed.add_field(name="Related Topics", value=topics_text, inline=False)
-                    rule_found = True
-                    break
-
-        if not rule_found:
-            embed.description = f"Specific rule '{rule_name}' not found in local data. All {GAME_NAME} league rules are in the official charter."
-
-        embed.add_field(
-            name="📖 Full League Charter",
-            value=f"[View Complete Rules]({CHARTER_URL})",
-            inline=False
-        )
-
-        await interaction.followup.send(embed=embed)
-
     @charter_group.command(name="link", description="Get link to the official league charter")
     @requires_module(FeatureModule.LEAGUE)
     async def link(self, interaction: discord.Interaction):
@@ -177,7 +133,7 @@ class CharterCog(commands.Cog):
 
         embed.add_field(
             name="📝 Quick Commands",
-            value="Use `/charter lookup`, `/charter search`, or `/charter history` for specific information",
+            value="Use `/charter search` to find a rule, or `/charter history` for recent changes",
             inline=False
         )
 

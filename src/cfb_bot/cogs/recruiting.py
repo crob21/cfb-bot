@@ -21,8 +21,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from ..config import Colors, Footers
-from ..services.checks import (ADMINS_ONLY, check_module_enabled,
-                               check_module_enabled_deferred, requires_module)
+from ..services.checks import ADMINS_ONLY, requires_module
 from ..utils.cache import get_cache
 from ..utils.cfb_data import cfb_data
 from ..utils.on3_scraper import on3_scraper

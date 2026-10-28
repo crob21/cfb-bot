@@ -41,7 +41,6 @@ class StorageBackend(ABC):
         Returns:
             True if successful, False otherwise
         """
-        pass
     
     @abstractmethod
     async def load(self, namespace: str, key: str) -> Optional[Dict[str, Any]]:
@@ -55,7 +54,6 @@ class StorageBackend(ABC):
         Returns:
             Dictionary of data, or None if not found
         """
-        pass
     
     @abstractmethod
     async def load_all(self, namespace: str) -> Dict[str, Dict[str, Any]]:
@@ -68,7 +66,6 @@ class StorageBackend(ABC):
         Returns:
             Dictionary of key -> data mappings
         """
-        pass
     
     @abstractmethod
     async def delete(self, namespace: str, key: str) -> bool:
@@ -82,7 +79,6 @@ class StorageBackend(ABC):
         Returns:
             True if successful, False otherwise
         """
-        pass
 
 
 class DiscordDMStorage(StorageBackend):

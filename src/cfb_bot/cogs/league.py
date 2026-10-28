@@ -4,9 +4,6 @@ League Cog for CFB League Bot
 
 Provides commands for league management, timers, schedules, and staff.
 Commands:
-- /league rules - Get recruiting rules
-- /league team - Team lookup
-- /league dynasty - Dynasty management rules
 - /league timer - Start advance countdown
 - /league timer_status - Check countdown status
 - /league timer_stop - Stop the advance countdown
@@ -22,6 +19,7 @@ Commands:
 - /league set_week - Set season/week (admin)
 - /league upload_schedule - Upload a full schedule JSON file (admin)
 - /league set_week_games - Set one week's games/byes by typing them (admin)
+- /league ghost - Mark or unmark a team whose coach never shows up (admin)
 - /league schedule_template - Show the schedule JSON format
 - /league timer_channel - Set notification channel (admin)
 - /league staff - View league staff
@@ -39,9 +37,9 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from ..config import GAME_NAME, Colors
-from ..services.checks import ADMINS_ONLY, check_module_enabled, check_module_enabled_deferred, requires_admin, requires_module
-from ..utils.server_config import server_config, FeatureModule
+from ..config import CHARTER_URL, GAME_NAME, Colors
+from ..services.checks import ADMINS_ONLY, requires_admin, requires_module
+from ..utils.server_config import server_config, FeatureModule  # noqa: F401 (requires_module reads server_config here)
 # Week schedule constants and helpers live in one canonical place: utils/timekeeper.py.
 # That module also drives advance/increment and season rollover, so reusing it here
 # guarantees the week names/phases shown by /league match the timer's internal week
@@ -84,73 +82,6 @@ class LeagueCog(commands.Cog):
         name="league",
         description="🏆 League management, timers, and schedules"
     )
-
-    @league_group.command(name="rules", description="Get recruiting rules and policies")
-    @app_commands.describe(topic="Rule topic to look up")
-    @requires_module(FeatureModule.LEAGUE)
-    async def rules(self, interaction: discord.Interaction, topic: str):
-        """Get information about recruiting rules"""
-        await interaction.response.defer()
-
-        embed = discord.Embed(
-            title=f"{GAME_NAME} Recruiting: {topic.title()}",
-            color=Colors.SUCCESS
-        )
-
-        if hasattr(self.bot, 'league_data') and 'rules' in self.bot.league_data and 'recruiting' in self.bot.league_data['rules']:
-            recruiting_rules = self.bot.league_data['rules']['recruiting']
-            embed.description = recruiting_rules.get('description', 'Recruiting rules and policies')
-            if 'topics' in recruiting_rules:
-                topics = recruiting_rules['topics']
-                if topic.lower() in topics:
-                    embed.add_field(name="Information", value=topics[topic.lower()], inline=False)
-                else:
-                    available = '\n'.join([f"• {t}" for t in topics.keys()])
-                    embed.add_field(name="Available Topics", value=available, inline=False)
-        else:
-            embed.description = "Recruiting rules not found in league data."
-
-        embed.add_field(
-            name="League Charter",
-            value="[View Full Charter](https://docs.google.com/document/d/1lX28DlMmH0P77aficBA_1Vo9ykEm_bAroSTpwMhWr_8/edit)",
-            inline=False
-        )
-        await interaction.followup.send(embed=embed)
-
-    @league_group.command(name="dynasty", description="Get dynasty management rules")
-    @app_commands.describe(topic="Dynasty topic to look up")
-    @requires_module(FeatureModule.LEAGUE)
-    async def dynasty(self, interaction: discord.Interaction, topic: str):
-        """Get information about dynasty management rules"""
-        await interaction.response.defer()
-
-        embed = discord.Embed(
-            title=f"{GAME_NAME} Dynasty: {topic.title()}",
-            color=Colors.FUN
-        )
-
-        if hasattr(self.bot, 'league_data') and 'rules' in self.bot.league_data:
-            dynasty_topics = ['transfers', 'gameplay', 'scheduling', 'conduct']
-            found_topic = None
-            for dt in dynasty_topics:
-                if topic.lower() in dt.lower() and dt in self.bot.league_data['rules']:
-                    found_topic = dt
-                    break
-
-            if found_topic:
-                rules = self.bot.league_data['rules'][found_topic]
-                embed.description = rules.get('description', 'Dynasty management rules')
-            else:
-                embed.description = "Dynasty topic not found. Available: transfers, gameplay, scheduling, conduct"
-        else:
-            embed.description = "Dynasty rules not found in league data."
-
-        embed.add_field(
-            name="League Charter",
-            value="[View Full Charter](https://docs.google.com/document/d/1lX28DlMmH0P77aficBA_1Vo9ykEm_bAroSTpwMhWr_8/edit)",
-            inline=False
-        )
-        await interaction.followup.send(embed=embed)
 
     @league_group.command(name="timer", description="Start advance countdown timer (Admin only)")
     @app_commands.describe(hours="Number of hours for the countdown (default: 48)")
