@@ -3,6 +3,13 @@
 Full release history for Harry. The bot's `/changelog` command shows the most recent releases;
 this file keeps everything. Generated from `src/cfb_bot/utils/version_manager.py`.
 
+## 3.25.1 — Spooky Halloween Harry 🎃 (2026-10-28)
+
+### Fun
+- NEW: Halloween week (Oct 25-31) Harry is Spooky Halloween Harry: ghosts and pumpkins in every reply
+- He reacts to every post from mundie 🎃, wustman 👻 and jaywill9 🪦 (HALLOWEEN_REACTIONS to change who)
+- Charter text stays plain, and he's back to normal on November 1st
+
 ## 3.25.0 — Harry the Historian 📜 (2026-10-28)
 
 ### Charter

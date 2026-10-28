@@ -15,11 +15,27 @@ def version_key(version: str) -> tuple:
     return tuple(int(part) for part in version.split('.'))
 
 # Current version
-CURRENT_VERSION = "3.25.0"
+CURRENT_VERSION = "3.25.1"
 
 # Recent releases, newest first. /changelog reads these; the full history is in
 # docs/CHANGELOG.md. Add new releases at the top.
 CHANGELOG: Dict[str, Dict] = {
+    "3.25.1": {
+        "date": "2026-10-28",
+        "title": "Spooky Halloween Harry 🎃",
+        "emoji": "🎃",
+        "features": [
+            {
+                "category": "Fun",
+                "emoji": "👻",
+                "changes": [
+                    "NEW: Halloween week (Oct 25-31) Harry is Spooky Halloween Harry: ghosts and pumpkins in every reply",
+                    "He reacts to every post from mundie 🎃, wustman 👻 and jaywill9 🪦 (HALLOWEEN_REACTIONS to change who)",
+                    "Charter text stays plain, and he's back to normal on November 1st"
+                ]
+            }
+        ]
+    },
     "3.25.0": {
         "date": "2026-10-28",
         "title": "Harry the Historian 📜",
