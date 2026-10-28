@@ -41,7 +41,7 @@ Harry 🤖 — 1:58 PM
 Real data from [CollegeFootballData.com](https://collegefootballdata.com/) — player lookups (single or bulk), AP/Coaches/CFP rankings, rivalry matchup history, team schedules and results, transfer portal, offense/defense team stats, SP+/SRS/Elo ratings, and NFL draft picks by school.
 
 ### ⭐ Recruiting (`/recruiting`)
-On3/Rivals **or** 247Sports Composite, switchable per server. Recruit lookups with position filters for duplicate names, team recruiting classes, commit lists, team rankings, and transfer portal cross-reference. Cloudflare-blocked pages fall back through Playwright → cloudscraper → plain HTTP.
+On3/Rivals **or** 247Sports Composite, switchable per server. Recruit lookups with position filters for duplicate names, team recruiting classes, commit lists, team rankings, and transfer portal cross-reference. On3 pages that Cloudflare blocks fall back through Playwright → cloudscraper → Zyte (if configured) → plain HTTP.
 
 ### 🏫 High School Stats (`/hs`)
 MaxPreps stats for a player, or a whole list at once with `/hs bulk`.
@@ -172,12 +172,11 @@ cfb-bot/
 │   │                           #   recruiting, hs_stats, league, charter, admin, fun)
 │   ├── ai/                     # OpenAI + Anthropic integration, prompt building
 │   ├── utils/                  # timekeeper, schedule, storage, scrapers, cache, config
-│   └── services/               # permission checks, embed builders
-├── src/dashboard/              # optional FastAPI web dashboard
+│   └── services/               # permission and module checks
 ├── config/                     # env.example, render.yaml
 ├── data/                       # charter, schedule, rules
 ├── docs/                       # COMMANDS.md, CHANGELOG.md, SETUP.md
-└── tests/                      # 235 unit tests + 17 startup integration tests
+└── tests/                      # unit tests + startup integration tests
 ```
 
 **Storage with no database:** config and state live as edited messages in the bot owner's DMs. Free, and it survives redeploys. Each namespace is one Discord message (2,000 chars); if one outgrows that, Harry DMs the owner rather than silently dropping the change.
@@ -192,7 +191,6 @@ pytest tests/unit/ --cov=src/cfb_bot --cov-report=term-missing
 pytest tests/integration/test_bot_startup.py -v            # startup smoke tests
 
 python main.py                                             # run the bot
-python run_dashboard.py                                    # optional web dashboard
 ```
 
 Unit tests never touch the network or Discord. CI runs them on every push and pull request.
