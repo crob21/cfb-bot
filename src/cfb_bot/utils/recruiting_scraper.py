@@ -34,8 +34,6 @@ class RecruitingScraper:
     """Scraper for 247Sports recruiting data"""
 
     BASE_URL = "https://247sports.com"
-    # Player search - works well for finding players
-    PLAYER_SEARCH_URL = "https://247sports.com/players/?&Player.Fullname={name}"
     SEASON_SEARCH_URL = "https://247sports.com/Season/{year}-Football/Recruits/?&Player.Fullname={name}"
     # Rankings pages
     PLAYER_RANKINGS_URL = "https://247sports.com/Season/{year}-Football/CompositeRecruitRankings/"

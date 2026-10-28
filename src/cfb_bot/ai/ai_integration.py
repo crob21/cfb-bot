@@ -119,8 +119,6 @@ class AICharterAssistant:
         self.anthropic_api_key = os.getenv('ANTHROPIC_API_KEY')
         
         # Charter URL (configurable via environment variable)
-        self.charter_url = os.getenv('CHARTER_URL', 'https://docs.google.com/document/d/1lX28DlMmH0P77aficBA_1Vo9ykEm_bAroSTpwMhWr_8/edit')
-        self.charter_content = None
 
         # Token usage tracking (loaded from storage)
         self.total_openai_tokens = 0

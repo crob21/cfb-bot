@@ -31,7 +31,6 @@ class CharterEditor:
         self.charter_file = (CHARTER_FILE if os.path.exists(CHARTER_FILE)
                              or not os.path.exists(CHARTER_FILE_LEGACY) else CHARTER_FILE_LEGACY)
         self.backup_dir = "data/charter_backups"
-        self._discord_charter_loaded = False  # Track if we've loaded from Discord
 
         # Create backup directory if it doesn't exist
         os.makedirs(self.backup_dir, exist_ok=True)
@@ -131,7 +130,6 @@ class CharterEditor:
                 full_content += chunks.get(i, "")
 
             logger.info(f"Charter loaded from Discord ({total_chunks} chunks, {len(full_content)} chars)")
-            self._discord_charter_loaded = True
             return full_content
 
         except Exception as e:

@@ -62,14 +62,6 @@ class CFBDataLookup:
     - Advanced stats (SP+, SRS, Elo)
     """
 
-    # FCS Conferences - these have limited data coverage in CFBD
-    FCS_CONFERENCES = {
-        'big sky', 'big south', 'caa', 'colonial athletic', 'ivy league', 'ivy',
-        'meac', 'mid-eastern', 'missouri valley', 'mvfc', 'northeast', 'nec',
-        'ohio valley', 'ovc', 'patriot', 'pioneer', 'southern', 'socon',
-        'southland', 'swac', 'southwestern athletic', 'united athletic', 'uac'
-    }
-
     # Known FCS Schools (partial list of common ones)
     FCS_SCHOOLS = {
         # Big Sky
@@ -2661,9 +2653,5 @@ class CFBDataLookup:
         return ""
 
 
-# Backward compatibility alias
-PlayerLookup = CFBDataLookup
-
 # Singleton instance
 cfb_data = CFBDataLookup()
-player_lookup = cfb_data  # Backwards compatibility alias
