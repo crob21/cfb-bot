@@ -45,12 +45,11 @@ from ..utils.server_config import server_config, FeatureModule
 # Week schedule constants and helpers live in one canonical place: utils/timekeeper.py.
 # That module also drives advance/increment and season rollover, so reusing it here
 # guarantees the week names/phases shown by /league match the timer's internal week
-# numbering. (A dynasty season runs 30 steps: Preseason, Weeks 0-14, Postseason, Offseason.)
-from ..utils.timekeeper import (CFB_DYNASTY_WEEKS, FIRST_WEEK, LAST_WEEK,
+# numbering. (A dynasty season runs 31 steps: Preseason, Weeks 0-15, Postseason, Offseason.)
+from ..utils.timekeeper import (CFB_DYNASTY_WEEKS, FIRST_WEEK, LAST_WEEK, MAX_GAME_WEEK,
                                 get_game_week, get_week_info, get_week_name,
                                 is_valid_week)
 
-MAX_GAME_WEEK = 14  # Regular season schedule weeks are 0-14
 
 logger = logging.getLogger('CFBBot.League')
 
@@ -581,7 +580,7 @@ class LeagueCog(commands.Cog):
 
     def _resolve_game_week(self, week: Optional[int]) -> Tuple[Optional[int], Optional[str]]:
         """
-        Resolve which schedule week (0-14) to show.
+        Resolve which schedule week (0-MAX_GAME_WEEK) to show.
 
         An explicit week is used as-is; otherwise the current dynasty step is mapped to its
         game week. Returns (game_week, error_message).
@@ -607,7 +606,7 @@ class LeagueCog(commands.Cog):
         return game_week, None
 
     @league_group.command(name="games", description="View the games for a specific week")
-    @app_commands.describe(week="Game week number (0-14, leave empty for current)")
+    @app_commands.describe(week=f"Game week number (0-{MAX_GAME_WEEK}, leave empty for current)")
     @requires_module(FeatureModule.LEAGUE)
     async def games(self, interaction: discord.Interaction, week: Optional[int] = None):
         """View the schedule for a specific week"""
@@ -740,7 +739,7 @@ class LeagueCog(commands.Cog):
         await interaction.followup.send(embed=embed)
 
     @league_group.command(name="find_game", description="Find a team's game for a specific week")
-    @app_commands.describe(team="Team name", week="Game week number (0-14, leave empty for current)")
+    @app_commands.describe(team="Team name", week=f"Game week number (0-{MAX_GAME_WEEK}, leave empty for current)")
     @requires_module(FeatureModule.LEAGUE)
     async def find_game(self, interaction: discord.Interaction, team: str, week: Optional[int] = None):
         """Find a team's game"""
@@ -786,7 +785,7 @@ class LeagueCog(commands.Cog):
         await interaction.followup.send(embed=embed)
 
     @league_group.command(name="byes", description="Show which teams have a bye this week")
-    @app_commands.describe(week="Game week number (0-14, leave empty for current)")
+    @app_commands.describe(week=f"Game week number (0-{MAX_GAME_WEEK}, leave empty for current)")
     @requires_module(FeatureModule.LEAGUE)
     async def byes(self, interaction: discord.Interaction, week: Optional[int] = None):
         """Show teams on bye"""

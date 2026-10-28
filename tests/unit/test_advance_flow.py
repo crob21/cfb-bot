@@ -156,7 +156,7 @@ class TestMatchupAnnouncement:
     @pytest.mark.asyncio
     async def test_skips_outside_the_regular_season(self, wired):
         manager, schedule = wired
-        manager._state['step'] = 16  # advancing into step 17, Conference Championship
+        manager._state['step'] = 17  # advancing into step 18, Conference Championship
 
         await bot_main._handle_advance(make_message())
         schedule.build_week_embed.assert_not_called()

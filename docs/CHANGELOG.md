@@ -8,7 +8,8 @@ this file keeps everything. Generated from `src/cfb_bot/utils/version_manager.py
 ### League
 - FIX: Offseason weeks now match the new game's dynasty calendar
 - End of Season Recap, Players Leaving, Offseason Recruiting Weeks 1-4, Signing Day, Training Results
-- A season is now 30 steps; /league set_week takes 1-30
+- NEW: Week 15 between Week 14 and Conference Championships, so Harry stays in step
+- A season is now 31 steps; /league set_week takes 1-31
 - A week saved under the old table is moved to the matching new step on startup
 
 ## 3.20.1 — No More "Unknown Interaction" 🔧 (2026-10-09)

@@ -352,7 +352,7 @@ class TestLeagueGamesOutsideRegularSeason:
     async def test_games_during_postseason(self, mock_interaction, mock_server_config, mock_schedule_manager, mock_timekeeper):
         from cfb_bot.cogs.league import LeagueCog
 
-        mock_timekeeper.get_season_week.return_value = {'season': 5, 'week': 17}
+        mock_timekeeper.get_season_week.return_value = {'season': 5, 'week': 18}
         with patch('cfb_bot.cogs.league.server_config', mock_server_config):
             cog = LeagueCog(MagicMock())
             cog.schedule_manager = mock_schedule_manager

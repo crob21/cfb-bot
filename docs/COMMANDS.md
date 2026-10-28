@@ -355,7 +355,7 @@ Costs are recorded automatically when the bot uses AI or Zyte. Use **Reconcile**
 ### `/league games`
 **Description:** View the games for a specific week  
 **Options:**
-- `week`: Week number (0-14, optional - defaults to current week)
+- `week`: Week number (0-15, optional - defaults to current week)
 
 **Usage:**
 ```
@@ -405,7 +405,7 @@ Costs are recorded automatically when the bot uses AI or Zyte. Use **Reconcile**
 **Description:** Set the current season and week (Admin only)  
 **Options:**
 - `season`: Season number
-- `week`: Step number (1-30, as listed in `/league weeks`): 1 Preseason, 2-16 Weeks 0-14, 17-22 Postseason, 23-30 Offseason
+- `week`: Step number (1-31, as listed in `/league weeks`): 1 Preseason, 2-17 Weeks 0-15, 18-23 Postseason, 24-31 Offseason
 
 **Usage:** `/league set_week season:5 week:14` (Week 12)
 
