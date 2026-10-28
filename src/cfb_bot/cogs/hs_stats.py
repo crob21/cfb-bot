@@ -20,6 +20,7 @@ from ..config import Colors, Footers
 from ..services.checks import check_module_enabled_deferred, requires_module
 from ..utils.server_config import server_config, FeatureModule
 from ..utils.hs_stats_scraper import hs_stats_scraper
+from ..services.oops import oops
 
 logger = logging.getLogger('CFBBot.HSStats')
 
@@ -128,10 +129,7 @@ class HSStatsCog(commands.Cog):
 
         except Exception as e:
             logger.error(f"Error in /hs stats: {e}", exc_info=True)
-            await interaction.followup.send(
-                f"❌ Error looking up player: {str(e)}",
-                ephemeral=True
-            )
+            await oops(interaction, e)
 
     @hs_group.command(name="bulk", description="Look up multiple HS players at once")
     @app_commands.describe(
@@ -259,10 +257,7 @@ class HSStatsCog(commands.Cog):
 
         except Exception as e:
             logger.error(f"Error in /hs bulk: {e}", exc_info=True)
-            await interaction.followup.send(
-                f"❌ Error looking up players: {str(e)}",
-                ephemeral=True
-            )
+            await oops(interaction, e)
 
 
 async def setup(bot: commands.Bot):

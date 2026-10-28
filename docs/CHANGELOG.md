@@ -3,6 +3,13 @@
 Full release history for Harry. The bot's `/changelog` command shows the most recent releases;
 this file keeps everything. Generated from `src/cfb_bot/utils/version_manager.py`.
 
+## 3.22.1 — Harry Owns His Mistakes 🙃 (2026-10-28)
+
+### Voice
+- Broken commands now say "That went wrong, mate. The bot owner's been told." instead of showing raw errors
+- The owner gets the details by DM, same as the global error handler
+- One admin-only line everywhere: "Nice try, mate. That one's admins only."
+
 ## 3.22.0 — One Harry 🎭 (2026-10-28)
 
 ### AI & Checks

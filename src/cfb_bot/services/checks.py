@@ -149,7 +149,10 @@ def is_server_admin(member: discord.Member) -> bool:
 # These run before the command body, so the command itself can't forget a check.
 # Apply them directly above the `async def`, below the app_commands decorators.
 
-def requires_admin(message: str = "❌ Nice try, but no."):
+ADMINS_ONLY = "❌ Nice try, mate. That one's admins only."
+
+
+def requires_admin(message: str = ADMINS_ONLY):
     """
     Refuse the command unless the caller is an admin.
 

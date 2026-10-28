@@ -40,7 +40,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from ..config import GAME_NAME, Colors
-from ..services.checks import check_module_enabled, check_module_enabled_deferred, requires_admin, requires_module
+from ..services.checks import ADMINS_ONLY, check_module_enabled, check_module_enabled_deferred, requires_admin, requires_module
 from ..utils.server_config import server_config, FeatureModule
 # Week schedule constants and helpers live in one canonical place: utils/timekeeper.py.
 # That module also drives advance/increment and season rollover, so reusing it here
@@ -49,6 +49,7 @@ from ..utils.server_config import server_config, FeatureModule
 from ..utils.timekeeper import (CFB_DYNASTY_WEEKS, FIRST_WEEK, LAST_WEEK, MAX_GAME_WEEK,
                                 get_game_week, get_week_info, get_week_name,
                                 is_valid_week)
+from ..services.oops import oops
 
 
 logger = logging.getLogger('CFBBot.League')
@@ -168,7 +169,7 @@ class LeagueCog(commands.Cog):
     @league_group.command(name="timer", description="Start advance countdown timer (Admin only)")
     @app_commands.describe(hours="Number of hours for the countdown (default: 48)")
     @requires_module(FeatureModule.LEAGUE)
-    @requires_admin("❌ Only bot admins can start countdowns!")
+    @requires_admin()
     async def timer(self, interaction: discord.Interaction, hours: int = 48):
         """Start the advance countdown timer"""
 
@@ -232,7 +233,7 @@ class LeagueCog(commands.Cog):
         hours="Number of hours for the countdown (default: 24)",
     )
     @requires_module(FeatureModule.LEAGUE)
-    @requires_admin("❌ Only admins can start countdowns!")
+    @requires_admin()
     async def side_timer(self, interaction: discord.Interaction, league: str, hours: int = 24):
         """Start (or restart) a named countdown that never touches the dynasty week."""
 
@@ -279,7 +280,7 @@ class LeagueCog(commands.Cog):
     @league_group.command(name="side_timer_stop", description="Stop a side league's countdown")
     @app_commands.describe(league="Name of the side league to stop")
     @requires_module(FeatureModule.LEAGUE)
-    @requires_admin("❌ Only admins can stop timers!")
+    @requires_admin()
     async def side_timer_stop(self, interaction: discord.Interaction, league: str):
         """Stop a named side-league countdown."""
         await interaction.response.defer(ephemeral=True)
@@ -390,7 +391,7 @@ class LeagueCog(commands.Cog):
 
     @league_group.command(name="timer_stop", description="Stop the current advance countdown (Admin only)")
     @requires_module(FeatureModule.LEAGUE)
-    @requires_admin("❌ Only admins can stop timers!")
+    @requires_admin()
     async def timer_stop(self, interaction: discord.Interaction):
         """Stop the current advance countdown"""
         await interaction.response.defer(ephemeral=True)
@@ -409,7 +410,7 @@ class LeagueCog(commands.Cog):
 
     @league_group.command(name="timers", description="List all active advance timers and stop them (Admin only)")
     @requires_module(FeatureModule.LEAGUE)
-    @requires_admin("❌ Only admins can manage timers!")
+    @requires_admin()
     async def timers(self, interaction: discord.Interaction):
         """List every active timer with a menu to stop them one at a time."""
 
@@ -458,7 +459,7 @@ class LeagueCog(commands.Cog):
             async def stop_callback(select_interaction: discord.Interaction):
                 if select_interaction.user.id != invoker_id:
                     await select_interaction.response.send_message(
-                        "❌ Only the admin who ran this command can use this menu.", ephemeral=True
+                        "❌ Hands off, mate. Only whoever opened this menu can use it.", ephemeral=True
                     )
                     return
 
@@ -830,7 +831,7 @@ class LeagueCog(commands.Cog):
     @league_group.command(name="set_week", description="Set the current season and week (Admin only)")
     @app_commands.describe(season="Season number", week=f"Step number ({FIRST_WEEK}-{LAST_WEEK}, see /league weeks)")
     @requires_module(FeatureModule.LEAGUE)
-    @requires_admin("❌ Only admins can set season/week!")
+    @requires_admin()
     async def set_week(self, interaction: discord.Interaction, season: int, week: int):
         """Set the current season and week"""
         await interaction.response.defer(ephemeral=True)
@@ -862,7 +863,7 @@ class LeagueCog(commands.Cog):
     @league_group.command(name="upload_schedule", description="Upload a full schedule JSON file (Admin only)")
     @app_commands.describe(file="A .json schedule file (see /league schedule_template for the format)")
     @requires_module(FeatureModule.LEAGUE)
-    @requires_admin("❌ Only admins can upload schedules!")
+    @requires_admin()
     async def upload_schedule(self, interaction: discord.Interaction, file: discord.Attachment):
         """Replace the league schedule from an uploaded JSON file — no git needed."""
 
@@ -913,7 +914,7 @@ class LeagueCog(commands.Cog):
         byes="Comma-separated teams on bye (optional), e.g. 'Nebraska, USF'",
     )
     @requires_module(FeatureModule.LEAGUE)
-    @requires_admin("❌ Only admins can edit the schedule!")
+    @requires_admin()
     async def set_week_games(self, interaction: discord.Interaction, week: int, games: str, byes: Optional[str] = None):
         """Edit a single week's schedule from Discord without a file."""
         await interaction.response.defer(ephemeral=True)
@@ -999,7 +1000,7 @@ class LeagueCog(commands.Cog):
     @league_group.command(name="timer_channel", description="Set the channel for timer notifications (Admin only)")
     @app_commands.describe(channel="Channel for timer notifications")
     @requires_module(FeatureModule.LEAGUE)
-    @requires_admin("❌ Only admins can set the timer channel!")
+    @requires_admin()
     async def timer_channel(self, interaction: discord.Interaction, channel: discord.TextChannel):
         """Set the notification channel"""
         await interaction.response.defer(ephemeral=True)
@@ -1045,7 +1046,7 @@ class LeagueCog(commands.Cog):
     @league_group.command(name="set_owner", description="Set the league owner (Admin only)")
     @app_commands.describe(user="User to set as league owner")
     @requires_module(FeatureModule.LEAGUE)
-    @requires_admin("❌ Only admins can set the league owner!")
+    @requires_admin()
     async def set_owner(self, interaction: discord.Interaction, user: discord.User):
         """Set the league owner"""
         await interaction.response.defer(ephemeral=True)
@@ -1068,7 +1069,7 @@ class LeagueCog(commands.Cog):
         none="Set to 'None'"
     )
     @requires_module(FeatureModule.LEAGUE)
-    @requires_admin("❌ Only admins can set the co-commissioner!")
+    @requires_admin()
     async def set_commish(
         self,
         interaction: discord.Interaction,
@@ -1117,7 +1118,7 @@ class LeagueCog(commands.Cog):
         await interaction.response.defer()
 
         if not self._is_league_admin(interaction):
-            await interaction.followup.send("❌ Only admins can ask me to pick a commish!", ephemeral=True)
+            await interaction.followup.send(ADMINS_ONLY, ephemeral=True)
             return
 
         if not self.channel_summarizer:
@@ -1177,7 +1178,7 @@ class LeagueCog(commands.Cog):
 
         except Exception as e:
             logger.error(f"Error in pick_commish: {e}", exc_info=True)
-            await interaction.followup.send(f"❌ Error: {str(e)}")
+            await oops(interaction, e)
 
     @league_group.command(name="nag", description="Nag the league owner to advance (Bot Owner only)")
     @app_commands.describe(
@@ -1199,7 +1200,7 @@ class LeagueCog(commands.Cog):
             bot_owner_id = None
 
         if not bot_owner_id or interaction.user.id != bot_owner_id:
-            await interaction.followup.send("❌ Only the bot owner can use this!", ephemeral=True)
+            await interaction.followup.send("❌ That one's for the bot owner, mate.", ephemeral=True)
             return
 
         if not self.timekeeper_manager:
