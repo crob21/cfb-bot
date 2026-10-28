@@ -22,7 +22,7 @@ CURRENT_VERSION = "3.24.0"
 CHANGELOG: Dict[str, Dict] = {
     "3.24.0": {
         "date": "2026-10-28",
-        "title": "Ghost Watch 👻",
+        "title": "Ghosts & Grudge Matches 👻",
         "emoji": "👻",
         "features": [
             {
@@ -31,6 +31,7 @@ CHANGELOG: Dict[str, Dict] = {
                 "changes": [
                     "NEW: /league ghost marks a team whose coach never shows up (admins); run it again to unmark",
                     "Saved straight away, so no need to re-upload the schedule",
+                    "NEW: ⚔️ flags user-vs-user games in every schedule, and Harry flags them too",
                     "Removed /league team, which only ever said \"coming soon\""
                 ]
             }

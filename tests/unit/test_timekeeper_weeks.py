@@ -488,3 +488,30 @@ class TestGhostCommand:
         assert "Duke" in m.ghost_teams
         m.save_to_discord.assert_awaited_once()
         cog.ai_assistant.clear_response_cache.assert_called_once()
+
+
+class TestUserMatchups:
+    """Two league teams playing each other get a ⚔️."""
+
+    def _manager(self):
+        from cfb_bot.utils.schedule_manager import ScheduleManager
+        m = ScheduleManager()
+        m.load_from_dict({"season": 5, "teams": ["Oklahoma State", "Arizona State"],
+                          "schedule": {"6": {"bye_teams": [], "games": [
+                              {"away": "Oklahoma State", "home": "Arizona State"},
+                              {"away": "Texas", "home": "Arizona State"}]}}})
+        return m
+
+    def test_user_vs_user_gets_swords(self):
+        m = self._manager()
+        assert m.format_game({"away": "Oklahoma State", "home": "Arizona State"}) == \
+            "🏈 **Oklahoma State** @ **Arizona State** ⚔️"
+        assert "⚔️" not in m.format_game({"away": "Texas", "home": "Arizona State"})
+
+    def test_team_schedule_shows_swords(self):
+        assert self._manager().get_team_game("Oklahoma State", 6)["matchup"].endswith("⚔️")
+
+    def test_harry_is_told_about_user_games(self):
+        ctx = self._manager().get_schedule_context_for_ai()
+        assert "Oklahoma State at Arizona State (USER VS USER ⚔️)" in ctx
+        assert "Texas at Arizona State\n" in ctx + "\n"

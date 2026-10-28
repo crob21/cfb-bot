@@ -207,11 +207,18 @@ class ScheduleManager:
         name = f"**{team_name}**" if team_name in self.teams else team_name
         return f"{name} 👻" if team_name in self.ghost_teams else name
 
+    def is_user_matchup(self, game: Dict) -> bool:
+        """True when both sides are league teams, i.e. two of us play each other."""
+        return game['away'] in self.teams and game['home'] in self.teams
+
+    def format_matchup(self, game: Dict) -> str:
+        """'Away @ Home', with a ⚔️ when it's user vs user."""
+        matchup = f"{self.format_team(game['away'])} @ {self.format_team(game['home'])}"
+        return f"{matchup} ⚔️" if self.is_user_matchup(game) else matchup
+
     def format_game(self, game: Dict, emoji: str = "🏈") -> str:
         """Format a game matchup with user teams bolded"""
-        away = self.format_team(game['away'])
-        home = self.format_team(game['home'])
-        return f"{emoji} {away} @ {home}"
+        return f"{emoji} {self.format_matchup(game)}"
 
     def format_bye_teams(self, bye_teams: List[str]) -> str:
         """Format bye teams list with user teams bolded"""
@@ -260,7 +267,7 @@ class ScheduleManager:
                     'team': team,
                     'opponent': game['away'],
                     'location': 'home',
-                    'matchup': f"{self.format_team(game['away'])} @ {self.format_team(game['home'])}"
+                    'matchup': self.format_matchup(game)
                 }
             elif game['away'].lower() == team_lower:
                 return {
@@ -268,7 +275,7 @@ class ScheduleManager:
                     'team': team,
                     'opponent': game['home'],
                     'location': 'away',
-                    'matchup': f"{self.format_team(game['away'])} @ {self.format_team(game['home'])}"
+                    'matchup': self.format_matchup(game)
                 }
 
         return None
@@ -387,6 +394,7 @@ class ScheduleManager:
             f"League Schedule Information (Season {self.season}):",
             f"USER-CONTROLLED TEAMS (bold these in responses): {', '.join(self.teams)}",
             "NOTE: When listing matchups, **bold** any team from the user-controlled list above.",
+            "Games marked USER VS USER are two league members playing each other - put a ⚔️ after them.",
             *([f"GHOST TEAMS (their coaches basically never show up - put a 👻 after them, and feel free "
                f"to rib them for it): {', '.join(self.ghost_teams)}"] if self.ghost_teams else []),
             "",
@@ -403,7 +411,8 @@ class ScheduleManager:
             if bye_teams:
                 context_lines.append(f"  Bye: {', '.join(bye_teams)}")
             for game in games:
-                context_lines.append(f"  {game['away']} at {game['home']}")
+                user_game = " (USER VS USER ⚔️)" if self.is_user_matchup(game) else ""
+                context_lines.append(f"  {game['away']} at {game['home']}{user_game}")
 
         return "\n".join(context_lines)
 

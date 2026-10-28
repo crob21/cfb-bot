@@ -48,7 +48,7 @@ MaxPreps stats for a player, or a whole list at once with `/hs bulk`.
 
 ### ⏰ League (`/league`)
 - **Advance timer** — countdown with 24h / 12h / 6h / 1h warnings. Post `@everyone advanced` in the timer channel and Harry advances the week and restarts the clock.
-- **Schedule** — `/league games`, `find_game`, `byes`. Upload a season with `/league upload_schedule`, or type one week with `/league set_week_games`. Your teams are **bolded** everywhere they appear, and `/league ghost` puts a 👻 next to teams whose coach never shows up.
+- **Schedule** — `/league games`, `find_game`, `byes`. Upload a season with `/league upload_schedule`, or type one week with `/league set_week_games`. Your teams are **bolded** everywhere they appear, user-vs-user games get a ⚔️, and `/league ghost` puts a 👻 next to teams whose coach never shows up.
 - **Week tracking** — the real 31-step dynasty calendar, not a guess.
 - **Staff** — owner and co-commish, including `/league pick_commish`, where Harry reads the chat and nominates someone.
 
