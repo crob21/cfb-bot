@@ -8,17 +8,22 @@ Harry dresses up for the holidays (league time):
 - Thanksgiving week, Monday to Sunday around the 4th Thursday of November: Thanksgiving Harry 🦃
 - Christmas, Dec 18-26: Christmas Harry 🎄
 
-Outside those dates he's plain Harry. Nothing to switch on or off; it comes back every year.
+Only some replies are dressed up (HOLIDAY_REPLY_CHANCE), so the joke doesn't wear thin;
+the reactions happen on every post. Outside those dates he's plain Harry. Nothing to switch on or off; it comes back every year.
 """
 
+import random
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Optional
 from zoneinfo import ZoneInfo
 
-from ..config import env_str
+from ..config import env_float, env_str
 
 LEAGUE_TIMEZONE = ZoneInfo('America/New_York')
+
+# Share of Harry's replies that get the holiday treatment while a holiday is on
+HOLIDAY_REPLY_CHANCE = env_float('HOLIDAY_REPLY_CHANCE', 0.25)
 
 PUMPKIN = '🎃'
 GHOST = '👻'
@@ -70,6 +75,15 @@ def current_holiday(today: Optional[date] = None) -> Optional[Holiday]:
     if today.month == 12 and 18 <= today.day <= 26:
         return CHRISTMAS
     return None
+
+
+def reply_holiday(today: Optional[date] = None, roll: Optional[float] = None) -> Optional[Holiday]:
+    """The holiday to dress this one reply up for: now and then, not every time."""
+    holiday = current_holiday(today)
+    if holiday is None:
+        return None
+    roll = random.random() if roll is None else roll
+    return holiday if roll < HOLIDAY_REPLY_CHANCE else None
 
 
 def holiday_personality(personality: str, holiday: Holiday) -> str:

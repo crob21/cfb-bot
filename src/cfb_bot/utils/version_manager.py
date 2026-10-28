@@ -31,7 +31,8 @@ CHANGELOG: Dict[str, Dict] = {
                 "changes": [
                     "NEW: Thanksgiving Harry 🦃 the week of Thanksgiving (Monday to Sunday): turkey, pie and sarcastic gratitude",
                     "NEW: Christmas Harry 🎄 Dec 18-26: festive, eggnog-soaked, and the Ducks get coal",
-                    "Joins Spooky Halloween Harry 🎃 (Oct 25-31). Charter text stays plain; plain Harry the rest of the year"
+                    "Joins Spooky Halloween Harry 🎃 (Oct 25-31). Charter text stays plain; plain Harry the rest of the year",
+                    "Only about 1 in 4 replies gets the holiday treatment (HOLIDAY_REPLY_CHANCE), so it stays funny"
                 ]
             }
         ]

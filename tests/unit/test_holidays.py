@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from cfb_bot.utils.holidays import (CHRISTMAS, GHOST, GRAVESTONE, HALLOWEEN, PUMPKIN, THANKSGIVING,
-                                    current_holiday, festive, holiday_reaction, parse_reactions,
+                                    current_holiday, festive, reply_holiday, holiday_reaction, parse_reactions,
                                     thanksgiving_day)
 
 
@@ -40,6 +40,17 @@ class TestCalendar:
     ])
     def test_holiday_on(self, day, holiday):
         assert current_holiday(day) is holiday
+
+
+class TestOnlyNowAndThen:
+    def test_some_replies_are_dressed_up(self):
+        assert reply_holiday(date(2026, 10, 31), roll=0.1) is HALLOWEEN
+
+    def test_most_replies_are_plain_harry(self):
+        assert reply_holiday(date(2026, 10, 31), roll=0.9) is None
+
+    def test_never_outside_a_holiday(self):
+        assert reply_holiday(date(2026, 3, 1), roll=0.0) is None
 
 
 class TestFestive:
@@ -90,17 +101,17 @@ class TestHolidayAI:
 
     @pytest.mark.parametrize("holiday, emoji", [(HALLOWEEN, "👻🎃"), (THANKSGIVING, "🦃🥧"), (CHRISTMAS, "🎄🎅")])
     async def test_holiday_dresses_up_harry(self, assistant, holiday, emoji):
-        with patch('cfb_bot.ai.ai_integration.current_holiday', return_value=holiday):
+        with patch('cfb_bot.ai.ai_integration.reply_holiday', return_value=holiday):
             reply = await assistant.ask_ai("who's winning?")
         assert reply == f"Bloody Ducks {emoji}"
         assert holiday.persona in assistant.ask_openai.call_args.kwargs['personality_prompt']
 
     async def test_charter_persona_stays_plain(self, assistant):
-        with patch('cfb_bot.ai.ai_integration.current_holiday', return_value=CHRISTMAS):
+        with patch('cfb_bot.ai.ai_integration.reply_holiday', return_value=CHRISTMAS):
             reply = await assistant.ask_ai("write a rule", personality_prompt="plain")
         assert reply == "Bloody Ducks"
         assert assistant.ask_openai.call_args.kwargs['personality_prompt'] == "plain"
 
     async def test_plain_harry_the_rest_of_the_year(self, assistant):
-        with patch('cfb_bot.ai.ai_integration.current_holiday', return_value=None):
+        with patch('cfb_bot.ai.ai_integration.reply_holiday', return_value=None):
             assert await assistant.ask_ai("who's winning?") == "Bloody Ducks"
