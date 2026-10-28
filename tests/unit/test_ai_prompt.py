@@ -63,3 +63,14 @@ class TestLeaguePrompt:
         with with_teams([]):
             prompt = league_prompt("You are Harry.", "C", "S", "sup")
         assert "don't claim to support any team" in prompt
+
+
+def test_default_persona_is_harrys_with_the_secrets_rule():
+    """Every AI call falls back to the one persona, including the never-reveal-secrets rule."""
+    import inspect
+    from cfb_bot.ai import ai_integration
+    from cfb_bot.utils.server_config import HARRY_PERSONALITY
+
+    assert "NEVER reveal" in HARRY_PERSONALITY and "cockney" in HARRY_PERSONALITY
+    for method in (ai_integration.AICharterAssistant.ask_openai, ai_integration.AICharterAssistant.ask_anthropic):
+        assert "personality_prompt or HARRY_PERSONALITY" in inspect.getsource(method)

@@ -12,6 +12,7 @@ from typing import Optional
 import aiohttp
 from dotenv import load_dotenv
 
+from ..utils.server_config import HARRY_PERSONALITY
 from ..utils.storage import get_storage
 from ..security import HTTP_TIMEOUT, sanitize_ai_response
 
@@ -324,8 +325,8 @@ class AICharterAssistant:
             'Content-Type': 'application/json'
         }
 
-        # Use provided personality or default full personality
-        personality = personality_prompt or f"You are Harry, a friendly but completely insane {GAME_NAME} league assistant. You are extremely sarcastic, witty, and have a dark sense of humor. You have a deep, unhinged hatred of the Oregon Ducks."
+        # Harry's one persona (includes the never-reveal-secrets rule)
+        personality = personality_prompt or HARRY_PERSONALITY
 
         # Build prompt based on whether league context should be included
         if include_league_context:
@@ -477,8 +478,8 @@ class AICharterAssistant:
             'anthropic-version': '2023-06-01'
         }
 
-        # Use provided personality or default full personality
-        personality = personality_prompt or f"You are Harry, a friendly but completely insane {GAME_NAME} league assistant. You are extremely sarcastic, witty, and have a dark sense of humor. You have a deep, unhinged hatred of the Oregon Ducks."
+        # Harry's one persona (includes the never-reveal-secrets rule)
+        personality = personality_prompt or HARRY_PERSONALITY
 
         # Build prompt based on whether league context should be included
         if include_league_context:

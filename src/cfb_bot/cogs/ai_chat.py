@@ -97,13 +97,11 @@ class AIChatCog(commands.Cog):
             try:
                 logger.info(f"/harry from {interaction.user}: '{question}'")
 
-                personality = server_config.get_personality_prompt(guild_id)
-
-                # Make AI response
+                # ask_ai adds Harry's persona; this only frames the question
                 if league_enabled:
-                    conversational_question = f"{personality} Answer this question about {GAME_NAME} league rules: {question}"
+                    conversational_question = f"Answer this question about {GAME_NAME} league rules: {question}"
                 else:
-                    conversational_question = f"{personality} Answer this question about college football: {question}"
+                    conversational_question = f"Answer this question about college football: {question}"
 
                 response = await self.ai_assistant.ask_ai(
                     conversational_question,
@@ -177,9 +175,8 @@ class AIChatCog(commands.Cog):
             try:
                 logger.info(f"/ask from {interaction.user}: '{question}'")
 
-                personality = server_config.get_personality_prompt(guild_id)
                 response = await self.ai_assistant.ask_ai(
-                    f"{personality} Answer this question: {question}",
+                    f"Answer this question: {question}",
                     f"{interaction.user} ({interaction.user.id})",
                     include_league_context=False
                 )
@@ -363,12 +360,11 @@ class AIChatCog(commands.Cog):
 
         question = sanitize_string(question) if question else "Someone pinged you without saying anything. Greet them."
         league_enabled = server_config.is_module_enabled(guild_id, FeatureModule.LEAGUE)
-        personality = server_config.get_personality_prompt(guild_id)
         topic = f"{GAME_NAME} league rules" if league_enabled else "college football"
         # Don't tell him he was "mentioned" — he opens every reply narrating it
         # ("Oi, BoozeRob mentioned me..."). He's just in a conversation.
         prompt = (
-            f"{personality} You're chatting in Discord and {message.author.display_name} "
+            f"You're chatting in Discord and {message.author.display_name} "
             f"just said this to you. Reply straight to them, briefly - a couple of sentences. "
             f"Never narrate that you were mentioned or pinged. "
             f"What they said, answer it (about {topic} if relevant): {question}"
