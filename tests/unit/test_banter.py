@@ -64,3 +64,22 @@ async def test_whats_new_lists_the_latest_changes():
     changes = next(f.value for f in embed.fields if f.name == "📝 Changes")
     first = CHANGELOG[CURRENT_VERSION]['features'][0]['changes'][0]
     assert first[:40] in changes
+
+
+def test_cfb_years_follow_the_calendar():
+    """cfb_data hardcoded 2022-2025, so /cfb player searched the 2024 transfer portal forever."""
+    import inspect
+    from unittest.mock import patch
+    from datetime import datetime as real_datetime
+    from cfb_bot.utils import cfb_data
+
+    class FakeNow(real_datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return real_datetime(2031, 10, 1)
+
+    with patch.object(cfb_data, 'datetime', FakeNow):
+        assert cfb_data.recent_cfb_seasons(3) == [2031, 2030, 2029]
+    source = inspect.getsource(cfb_data)
+    for year in ("2022", "2023", "2024]", "year=2025", "= 2024)"):
+        assert year not in source.replace("Jan 2026 = 2025", "").replace("Sept 2025 = 2025", "")
