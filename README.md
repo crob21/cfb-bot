@@ -48,7 +48,7 @@ MaxPreps stats for a player, or a whole list at once with `/hs bulk`.
 
 ### ⏰ League (`/league`)
 - **Advance timer** — countdown with 24h / 12h / 6h / 1h warnings. Post `@everyone advanced` in the timer channel and Harry advances the week and restarts the clock.
-- **Schedule** — `/league games`, `find_game`, `byes`. Upload a season with `/league upload_schedule`, or type one week with `/league set_week_games`. Your teams are **bolded** everywhere they appear.
+- **Schedule** — `/league games`, `find_game`, `byes`. Upload a season with `/league upload_schedule`, or type one week with `/league set_week_games`. Your teams are **bolded** everywhere they appear, user-vs-user games get a ⚔️, and `/league ghost` puts a 👻 next to teams whose coach never shows up.
 - **Week tracking** — the real 31-step dynasty calendar, not a guess.
 - **Staff** — owner and co-commish, including `/league pick_commish`, where Harry reads the chat and nominates someone.
 
@@ -149,7 +149,7 @@ Every command group maps to a module you toggle with `/admin config`. On by defa
 | `/cfb` | player, players, rankings, matchup, schedule, transfers, teamstats, ratings, betting, draft |
 | `/recruiting` | player, top, class, commits, rankings, portal, source |
 | `/hs` | stats, bulk |
-| `/league` | timer, timer_status, timers, side_timer, games, schedule, week, weeks, find_game, byes, staff, set_week, upload_schedule, set_week_games, pick_commish, … |
+| `/league` | timer, timer_status, timers, side_timer, games, schedule, week, weeks, find_game, byes, staff, set_week, upload_schedule, set_week_games, ghost, pick_commish, … |
 | `/charter` | lookup, search, add, update, propose, history, backups, restore, link, scan, sync, import |
 | `/harry`, `/ask`, `/summarize` | AI — or just @mention him |
 | `/fun` | target, untarget, target_all, untarget_all, roast, status, timeout, toggle_engage |

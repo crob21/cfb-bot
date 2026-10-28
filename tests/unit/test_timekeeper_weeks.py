@@ -449,3 +449,69 @@ class TestGhostTeams:
         import json
         from cfb_bot.utils.schedule_manager import SCHEDULE_FILE
         assert json.loads(SCHEDULE_FILE.read_text())["ghost_teams"] == ["South Carolina", "Syracuse"]
+
+
+class TestGhostCommand:
+    """/league ghost flips a team's 👻 and saves, no re-upload needed."""
+
+    def _manager(self):
+        from cfb_bot.utils.schedule_manager import ScheduleManager
+        m = ScheduleManager()
+        m.load_from_dict({"season": 5, "teams": ["Syracuse", "Duke"], "ghost_teams": ["Syracuse"],
+                          "schedule": {"0": {"bye_teams": [], "games": []}}})
+        return m
+
+    def test_toggle_marks_and_unmarks(self):
+        m = self._manager()
+        assert m.toggle_ghost("duke") == ("Duke", True)
+        assert m.format_team("Duke") == "**Duke** 👻"
+        assert m.toggle_ghost("Syracuse") == ("Syracuse", False)
+        assert m.ghost_teams == ["Duke"]
+
+    def test_only_league_teams_can_be_ghosts(self):
+        m = self._manager()
+        assert m.toggle_ghost("Alabama") == (None, False)
+        assert m.ghost_teams == ["Syracuse"]
+
+    @pytest.mark.asyncio
+    async def test_command_saves_and_clears_harrys_cache(self, mock_interaction, mock_server_config):
+        from unittest.mock import AsyncMock, MagicMock, patch
+        from cfb_bot.cogs.league import LeagueCog
+        m = self._manager()
+        m.save_to_discord = AsyncMock(return_value=True)
+        with patch('cfb_bot.cogs.league.server_config', mock_server_config):
+            cog = LeagueCog(MagicMock())
+            cog.schedule_manager = m
+            cog.ai_assistant = MagicMock()
+            cog._is_league_admin = MagicMock(return_value=True)
+            await cog.ghost.callback(cog, mock_interaction, "Duke")
+        assert "Duke" in m.ghost_teams
+        m.save_to_discord.assert_awaited_once()
+        cog.ai_assistant.clear_response_cache.assert_called_once()
+
+
+class TestUserMatchups:
+    """Two league teams playing each other get a ⚔️."""
+
+    def _manager(self):
+        from cfb_bot.utils.schedule_manager import ScheduleManager
+        m = ScheduleManager()
+        m.load_from_dict({"season": 5, "teams": ["Oklahoma State", "Arizona State"],
+                          "schedule": {"6": {"bye_teams": [], "games": [
+                              {"away": "Oklahoma State", "home": "Arizona State"},
+                              {"away": "Texas", "home": "Arizona State"}]}}})
+        return m
+
+    def test_user_vs_user_gets_swords(self):
+        m = self._manager()
+        assert m.format_game({"away": "Oklahoma State", "home": "Arizona State"}) == \
+            "🏈 **Oklahoma State** @ **Arizona State** ⚔️"
+        assert "⚔️" not in m.format_game({"away": "Texas", "home": "Arizona State"})
+
+    def test_team_schedule_shows_swords(self):
+        assert self._manager().get_team_game("Oklahoma State", 6)["matchup"].endswith("⚔️")
+
+    def test_harry_is_told_about_user_games(self):
+        ctx = self._manager().get_schedule_context_for_ai()
+        assert "Oklahoma State at Arizona State (USER VS USER ⚔️)" in ctx
+        assert "Texas at Arizona State\n" in ctx + "\n"
