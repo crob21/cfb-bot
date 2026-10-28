@@ -12,6 +12,7 @@ from typing import Optional
 import aiohttp
 from dotenv import load_dotenv
 
+from ..utils.halloween import is_halloween, spookify, spooky_personality
 from ..utils.server_config import HARRY_PERSONALITY
 from ..utils.storage import get_storage
 from ..security import HTTP_TIMEOUT, sanitize_ai_response
@@ -438,6 +439,11 @@ class AICharterAssistant:
         # Load usage stats on first use
         await self._load_usage_stats()
 
+        # Halloween week haunts Harry's own voice; persona overrides (charter work) stay plain
+        spooky = personality_prompt is None and is_halloween()
+        if spooky:
+            personality_prompt = spooky_personality(HARRY_PERSONALITY)
+
         if user_info:
             logger.info(f"AI asked by {user_info}: {question[:100]}...")
         else:
@@ -458,7 +464,7 @@ class AICharterAssistant:
                                          include_league_context=include_league_context)
         if response:
             logger.info("OpenAI response received")
-            return response
+            return spookify(response) if spooky else response
 
         # Fallback to Anthropic
         logger.info("Trying Anthropic...")
@@ -466,8 +472,8 @@ class AICharterAssistant:
                                             include_league_context=include_league_context)
         if response:
             logger.info("Anthropic response received")
-        else:
-            logger.warning("No AI response from either provider")
+            return spookify(response) if spooky else response
+        logger.warning("No AI response from either provider")
         return response
 
     def get_token_usage(self) -> dict:
