@@ -3,6 +3,14 @@
 Full release history for Harry. The bot's `/changelog` command shows the most recent releases;
 this file keeps everything. Generated from `src/cfb_bot/utils/version_manager.py`.
 
+## 3.21.2 — Audit Fixes 🔧 (2026-10-28)
+
+### Fixes
+- FIX: Every AI answer now gets Harry's full persona, including his never-reveal-secrets rule
+- FIX: Turning off Fun & Games now stops /fun commands and targeted trolling too
+- FIX: 247Sports lookups honor the position filter for players with the same name
+- FIX: Railway starts main.py, and Render installs Chromium for recruiting scraping
+
 ## 3.21.1 — One Schedule, Not Two 📅 (2026-10-28)
 
 ### Fixes

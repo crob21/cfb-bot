@@ -84,3 +84,31 @@ class TestListenerRespectsScope:
 
         message.channel.send.assert_not_called()
         message.add_reaction.assert_not_called()
+
+
+class TestFunModuleToggle:
+    """Turning Fun & Games off in /admin config must silence /fun and the trolling."""
+
+    @pytest.mark.asyncio
+    async def test_commands_refuse_when_module_off(self, mock_interaction):
+        from unittest.mock import patch
+        cog = make_cog()
+        off = MagicMock()
+        off.is_module_enabled.return_value = False
+        with patch('cfb_bot.cogs.fun.server_config', off):
+            await cog.roast.callback(cog, mock_interaction, MagicMock())
+        mock_interaction.response.send_message.assert_awaited_once()
+        assert not cog.ai_assistant.method_calls  # never got as far as roasting
+
+    @pytest.mark.asyncio
+    async def test_listener_ignores_targets_when_module_off(self):
+        from unittest.mock import patch
+        cog = make_cog()
+        cog._targets_for_guild = MagicMock()
+        message = make_message(TROLL_CHANNEL)
+        message.author.bot = False
+        off = MagicMock()
+        off.is_module_enabled.return_value = False
+        with patch('cfb_bot.cogs.fun.server_config', off):
+            await cog.on_message(message)
+        cog._targets_for_guild.assert_not_called()

@@ -377,10 +377,6 @@ class ServerConfigManager:
         logger.info(f"{'' if new_value else ''} Toggled auto_responses for channel {channel_id} in guild {guild_id}: {new_value}")
         return new_value
 
-    def get_personality_prompt(self, guild_id: int) -> str:
-        """Get Harry's personality prompt - ALWAYS the full cockney asshole Duck-hater"""
-        return HARRY_PERSONALITY
-
     # ==================== CHANNEL CONTROLS ====================
 
     def is_channel_enabled(self, guild_id: int, channel_id: int) -> bool:

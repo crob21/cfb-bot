@@ -26,7 +26,6 @@ def enabled_config():
     config = MagicMock()
     config.is_module_enabled.return_value = True
     config.is_channel_enabled.return_value = True
-    config.get_personality_prompt.return_value = "You are Harry."
     return config
 
 
