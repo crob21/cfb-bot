@@ -10,7 +10,6 @@ from typing import List, Optional
 
 import discord
 
-from ..config import GAME_NAME
 
 logger = logging.getLogger('CFBBot.Summarizer')
 
@@ -139,9 +138,7 @@ class ChannelSummarizer:
         focus_text = f" with a focus on {focus}" if focus else ""
         focus_instruction = f"\n\n**IMPORTANT:** Focus specifically on discussions related to '{focus}' - filter out irrelevant conversations and highlight only messages that pertain to this topic." if focus else ""
 
-        prompt = f"""You are Harry, a friendly but completely insane {GAME_NAME} league assistant. You are extremely sarcastic, witty, and have a dark sense of humor.
-
-Please summarize the following Discord channel conversation{focus_text}. Be concise but capture the key points, decisions, discussions, and any important information. Keep your sarcastic personality but make the summary actually useful.{focus_instruction}
+        prompt = f"""Please summarize the following Discord channel conversation{focus_text}. Be concise but capture the key points, decisions, discussions, and any important information. Keep your sarcastic personality but make the summary actually useful.{focus_instruction}
 
 Format the summary with:
 - **Main Topics**: What were the key discussion points?

@@ -421,13 +421,15 @@ class AICharterAssistant:
         await self._record_usage('Anthropic', tokens, self.anthropic_cost_per_1k)
         return self._finish(cache_key, result['content'][0]['text'].strip())
 
-    async def ask_ai(self, question: str, user_info: str = None, include_league_context: bool = True, max_tokens: int = 500) -> Optional[str]:
+    async def ask_ai(self, question: str, user_info: str = None, include_league_context: bool = True, max_tokens: int = 500,
+                     personality_prompt: Optional[str] = None) -> Optional[str]:
         """Ask AI about the charter (tries OpenAI first, then Anthropic)
 
         Args:
             question: The question to ask
             user_info: User info for logging
             include_league_context: Whether to include league schedule/charter info (False for non-league servers)
+            personality_prompt: Persona override (default: Harry); keep SECRETS_RULE in any override
         """
         # Load usage stats on first use
         await self._load_usage_stats()
@@ -448,14 +450,16 @@ class AICharterAssistant:
 
         # Try OpenAI first
         logger.info(f"Trying OpenAI... (include_league_context={include_league_context})")
-        response = await self.ask_openai(question, context, max_tokens=max_tokens, include_league_context=include_league_context)
+        response = await self.ask_openai(question, context, max_tokens=max_tokens, personality_prompt=personality_prompt,
+                                         include_league_context=include_league_context)
         if response:
             logger.info("OpenAI response received")
             return response
 
         # Fallback to Anthropic
         logger.info("Trying Anthropic...")
-        response = await self.ask_anthropic(question, context, max_tokens=max_tokens, include_league_context=include_league_context)
+        response = await self.ask_anthropic(question, context, max_tokens=max_tokens, personality_prompt=personality_prompt,
+                                            include_league_context=include_league_context)
         if response:
             logger.info("Anthropic response received")
         else:

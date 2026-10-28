@@ -127,3 +127,15 @@ class TestProviderCalls:
         assert await a.ask_openai("q", "ctx", include_league_context=False) is None
         assert await a.ask_anthropic("q", "ctx", include_league_context=False) is None
         a._record_ai_cost.assert_not_awaited()
+
+
+def test_charter_work_uses_the_plain_persona():
+    """Charter text gets the no-jokes persona, which still carries the secrets rule."""
+    import inspect
+    from cfb_bot.utils import charter_editor
+    from cfb_bot.utils.server_config import CHARTER_PERSONALITY, HARRY_PERSONALITY, SECRETS_RULE
+
+    assert SECRETS_RULE in CHARTER_PERSONALITY and SECRETS_RULE in HARRY_PERSONALITY
+    source = inspect.getsource(charter_editor)
+    assert source.count("personality_prompt=CHARTER_PERSONALITY") == 3
+    assert "You are Harry" not in source
