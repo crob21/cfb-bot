@@ -3,6 +3,12 @@
 Full release history for Harry. The bot's `/changelog` command shows the most recent releases;
 this file keeps everything. Generated from `src/cfb_bot/utils/version_manager.py`.
 
+## 3.21.1 — One Schedule, Not Two 📅 (2026-10-28)
+
+### Fixes
+- FIX: Harry's AI answered from last season after /league upload_schedule
+- The /league commands and Harry's answers now read the same schedule
+
 ## 3.21.0 — The Real Offseason 🗓️ (2026-10-28)
 
 ### League

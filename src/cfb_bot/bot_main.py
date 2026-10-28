@@ -165,8 +165,10 @@ async def setup_dependencies():
         logger.warning("Timekeeper not available")
 
     try:
-        from .utils.schedule_manager import ScheduleManager
-        schedule_manager = ScheduleManager()
+        # The shared instance: the AI and charter read get_schedule_manager() too, so an
+        # uploaded schedule has to land in the same object the cogs update.
+        from .utils.schedule_manager import get_schedule_manager
+        schedule_manager = get_schedule_manager()
         schedule_manager.set_bot(bot)
         # Restore any schedule uploaded via Discord (survives redeploys)
         try:
