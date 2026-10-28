@@ -199,6 +199,38 @@ Unit tests never touch the network or Discord. CI runs them on every push and pu
 
 ---
 
+## Contributing
+
+Pull requests are welcome, whether you're in the league or not. Not a coder? You can still help:
+
+- **Found a bug or want a feature?** [Open an issue](https://github.com/crob21/cfb-bot/issues). Include the command you ran and what Harry said back.
+- **Want a rule changed?** Use `/charter propose` in Discord (needs your ID in `CHARTER_EDITOR_IDS`). Harry opens the pull request for you.
+- **New season?** Update [`data/schedule.json`](data/schedule.json) and the team list in [`data/charter.md`](data/charter.md) in one PR. After it merges, run `/league upload_schedule` with the new file. Harry restores the last uploaded schedule before the one in the repo.
+
+### Making a code change
+
+1. Fork the repo, or branch off `main` if you have access. Don't push straight to `main`.
+2. Set up a virtual environment:
+   ```bash
+   python3 -m venv .venv && source .venv/bin/activate
+   pip install -r requirements.txt pytest pytest-asyncio pytest-cov
+   ```
+3. Make your change and add or update unit tests in `tests/unit/`.
+4. Run `pytest tests/unit/ -v` until it's green. CI runs the same tests on every pull request.
+5. Open a pull request against `main` that says what changed and why.
+
+### House rules (tests enforce most of these)
+
+- **Bump the version for user-facing changes.** Update `__version__` in `src/cfb_bot/__init__.py` and `CURRENT_VERSION` in `src/cfb_bot/utils/version_manager.py`. Then add the release to the top of `CHANGELOG` in `version_manager.py` and to [`docs/CHANGELOG.md`](docs/CHANGELOG.md). A test checks that they agree.
+- **No game names in code.** Read the game from `GAME_NAME` in `config.py`, never a hardcoded "CFB 27", so next year's game is a config change.
+- **No hardcoded week counts.** Use the constants in `utils/timekeeper.py`, such as `TOTAL_WEEKS_PER_SEASON` and `MAX_GAME_WEEK`.
+- **Logs are plain text.** Emoji go in embeds only.
+- **Every command checks its module.** Decorate it with `@requires_module(...)` (and `@requires_admin` if it's admin-only) from `services/checks.py`. Commands that make HTTP calls should `defer()` first.
+- **Unit tests never hit the network or Discord.** Mock them.
+- **Never commit secrets.** Tokens and keys go in `.env`, which is gitignored, or your host's dashboard.
+
+---
+
 ## Deployment
 
 **Render** — create a Worker, or use [`config/render.yaml`](config/render.yaml). Start command `python3 -u main.py` (unbuffered, so logs stream). Set env vars in the dashboard; nothing secret lives in the repo. Include `playwright install chromium` in the build if you want recruiting scraping.
@@ -211,7 +243,8 @@ Unit tests never touch the network or Discord. CI runs them on every push and pu
 
 - [Command reference](docs/COMMANDS.md) — every command, every option
 - [Changelog](docs/CHANGELOG.md) — full release history (`/changelog` shows recent ones in Discord)
-- [Setup & contributing](docs/SETUP.md)
+- [Setup guide](docs/SETUP.md)
+- [Contributing](#contributing)
 
 ## License
 
