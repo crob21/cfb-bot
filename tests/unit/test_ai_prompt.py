@@ -139,3 +139,12 @@ def test_charter_work_uses_the_plain_persona():
     source = inspect.getsource(charter_editor)
     assert source.count("personality_prompt=CHARTER_PERSONALITY") == 3
     assert "You are Harry" not in source
+
+
+def test_cache_key_includes_the_persona():
+    """The charter persona and Harry must not share a cached answer for the same question."""
+    from cfb_bot.ai.ai_integration import AICharterAssistant
+    from cfb_bot.utils.server_config import CHARTER_PERSONALITY
+    a = AICharterAssistant.__new__(AICharterAssistant)
+    assert a._get_cache_key("q", False) != a._get_cache_key("q", False, CHARTER_PERSONALITY)
+    assert a._get_cache_key("Q ", False) == a._get_cache_key("q", False)

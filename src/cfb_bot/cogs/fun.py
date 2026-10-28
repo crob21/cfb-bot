@@ -563,14 +563,14 @@ class FunCog(commands.Cog):
 
         embed.add_field(
             name="✅ Added",
-            value="\n".join([f"• {name}" for name in added]),
+            value="\n".join([f"• {name}" for name in added])[:1024],
             inline=False
         )
 
         if skipped:
             embed.add_field(
                 name="⏭️ Skipped",
-                value="\n".join([f"• {name}" for name in skipped]),
+                value="\n".join([f"• {name}" for name in skipped])[:1024],
                 inline=False
             )
 
@@ -652,7 +652,7 @@ Do NOT start with "Oh," or "Look," - start directly with the roast."""
         if len(target_names) <= 10:
             embed.add_field(
                 name="Released Users",
-                value="\n".join([f"• {name}" for name in target_names]),
+                value="\n".join([f"• {name}" for name in target_names])[:1024],
                 inline=False
             )
 

@@ -1,175 +1,43 @@
-# 🤖 AI Integration Setup Guide
+# 🤖 AI Setup
 
-This guide will help you add AI capabilities to your CFB 27 League Bot, allowing users to ask natural language questions about your league charter.
+Harry's AI powers `/harry`, `/ask`, `/summarize`, @mention replies, roasts, `/league pick_commish`, and
+charter work (`/charter propose`, `/charter season_recap`). Everything else works without it.
 
-## What AI Integration Adds
+## Keys
 
-- **`/ask <question>`** - Ask natural language questions about league rules
-- **Smart responses** - AI understands context and provides helpful answers
-- **Charter knowledge** - AI is trained on your specific league rules
-- **Fallback support** - Multiple AI providers for reliability
+Set one or both on the host (or in `.env`, copied from `config/env.example`):
 
-## AI Provider Options
+| Variable | Notes |
+|----------|-------|
+| `OPENAI_API_KEY` | Tried first. Model: `OPENAI_MODEL` (default `gpt-5-mini`) |
+| `ANTHROPIC_API_KEY` | Fallback if OpenAI fails or isn't set. Model: `ANTHROPIC_MODEL` (default `claude-haiku-4-5`) |
+| `OPENAI_COST_PER_1K` / `ANTHROPIC_COST_PER_1K` | Blended $/1k tokens for the cost estimates in `/tokens` and `/admin budget` |
+| `AI_MONTHLY_BUDGET` | Monthly AI budget in USD (default 10). Harry DMs you at 50/80/90/100% |
 
-### Option 1: OpenAI (Recommended)
-- **Models**: GPT-3.5-turbo, GPT-4
-- **Cost**: ~$0.002 per question
-- **Speed**: Fast responses
-- **Setup**: Easy API key setup
+No code changes needed: a model swap is an env change.
 
-### Option 2: Anthropic Claude
-- **Models**: Claude-3-Haiku, Claude-3-Sonnet
-- **Cost**: ~$0.001 per question
-- **Speed**: Fast responses
-- **Setup**: Easy API key setup
+## What Harry knows
 
-### Option 3: Both (Best Reliability)
-- **Fallback**: If OpenAI fails, tries Anthropic
-- **Cost**: Only pay for successful requests
-- **Reliability**: Highest uptime
+- **The charter**: read from [`data/charter.md`](../data/charter.md) (or the copy saved in Discord, see the README).
+- **The schedule**: the last one uploaded with `/league upload_schedule`, including user teams, ghosts 👻 and user-vs-user games ⚔️.
+- **His persona**: `HARRY_PERSONALITY` in `src/cfb_bot/utils/server_config.py`. Charter edits use the plainer `CHARTER_PERSONALITY`.
 
-## Setup Instructions
+Answers are cached for an hour (uploading a schedule clears the cache). Any key- or token-like string in a reply is
+redacted before it reaches Discord.
 
-### Step 1: Get API Keys
+## Where Harry answers
 
-#### OpenAI Setup:
-1. Go to [OpenAI Platform](https://platform.openai.com/api-keys)
-2. Sign up or log in
-3. Click "Create new secret key"
-4. Copy the key (starts with `sk-`)
+The `ai_chat` module must be on (`/admin config`), and `/harry`, `/ask`, `/summarize` and @mentions only work in
+channels enabled with `/admin channels`. An empty list means nowhere: AI chat is opt-in per channel.
 
-#### Anthropic Setup:
-1. Go to [Anthropic Console](https://console.anthropic.com/)
-2. Sign up or log in
-3. Go to "API Keys" section
-4. Create a new key
-5. Copy the key (starts with `sk-ant-`)
+## Checking usage
 
-### Step 2: Configure Environment
-
-1. **Copy the example file:**
-   ```bash
-   cp env.example .env
-   ```
-
-2. **Edit `.env` file:**
-   ```bash
-   DISCORD_BOT_TOKEN=your_discord_bot_token_here
-   DISCORD_GUILD_ID=your_guild_id_here
-   
-   # AI Integration (choose one or both)
-   OPENAI_API_KEY=sk-your_openai_key_here
-   ANTHROPIC_API_KEY=sk-ant-your_anthropic_key_here
-   ```
-
-### Step 3: Update Charter Content
-
-The AI needs to know your league rules. Edit `ai_integration.py` and update the `get_charter_content()` method with your actual charter content:
-
-```python
-async def get_charter_content(self) -> Optional[str]:
-    return """
-    Your actual league charter content here...
-    
-    RECRUITING:
-    - Your recruiting rules
-    - Visit limits
-    - Dead periods
-    
-    TRANSFERS:
-    - Transfer portal rules
-    - Eligibility requirements
-    
-    GAMEPLAY:
-    - Difficulty settings
-    - House rules
-    - Simulation policies
-    
-    etc...
-    """
-```
-
-### Step 4: Test the Integration
-
-1. **Run the bot:**
-   ```bash
-   python bot.py
-   ```
-
-2. **Test AI command:**
-   ```
-   /ask What are the recruiting rules?
-   /ask How many transfers can I have?
-   /ask What difficulty should I use?
-   ```
-
-## Example Questions Users Can Ask
-
-- "What are the recruiting rules for this season?"
-- "How many official visits can I give to a player?"
-- "What happens if I want to transfer a player?"
-- "What difficulty setting should I use for games?"
-- "Can I sim games without permission?"
-- "What are the penalties for breaking rules?"
-- "How often do we advance the schedule?"
-
-## Cost Estimation
-
-### OpenAI (GPT-3.5-turbo):
-- **Per question**: ~$0.002
-- **100 questions/month**: ~$0.20
-- **1000 questions/month**: ~$2.00
-
-### Anthropic (Claude-3-Haiku):
-- **Per question**: ~$0.001
-- **100 questions/month**: ~$0.10
-- **1000 questions/month**: ~$1.00
+- `/tokens`: tokens and estimated cost since the last restart
+- `/admin ai`: the same, plus OpenAI's own usage figures when available
+- `/admin budget`: spend this month against the budget
 
 ## Troubleshooting
 
-### "AI integration not available"
-- Check that you have the API keys in your `.env` file
-- Make sure the keys are valid and have credits
-
-### "Error getting AI response"
-- Check your internet connection
-- Verify API keys are correct
-- Check if you have credits remaining
-
-### "No response from AI"
-- Try the fallback provider (if you have both keys)
-- Check the bot logs for error messages
-- Verify the charter content is properly formatted
-
-## Advanced Configuration
-
-### Custom Charter Content
-You can make the AI smarter by providing more detailed charter content:
-
-```python
-async def get_charter_content(self) -> Optional[str]:
-    # You can also fetch from Google Docs API here
-    # or load from a local file
-    with open('charter_content.txt', 'r') as f:
-        return f.read()
-```
-
-### Custom AI Prompts
-Modify the AI prompts in `ai_integration.py` to better match your league's tone and style.
-
-## Security Notes
-
-- **Never commit API keys** to version control
-- **Use environment variables** for all sensitive data
-- **Monitor usage** to avoid unexpected charges
-- **Set usage limits** in your AI provider dashboard
-
-## Support
-
-If you need help with AI integration:
-1. Check the bot logs for error messages
-2. Verify your API keys are working
-3. Test with simple questions first
-4. Check your AI provider's status page
-
-The AI integration is completely optional - your bot works great without it!
+- **"My brain's not plugged in"**: no AI key is set.
+- **Harry ignores a channel**: enable it with `/admin channels`, and check `ai_chat` is on in `/admin config`.
+- **Errors**: the bot owner gets the details by DM. Check the host logs for `CFBBot.AI`.

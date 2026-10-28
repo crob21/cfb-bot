@@ -1,566 +1,179 @@
-# 📖 Complete Command Reference
-**CFB Rules Bot (Harry) - All Commands**  
-**Version:** 3.5.0  
-**Last Updated:** January 22, 2026
-
----
-
-## 🎯 **QUICK START**
-
-Type `/` in Discord to see all available command groups:
-- `/admin` - Bot administration
-- `/cfb` - College football data
-- `/charter` - League charter
-- `/harry` - AI assistant
-- `/hs` - High school stats
-- `/league` - League management
-- `/recruiting` - Recruiting rankings
-
----
-
-## 🤖 **CORE COMMANDS** (Always Available)
-
-### `/help`
-**Description:** Show all available commands  
-**Module:** Core (always on)  
-**Usage:** `/help`
-
-### `/version`
-**Description:** Show current bot version  
-**Module:** Core (always on)  
-**Usage:** `/version`
-
-### `/changelog`
-**Description:** View version history and changes  
-**Module:** Core (always on)  
-**Usage:** `/changelog`
-
-### `/whats_new`
-**Description:** See latest features added to Harry  
-**Module:** Core (always on)  
-**Usage:** `/whats_new`
-
----
-
-## 🔧 **ADMIN COMMANDS** (`/admin`)
-
-**Module:** Core (always on)  
-**Permission:** Bot Admin only
-
-### `/admin config`
-**Description:** View or configure which modules are enabled  
-**Options:**
-- `action`: `view`, `enable`, `disable`, `enable_all`, `disable_all`
-- `module`: Which module to toggle
-
-**Usage:**
-```
-/admin config action:view
-/admin config action:enable module:ai_chat
-/admin config action:disable module:recruiting
-```
-
-### `/admin set_channel`
-**Description:** Set the channel for admin notifications  
-**Options:**
-- `channel`: Channel to use (optional)
-- `channel_id`: Channel ID (optional)
-
-**Usage:** `/admin set_channel channel:#admin-channel`
-
-### `/admin add`
-**Description:** Add a user as bot admin  
-**Options:**
-- `user`: User to make admin
-
-**Usage:** `/admin add user:@Username`
-
-### `/admin remove`
-**Description:** Remove a user as bot admin  
-**Options:**
-- `user`: User to remove as admin
-
-**Usage:** `/admin remove user:@Username`
-
-### `/admin list`
-**Description:** List all bot admins  
-**Usage:** `/admin list`
-
-### `/admin block`
-**Description:** Block unprompted AI responses in a channel  
-**Options:**
-- `channel`: Channel to block
-
-**Usage:** `/admin block channel:#general`
-
-### `/admin unblock`
-**Description:** Allow unprompted AI responses in a channel  
-**Options:**
-- `channel`: Channel to unblock
-
-**Usage:** `/admin unblock channel:#general`
-
-### `/admin blocked`
-**Description:** Show all blocked channels  
-**Usage:** `/admin blocked`
-
-### `/admin sync`
-**Description:** Force sync slash commands to Discord  
-**Usage:** `/admin sync`
-
-### `/admin zyte`
-**Description:** Check Zyte API usage and estimated costs  
-**Options:**
-- `view`: `local` (bot tracked), `api` (official stats), `both`
-
-**Usage:** `/admin zyte view:both`
-
-### `/admin ai`
-**Description:** Check AI API usage, token consumption, and costs  
-**Options:**
-- `view`: `local` (bot tracked), `api` (official stats), `both`
-
-**Usage:** `/admin ai view:both`
-
-### `/admin cache`
-**Description:** View or manage bot cache  
-**Options:**
-- `action`: `stats`, `clear_recruiting`, `clear_all`
-
-**Usage:**
-```
-/admin cache action:stats
-/admin cache action:clear_recruiting
-```
-
-### `/admin budget`
-**Description:** View monthly API cost budget and spending  
-**Options:** `action`: **View** (current) or **Reconcile from Zyte & OpenAI**  
-**Usage:** `/admin budget` · `/admin budget action:Reconcile from Zyte & OpenAI`
-
-Costs are recorded automatically when the bot uses AI or Zyte. Use **Reconcile** to overwrite stored costs with official numbers: Zyte (Stats API, current month) and OpenAI (Usage API, token sum for the month → estimated cost). Requires `ZYTE_DASHBOARD_API_KEY` + `ZYTE_ORG_ID` for Zyte and `OPENAI_API_KEY` for OpenAI. Set `AI_MONTHLY_BUDGET`, `ZYTE_MONTHLY_BUDGET`, `TOTAL_MONTHLY_BUDGET`; optional `ZYTE_SPEND_LIMIT` (e.g. `20`) stops Zyte API calls when reached. Data resets each calendar month.
-
-### `/admin digest`
-**Description:** View or send weekly summary digest  
-**Options:**
-- `action`: `view` (preview), `send` (send to all admins)
-
-**Usage:**
-```
-/admin digest action:view
-/admin digest action:send
-```
-
-### `/admin schedule_reload`
-**Description:** Reload the league schedule from file  
-**Usage:** `/admin schedule_reload`
-
----
-
-## 💬 **AI CHAT COMMANDS**
-
-**Module:** AI Chat (configurable)
-
-### `/harry`
-**Description:** Ask Harry a question about the league  
-**Options:**
-- `question`: Your question
-
-**Usage:** `/harry question:What are the recruiting rules?`
-
-### `/ask`
-**Description:** Ask a general CFB question  
-**Options:**
-- `question`: Your question
-
-**Usage:** `/ask question:Who won the national championship in 2023?`
-
-### `/summarize`
-**Description:** Summarize recent channel activity  
-**Options:**
-- `hours`: Hours of chat to summarize (default: 24)
-
-**Usage:** `/summarize hours:48`
-
-**Note:** You can also @mention Harry in any channel to ask questions!
-
----
-
-## 🏈 **CFB DATA COMMANDS** (`/cfb`)
-
-**Module:** CFB Data (configurable)
-
-### `/cfb player`
-**Description:** Look up college player stats  
-**Options:**
-- `name`: Player name (required)
-- `team`: Team name (optional)
-
-**Usage:**
-```
-/cfb player name:Travis Hunter
-/cfb player name:Michael Penix team:Washington
-```
-
-### `/cfb rankings`
-**Description:** View AP, Coaches, or CFP rankings  
-**Options:**
-- `poll`: `AP Top 25`, `Coaches Poll`, or `CFP`
-- `week`: Week number (optional)
-
-**Usage:** `/cfb rankings poll:AP Top 25`
-
-### `/cfb schedule`
-**Description:** View a team's schedule  
-**Options:**
-- `team`: Team name (required)
-- `year`: Season year (optional, defaults to current)
-
-**Usage:** `/cfb schedule team:Michigan`
-
-### `/cfb matchup`
-**Description:** View head-to-head history between two teams  
-**Options:**
-- `team1`: First team
-- `team2`: Second team
-
-**Usage:** `/cfb matchup team1:Ohio State team2:Michigan`
-
-### `/cfb transfers`
-**Description:** View transfer portal activity  
-**Options:**
-- `team`: Team name (optional)
-- `year`: Year (optional)
-
-**Usage:** `/cfb transfers team:Alabama`
-
-### `/cfb ratings`
-**Description:** View advanced analytics ratings (SP+, SRS, Elo)  
-**Options:**
-- `team`: Team name (required)
-- `year`: Season year (optional, defaults to current)
-
-**Usage:** `/cfb ratings team:Ohio State`
-
-### `/cfb teamstats`
-**Description:** View full season statistics for a team (offense & defense)  
-**Options:**
-- `team`: Team name (required)
-- `year`: Season year (optional, defaults to current)
-
-**Usage:**
-```
-/cfb teamstats team:Washington year:2025
-/cfb teamstats team:Georgia
-```
-
-**Stats Included:**
-- **Offense:** Total yards, passing, rushing, first downs, 3rd/4th down conversions, turnovers
-- **Defense:** Yards allowed, sacks, TFLs, interceptions, passes defended, turnovers gained
-
----
-
-## ⭐ **RECRUITING COMMANDS** (`/recruiting`)
-
-**Module:** Recruiting (configurable)
-
-### `/recruiting player`
-**Description:** Look up a recruit's profile  
-**Options:**
-- `name`: Player name (required)
-- `year`: Recruiting class year (optional, defaults to current)
-
-**Usage:**
-```
-/recruiting player name:Julian Lewis
-/recruiting player name:Julian Lewis year:2025
-```
-
-### `/recruiting top`
-**Description:** View top recruits by position or state  
-**Options:**
-- `position`: Position (e.g., QB, WR, LB)
-- `state`: State (e.g., CA, TX, FL)
-- `limit`: Number of results (default: 10)
-
-**Usage:**
-```
-/recruiting top position:QB limit:25
-/recruiting top state:Texas
-```
-
-### `/recruiting class`
-**Description:** View a team's recruiting class  
-**Options:**
-- `team`: Team name (required)
-- `year`: Recruiting class year (optional)
-
-**Usage:** `/recruiting class team:Georgia`
-
-### `/recruiting commits`
-**Description:** List a team's commits  
-**Options:**
-- `team`: Team name (required)
-- `year`: Recruiting class year (optional)
-
-**Usage:** `/recruiting commits team:Alabama`
-
-### `/recruiting rankings`
-**Description:** View Top 25 team recruiting rankings  
-**Options:**
-- `year`: Recruiting class year (optional)
-
-**Usage:** `/recruiting rankings`
-
-### `/recruiting source`
-**Description:** Switch between On3/Rivals and 247Sports  
-**Options:**
-- `source`: `on3` or `247`
-
-**Usage:** `/recruiting source source:247`
-
----
-
-## 🏫 **HIGH SCHOOL STATS** (`/hs`)
-
-**Module:** HS Stats (configurable)
-
-### `/hs player`
-**Description:** Look up high school player stats  
-**Options:**
-- `name`: Player name (required)
-- `state`: State (optional)
-- `sport`: Sport (default: football)
-
-**Usage:**
-```
-/hs player name:John Smith
-/hs player name:John Smith state:California
-```
-
-### `/hs team`
-**Description:** Look up high school team stats  
-**Options:**
-- `school`: School name (required)
-- `state`: State (optional)
-
-**Usage:** `/hs team school:De La Salle state:California`
-
----
-
-## 🏆 **LEAGUE COMMANDS** (`/league`)
-
-**Module:** League (configurable)
-
-### `/league games`
-**Description:** View the games for a specific week  
-**Options:**
-- `week`: Week number (0-15, optional - defaults to current week)
-
-**Usage:**
-```
-/league games
-/league games week:12
-```
-
-### `/league find_game`
-**Description:** Find a team's game for a specific week  
-**Options:**
-- `team`: Team name (required)
-- `week`: Week number (optional)
-
-**Usage:** `/league find_game team:Nebraska`
-
-### `/league byes`
-**Description:** Show which teams have a bye this week  
-**Options:**
-- `week`: Week number (optional)
-
-**Usage:** `/league byes`
-
-### `/league week`
-**Description:** Check the current season and week  
-**Usage:** `/league week`
-
-### `/league weeks`
-**Description:** View the full CFB 27 Dynasty week schedule  
-**Usage:** `/league weeks`
-
-### `/league timer`
-**Description:** Start advance countdown timer (Admin only)  
-**Options:**
-- `hours`: Number of hours for countdown (default: 48)
-
-**Usage:** `/league timer hours:48`
-
-### `/league timer_status`
-**Description:** Check the current advance countdown status  
-**Usage:** `/league timer_status`
-
-### `/league timer_stop`
-**Description:** Stop the current advance countdown (Admin only)  
-**Usage:** `/league timer_stop`
-
-### `/league set_week`
-**Description:** Set the current season and week (Admin only)  
-**Options:**
-- `season`: Season number
-- `week`: Step number (1-31, as listed in `/league weeks`): 1 Preseason, 2-17 Weeks 0-15, 18-23 Postseason, 24-31 Offseason
-
-**Usage:** `/league set_week season:5 week:14` (Week 12)
-
-### `/league staff`
-**Description:** View the current league owner and co-commissioner  
-**Usage:** `/league staff`
-
-### `/league set_owner`
-**Description:** Set the league owner (Admin only)  
-**Options:**
-- `user`: User to set as league owner
-
-**Usage:** `/league set_owner user:@Username`
-
-### `/league set_commish`
-**Description:** Set the co-commissioner (Admin only)  
-**Options:**
-- `user`: User to set as co-commissioner
-- `none`: Set to 'None' (optional)
-
-**Usage:** `/league set_commish user:@Username`
-
-### `/league pick_commish`
-**Description:** Harry analyzes chat and picks a co-commissioner  
-**Options:**
-- `channel`: Channel to analyze (optional)
-- `hours`: Hours of chat history (default: 168 = 1 week)
-
-**Usage:** `/league pick_commish hours:336`
-
----
-
-## 📜 **CHARTER COMMANDS** (`/charter`)
-
-**Module:** League (configurable)
-
-### `/charter view`
-**Description:** View the full league charter  
-**Usage:** `/charter view`
-
-### `/charter search`
-**Description:** Search the charter for specific content  
-**Options:**
-- `query`: Search query
-
-**Usage:** `/charter search query:recruiting`
-
-### `/charter section`
-**Description:** View a specific section of the charter  
-**Options:**
-- `section_number`: Section number or name
-
-**Usage:** `/charter section section_number:3`
-
-### `/charter update`
-**Description:** Update the charter (Admin only)  
-**Options:**
-- `request`: Natural language update request
-
-**Usage:** `/charter update request:Change the recruiting limit to 5 star max`
-
-### `/charter history`
-**Description:** View recent changes to the charter  
-**Options:**
-- `limit`: Number of changes to show (default: 10)
-
-**Usage:** `/charter history`
-
----
-
-## 🎮 **SPECIAL FEATURES**
-
-### **@everyone advanced**
-**Description:** Advance the league week (manual trigger)  
-**Usage:** Type `@everyone advanced` or `@channel advanced` in any channel  
-**Effect:**
-- Stops current timer
-- Increments week
-- Shows next week's schedule
-- Starts new 48-hour timer
-
-### **Rivalry Responses**
-**Module:** Fun & Games (configurable)  
-**Description:** Harry automatically responds to mentions of Oregon/Ducks  
-**Keywords:**
-- "Oregon"
-- "Ducks"
-- "Autzen"
-- And more...
-
-### **@Harry Mentions**
-**Module:** AI Chat (configurable)  
-**Description:** @mention Harry to ask a question without a slash command. Works in channels enabled with `/admin channels`; a bare @mention gets a greeting. One reply per person every 10 seconds. `@everyone`/`@here` never triggers it, and users targeted by `/fun target` get an insult instead.  
-**Usage:** `@Harry what are the recruiting rules?`
-
----
-
-## 📊 **MODULE STATUS**
-
-Check which modules are enabled with `/admin config action:view`
-
-| Module | Commands | Default Status |
-|--------|----------|----------------|
-| **Core** | `/help`, `/version` | ✅ Always On |
-| **AI Chat** | `/harry`, `/ask`, @mentions | ✅ Enabled |
-| **CFB Data** | `/cfb` group | ✅ Enabled |
-| **League** | `/league`, `/charter` | ✅ Enabled |
-| **HS Stats** | `/hs` group | ✅ Enabled |
-| **Recruiting** | `/recruiting` group | ✅ Enabled |
-| **Fun & Games** | Rivalry responses | ✅ Enabled |
-
----
-
-## 🔑 **PERMISSION LEVELS**
-
-| Level | Commands | Who |
-|-------|----------|-----|
-| **Everyone** | Most commands | All server members |
-| **Admin** | `/admin`, `/league timer`, `/charter update` | Bot admins + Guild owner |
-| **Bot Owner** | Debug commands, full access | Bot owner only |
-
----
-
-## 💡 **TIPS & TRICKS**
-
-1. **Command Auto-complete**: Start typing `/` and Discord will suggest commands
-2. **Module Toggle**: Disable unwanted features with `/admin config`
-3. **Help per Command**: Discord shows command descriptions as you type
-4. **Ephemeral Responses**: Most error messages are private (only you see them)
-5. **Cache Clearing**: Use `/admin cache` if data seems stale
-6. **Budget Monitoring**: Check spending with `/admin budget`
-7. **Weekly Digest**: Admins receive automated weekly usage reports
-
----
-
-## 🆘 **TROUBLESHOOTING**
-
-**Command not showing?**
-- Check if module is enabled: `/admin config`
-- Ask admin to enable: `/admin config action:enable module:MODULE_NAME`
-
-**Bot not responding?**
-- Check if channel is blocked: `/admin blocked`
-- Try in a different channel
-
-**API errors?**
-- Check budget: `/admin budget`
-- Check API status: `/admin ai` or `/admin zyte`
-
-**Need help?**
-- Use `/help` for quick reference
-- Check docs at `/docs`
-- Ask Harry: `/harry question:How do I...?`
-
----
-
-*Generated from CFB Rules Bot v3.5.0*  
-*For support, contact bot owner or check GitHub repository*
+# 📖 Command Reference
+
+Every slash command, by group. The tables are generated from the commands themselves, and a test fails if
+one is missing here. `?` marks an optional option. Discord shows each option's help as you type.
+
+## Modules
+
+Each group belongs to a module that admins switch on or off per server with `/admin config`.
+
+| Module | Commands | Default |
+|--------|----------|---------|
+| `core` | `/help`, `/version`, `/changelog`, `/whats_new`, `/tokens` | Always on |
+| `ai_chat` | `/harry`, `/ask`, `/summarize`, @mentions | On, in channels enabled with `/admin channels` |
+| `cfb_data` | `/cfb` | On (needs `CFB_DATA_API_KEY`) |
+| `fun_games` | `/fun`, team banter | On |
+| `league` | `/league`, `/charter` | Off (opt-in) |
+| `recruiting` | `/recruiting` | Off (opt-in) |
+| `hs_stats` | `/hs` | Off (opt-in) |
+
+## 🤖 Core and AI chat
+
+Module: `core / ai_chat`
+
+| Command | What it does | Options |
+|---------|--------------|---------|
+| `/help` | Show all available commands | - |
+| `/version` | Show current bot version | - |
+| `/changelog` | View version changelog | `version`? |
+| `/whats_new` | See what's new with Harry! | - |
+| `/tokens` | Show AI token usage statistics | - |
+| `/harry` | Ask Harry about college football | `question` |
+| `/ask` | Ask Harry general questions (not league-specific) | `question` |
+| `/summarize` | Summarize channel activity for a time period | `hours`?, `focus`? |
+
+## 🏆 League (`/league`)
+
+Module: `league`
+
+| Command | What it does | Options |
+|---------|--------------|---------|
+| `/league timer` | Start advance countdown timer (Admin only) | `hours`? |
+| `/league side_timer` | Start a countdown for another league (Madden, 2K…) | `league`, `hours`? |
+| `/league side_timer_stop` | Stop a side league's countdown | `league` |
+| `/league timer_status` | Check the current advance countdown status | - |
+| `/league timer_stop` | Stop the current advance countdown (Admin only) | - |
+| `/league timers` | List all active advance timers and stop them (Admin only) | - |
+| `/league week` | Check the current season and week | - |
+| `/league weeks` | View the full CFB 27 Dynasty week schedule | - |
+| `/league games` | View the games for a specific week | `week`? |
+| `/league schedule` | View the full season schedule, or one team's whole season | `team`? |
+| `/league find_game` | Find a team's game for a specific week | `team`, `week`? |
+| `/league byes` | Show which teams have a bye this week | `week`? |
+| `/league set_week` | Set the current season and week (Admin only) | `season`, `week` |
+| `/league upload_schedule` | Upload a full schedule JSON file (Admin only) | `file` |
+| `/league set_week_games` | Set one week's games/byes by typing them (Admin only) | `week`, `games`, `byes`? |
+| `/league ghost` | Mark or unmark a team whose coach never shows up 👻 (Admin only) | `team` |
+| `/league schedule_template` | Show the schedule JSON format for uploads | - |
+| `/league timer_channel` | Set the channel for timer notifications (Admin only) | `channel` |
+| `/league staff` | View the current league owner and co-commissioner | - |
+| `/league set_owner` | Set the league owner (Admin only) | `user` |
+| `/league set_commish` | Set the co-commissioner (Admin only) | `user`?, `none`? |
+| `/league pick_commish` | Harry analyzes the chat and picks a co-commissioner | `channel`?, `hours`? |
+| `/league nag` | Nag the league owner to advance (Bot Owner only) | `action`?, `interval`? |
+
+## 📜 Charter (`/charter`)
+
+Module: `league`
+
+| Command | What it does | Options |
+|---------|--------------|---------|
+| `/charter link` | Get link to the official league charter | - |
+| `/charter scan` | Scan a channel for rule changes and votes | `channel`, `hours`? |
+| `/charter import` | Import the charter from its Google Doc (Admin only) | `url`? |
+| `/charter sync` | Sync charter to Discord (Admin only) | - |
+| `/charter history` | View recent charter changes | - |
+| `/charter search` | Search the official league charter | `search_term` |
+| `/charter add` | Add a new rule to the charter (Admin only) | `section_title`, `rule_content`, `position`? |
+| `/charter propose` | Have Harry draft a charter change and open a pull request (charter editors only) | `instruction`, `summary`, `channel`?, `hours`? |
+| `/charter season_recap` | Have Harry write the season into League History (charter editors only) | `channel`?, `hours`? |
+| `/charter update` | Update an existing rule (Admin only) | `section_identifier`, `new_content` |
+| `/charter backups` | View available backups (Admin only) | - |
+| `/charter restore` | Restore from backup (Admin only) | `backup_filename` |
+
+## 🏈 CFB data (`/cfb`)
+
+Module: `cfb_data`
+
+| Command | What it does | Options |
+|---------|--------------|---------|
+| `/cfb player` | Look up a college football player's stats and info | `name`, `team`? |
+| `/cfb players` | Look up multiple players at once | `player_list` |
+| `/cfb rankings` | Get college football rankings (AP, Coaches, CFP) | `team`?, `year`?, `week`?, `poll`?, `top`? |
+| `/cfb matchup` | Get historical matchup data between two teams | `team1`, `team2` |
+| `/cfb schedule` | Get a team's schedule and results | `team`, `year`? |
+| `/cfb draft` | Get NFL draft picks from a college | `team`?, `year`? |
+| `/cfb transfers` | Get transfer portal activity for a team | `team`, `year`? |
+| `/cfb betting` | Get betting lines for games | `team`?, `year`?, `week`? |
+| `/cfb ratings` | Get advanced ratings (SP+, SRS, Elo) for a team | `team`, `year`? |
+| `/cfb teamstats` | Get full season statistics for a team (offense & defense) | `team`, `year`? |
+
+## ⭐ Recruiting (`/recruiting`)
+
+Module: `recruiting`
+
+| Command | What it does | Options |
+|---------|--------------|---------|
+| `/recruiting player` | Look up a recruit's ranking | `name`, `year`?, `position`?, `deep_search`? |
+| `/recruiting top` | Get top recruits by position or state | `position`?, `state`?, `year`?, `top`? |
+| `/recruiting class` | Get a team's recruiting class ranking | `team`, `year`? |
+| `/recruiting commits` | List all committed recruits for a team | `team`, `year`?, `show`? |
+| `/recruiting rankings` | Get top team recruiting class rankings | `year`?, `top`? |
+| `/recruiting portal` | Look up a transfer portal player (recruiting + college stats) | `name`, `team`? |
+| `/recruiting source` | Set the recruiting data source | `source`? |
+
+## 🏫 High school stats (`/hs`)
+
+Module: `hs_stats`
+
+| Command | What it does | Options |
+|---------|--------------|---------|
+| `/hs stats` | Look up high school football player stats from MaxPreps | `name`, `state`?, `school`? |
+| `/hs bulk` | Look up multiple HS players at once | `players` |
+
+## 🔧 Admin (`/admin`)
+
+Module: `-`
+
+| Command | What it does | Options |
+|---------|--------------|---------|
+| `/admin set_channel` | Set the channel for admin outputs | `channel`?, `channel_id`? |
+| `/admin add` | Add a user as bot admin | `user` |
+| `/admin remove` | Remove a user as bot admin | `user` |
+| `/admin list` | List all bot admins | - |
+| `/admin block` | Block unprompted responses in a channel | `channel` |
+| `/admin unblock` | Allow unprompted responses in a channel | `channel` |
+| `/admin blocked` | Show all blocked channels | - |
+| `/admin config` | Configure Harry's features for this server | `action`?, `module`? |
+| `/admin sync` | Force sync slash commands | - |
+| `/admin channels` | View/manage which channels Harry can respond in | `action`?, `channel`? |
+| `/admin zyte` | Check Zyte API usage and estimated costs | `view`? |
+| `/admin ai` | Check AI API usage, token consumption, and estimated costs | `view`? |
+| `/admin cache` | View or manage bot cache | `action`? |
+| `/admin budget` | View monthly API cost budget and spending | `action`? |
+| `/admin digest` | View or send weekly summary digest | `action`? |
+| `/admin schedule_reload` | Reload the league schedule from file (Admin only) | - |
+
+## 🎭 Fun (`/fun`, admin only)
+
+Module: `fun_games`
+
+| Command | What it does | Options |
+|---------|--------------|---------|
+| `/fun target` | 🎯 Start trolling a user (Admin only) | `user`, `timeout`?, `engage`?, `everywhere`? |
+| `/fun untarget` | 🛑 Stop trolling a user (Admin only) | `user` |
+| `/fun timeout` | ⏱️ Adjust timeout for a user (Admin only) | `user`, `timeout` |
+| `/fun toggle_engage` | 🔥 Toggle argument mode for a user (Admin only) | `user` |
+| `/fun status` | 📋 Check trolling status (Admin only) | - |
+| `/fun target_all` | 🎯 Start trolling multiple users at once (Admin only) | `users`, `timeout`?, `engage`?, `everywhere`? |
+| `/fun roast` | 🔥 Roast a user immediately (Admin only) | `user` |
+| `/fun untarget_all` | 🛑 Stop trolling ALL users (Admin only) | - |
+
+## 🎮 Without a slash command
+
+- **`@everyone advanced`**: posted in the advance channel, it moves the dynasty week on, restarts the 48-hour
+  countdown and posts the new week's matchups. On the advance into End of Season Recap, Harry also opens the
+  season's history thread.
+- **"done" in a 📜 Season N History thread**: from a charter editor, it makes Harry open the charter PR.
+- **@Harry**: ask a question without a slash command, in channels enabled with `/admin channels`. One reply per
+  person every 10 seconds. `@everyone`/`@here` never counts.
+- **Team banter**: name a rival (Oregon, Ohio State, Michigan…) and Harry has something to say. Whole words only.
+
+## 🔑 Who can run what
+
+| Who | Commands |
+|-----|----------|
+| Everyone | Most commands |
+| Admins (server admins and `BOT_ADMIN_IDS`) | Anything marked *Admin only*, plus `/admin` and `/fun` |
+| Charter editors (`CHARTER_EDITOR_IDS`) | `/charter propose`, `/charter season_recap` |
+| League owner | Gets nagged by `/league nag` |

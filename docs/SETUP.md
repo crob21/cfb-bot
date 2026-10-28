@@ -90,7 +90,6 @@ cp config/env.example .env
 **Required:**
 ```env
 DISCORD_BOT_TOKEN=your_discord_bot_token_here
-DISCORD_GUILD_ID=your_server_id_here
 ```
 
 **Optional (AI features):**
@@ -142,8 +141,8 @@ Harry supports two storage backends:
 **Basic Settings:**
 - **Name**: `cfb-rules-bot`
 - **Environment**: `Python 3`
-- **Build Command**: `pip install -r requirements.txt`
-- **Start Command**: `python main.py`
+- **Build Command**: `pip install -r requirements.txt && playwright install chromium`
+- **Start Command**: `python3 -u main.py`
 
 **Environment Variables:**
 Add all variables from your `.env` file.
