@@ -3,6 +3,14 @@
 Full release history for Harry. The bot's `/changelog` command shows the most recent releases;
 this file keeps everything. Generated from `src/cfb_bot/utils/version_manager.py`.
 
+## 3.22.3 — The Charter Sticks 📜 (2026-10-28)
+
+### Fixes
+- FIX: A merged charter update now takes effect instead of being undone by Harry's saved copy on restart
+- If the repo's charter wins, the copy it replaced is DM'd to the bot owner
+- FIX: /charter sync works (it always crashed)
+- Uploading a schedule clears Harry's cached answers, so he stops quoting the old one
+
 ## 3.22.2 — Harry Talks Like Harry 🗣️ (2026-10-28)
 
 ### Voice

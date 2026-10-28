@@ -578,3 +578,25 @@ def test_bot_wires_the_shared_schedule_manager():
     source = inspect.getsource(bot_main)
     assert "get_schedule_manager()" in source
     assert "ScheduleManager()" not in source
+
+
+@pytest.mark.asyncio
+async def test_upload_clears_harrys_cached_answers(mock_interaction, mock_server_config):
+    import json
+    from cfb_bot.cogs.league import LeagueCog
+    from cfb_bot.utils.schedule_manager import ScheduleManager
+
+    manager = ScheduleManager()
+    manager.save_to_discord = AsyncMock(return_value=True)
+    upload = MagicMock(filename="schedule.json", size=100)
+    upload.read = AsyncMock(return_value=json.dumps(
+        {"season": 5, "teams": ["Syracuse"], "schedule": {"0": {"bye_teams": [], "games": []}}}).encode())
+
+    with patch('cfb_bot.cogs.league.server_config', mock_server_config):
+        cog = LeagueCog(MagicMock())
+        cog.schedule_manager = manager
+        cog.ai_assistant = MagicMock()
+        cog._is_league_admin = MagicMock(return_value=True)
+        await cog.upload_schedule.callback(cog, mock_interaction, upload)
+
+    cog.ai_assistant.clear_response_cache.assert_called_once()

@@ -15,11 +15,28 @@ def version_key(version: str) -> tuple:
     return tuple(int(part) for part in version.split('.'))
 
 # Current version
-CURRENT_VERSION = "3.22.2"
+CURRENT_VERSION = "3.22.3"
 
 # Recent releases, newest first. /changelog reads these; the full history is in
 # docs/CHANGELOG.md. Add new releases at the top.
 CHANGELOG: Dict[str, Dict] = {
+    "3.22.3": {
+        "date": "2026-10-28",
+        "title": "The Charter Sticks 📜",
+        "emoji": "📜",
+        "features": [
+            {
+                "category": "Fixes",
+                "emoji": "🔧",
+                "changes": [
+                    "FIX: A merged charter update now takes effect instead of being undone by Harry's saved copy on restart",
+                    "If the repo's charter wins, the copy it replaced is DM'd to the bot owner",
+                    "FIX: /charter sync works (it always crashed)",
+                    "Uploading a schedule clears Harry's cached answers, so he stops quoting the old one"
+                ]
+            }
+        ]
+    },
     "3.22.2": {
         "date": "2026-10-28",
         "title": "Harry Talks Like Harry 🗣️",
