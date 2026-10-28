@@ -3,6 +3,14 @@
 Full release history for Harry. The bot's `/changelog` command shows the most recent releases;
 this file keeps everything. Generated from `src/cfb_bot/utils/version_manager.py`.
 
+## 3.22.2 — Harry Talks Like Harry 🗣️ (2026-10-28)
+
+### Voice
+- FIX: OpenAI/Anthropic and On3 errors are logged again (the logging helper never imported)
+- Error messages reworded in Harry's voice, from module checks to bad input
+- One line when Harry's still starting up, one for DMs, one for no AI
+- Embed colours all come from one palette
+
 ## 3.22.1 — Harry Owns His Mistakes 🙃 (2026-10-28)
 
 ### Voice

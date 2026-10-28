@@ -48,7 +48,7 @@ class CFBDataCog(commands.Cog):
         """Check if CFB data API is available"""
         if not cfb_data.is_available:
             await interaction.followup.send(
-                "❌ CFB data is not configured. CFB_DATA_API_KEY is missing.",
+                "❌ No CFB data, mate. `CFB_DATA_API_KEY` isn't set.",
                 ephemeral=True
             )
             return False

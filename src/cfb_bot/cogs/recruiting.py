@@ -29,7 +29,7 @@ from ..utils.on3_scraper import on3_scraper
 from ..utils.recruiting_scraper import recruiting_scraper
 from ..utils.server_config import (FeatureModule, RecruitingSource,
                                    server_config)
-from ..services.oops import oops
+from ..services.oops import SERVERS_ONLY, oops
 
 logger = logging.getLogger('CFBBot.Recruiting')
 
@@ -424,7 +424,7 @@ class RecruitingCog(commands.Cog):
 
         try:
             if top and (top < 1 or top > 50):
-                await interaction.followup.send("❌ 'top' must be between 1 and 50", ephemeral=True)
+                await interaction.followup.send("❌ `top` runs 1-50, mate.", ephemeral=True)
                 return
 
             guild_id = interaction.guild.id if interaction.guild else 0
@@ -460,7 +460,7 @@ class RecruitingCog(commands.Cog):
                 await interaction.followup.send(embed=embed)
             else:
                 await interaction.followup.send(
-                    "❌ Couldn't find recruits matching your criteria. Try different filters!",
+                    "❌ No recruits match that, mate. Try different filters.",
                     ephemeral=True
                 )
 
@@ -594,7 +594,7 @@ class RecruitingCog(commands.Cog):
 
         try:
             if top and (top < 1 or top > 50):
-                await interaction.followup.send("❌ 'top' must be between 1 and 50", ephemeral=True)
+                await interaction.followup.send("❌ `top` runs 1-50, mate.", ephemeral=True)
                 return
 
             guild_id = interaction.guild.id if interaction.guild else 0
@@ -638,7 +638,7 @@ class RecruitingCog(commands.Cog):
                 await interaction.followup.send(embed=embed)
             else:
                 await interaction.followup.send(
-                    f"❌ Couldn't load team rankings for {actual_year}",
+                    f"❌ Couldn't load team rankings for {actual_year}, mate.",
                     ephemeral=True
                 )
 
@@ -863,7 +863,7 @@ class RecruitingCog(commands.Cog):
         await interaction.response.defer(ephemeral=True)
 
         if not interaction.guild:
-            await interaction.followup.send("❌ This command only works in servers!", ephemeral=True)
+            await interaction.followup.send(SERVERS_ONLY, ephemeral=True)
             return
 
         guild_id = interaction.guild.id
@@ -909,7 +909,7 @@ class RecruitingCog(commands.Cog):
 
         # Set the source
         if source not in [RecruitingSource.ON3, RecruitingSource.SPORTS247]:
-            await interaction.followup.send(f"❌ Invalid source: {source}", ephemeral=True)
+            await interaction.followup.send(f"❌ No source called `{source}`, mate.", ephemeral=True)
             return
 
         server_config.set_recruiting_source(guild_id, source)

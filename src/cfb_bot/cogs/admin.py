@@ -27,7 +27,7 @@ from discord.ext import commands
 from ..config import Colors, Footers
 from ..utils.server_config import server_config, FeatureModule
 from ..services.checks import ADMINS_ONLY, requires_admin
-from ..services.oops import oops
+from ..services.oops import NOT_READY, SERVERS_ONLY, oops
 
 logger = logging.getLogger('CFBBot.Admin')
 
@@ -75,7 +75,7 @@ class AdminCog(commands.Cog):
         await interaction.response.defer(ephemeral=True)
 
         if not interaction.guild:
-            await interaction.followup.send("❌ This only works in servers!", ephemeral=True)
+            await interaction.followup.send(SERVERS_ONLY, ephemeral=True)
             return
 
         if channel:
@@ -87,10 +87,10 @@ class AdminCog(commands.Cog):
                 fetched = interaction.guild.get_channel(target_channel_id)
                 channel_name = f"#{fetched.name}" if fetched else f"<#{target_channel_id}>"
             except ValueError:
-                await interaction.followup.send("❌ Invalid channel ID!", ephemeral=True)
+                await interaction.followup.send("❌ That's not a channel ID, mate.", ephemeral=True)
                 return
         else:
-            await interaction.followup.send("❌ Provide a channel or channel_id!", ephemeral=True)
+            await interaction.followup.send("❌ Which channel, mate? Give me a channel or a channel_id.", ephemeral=True)
             return
 
         guild_id = interaction.guild.id
@@ -111,7 +111,7 @@ class AdminCog(commands.Cog):
     async def add(self, interaction: discord.Interaction, user: discord.Member):
         """Add a bot admin"""
         if not self.admin_manager:
-            await interaction.response.send_message("❌ Admin manager not available", ephemeral=True)
+            await interaction.response.send_message(NOT_READY, ephemeral=True)
             return
 
         success = self.admin_manager.add_admin(user.id)
@@ -136,7 +136,7 @@ class AdminCog(commands.Cog):
     async def remove(self, interaction: discord.Interaction, user: discord.Member):
         """Remove a bot admin"""
         if not self.admin_manager:
-            await interaction.response.send_message("❌ Admin manager not available", ephemeral=True)
+            await interaction.response.send_message(NOT_READY, ephemeral=True)
             return
 
         success = self.admin_manager.remove_admin(user.id)
@@ -151,7 +151,7 @@ class AdminCog(commands.Cog):
             embed = discord.Embed(
                 title="ℹ️ Not an Admin",
                 description=f"{user.display_name} isn't a bot admin!",
-                color=0x808080
+                color=Colors.NEUTRAL
             )
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
@@ -159,7 +159,7 @@ class AdminCog(commands.Cog):
     async def list_admins(self, interaction: discord.Interaction):
         """List all bot admins"""
         if not self.admin_manager:
-            await interaction.response.send_message("❌ Admin manager not available", ephemeral=True)
+            await interaction.response.send_message(NOT_READY, ephemeral=True)
             return
 
         admin_ids = self.admin_manager.get_admin_list()
@@ -168,7 +168,7 @@ class AdminCog(commands.Cog):
             embed = discord.Embed(
                 title="🔐 Bot Admins",
                 description="No bot-specific admins configured.\nDiscord Administrators can use admin commands.",
-                color=0x808080
+                color=Colors.NEUTRAL
             )
         else:
             admin_info = []
@@ -194,7 +194,7 @@ class AdminCog(commands.Cog):
         """Block unprompted responses"""
 
         if not self.channel_manager:
-            await interaction.response.send_message("❌ Channel manager not available", ephemeral=True)
+            await interaction.response.send_message(NOT_READY, ephemeral=True)
             return
 
         was_blocked = self.channel_manager.block_channel(channel.id)
@@ -209,7 +209,7 @@ class AdminCog(commands.Cog):
             embed = discord.Embed(
                 title="ℹ️ Already Blocked",
                 description=f"{channel.mention} is already blocked!",
-                color=0x808080
+                color=Colors.NEUTRAL
             )
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
@@ -220,7 +220,7 @@ class AdminCog(commands.Cog):
         """Allow unprompted responses"""
 
         if not self.channel_manager:
-            await interaction.response.send_message("❌ Channel manager not available", ephemeral=True)
+            await interaction.response.send_message(NOT_READY, ephemeral=True)
             return
 
         was_unblocked = self.channel_manager.unblock_channel(channel.id)
@@ -235,7 +235,7 @@ class AdminCog(commands.Cog):
             embed = discord.Embed(
                 title="ℹ️ Not Blocked",
                 description=f"{channel.mention} wasn't blocked!",
-                color=0x808080
+                color=Colors.NEUTRAL
             )
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
@@ -243,7 +243,7 @@ class AdminCog(commands.Cog):
     async def blocked(self, interaction: discord.Interaction):
         """Show all blocked channels"""
         if not self.channel_manager:
-            await interaction.response.send_message("❌ Channel manager not available", ephemeral=True)
+            await interaction.response.send_message(NOT_READY, ephemeral=True)
             return
 
         blocked_ids = self.channel_manager.get_blocked_channels()
@@ -305,9 +305,9 @@ class AdminCog(commands.Cog):
 
         if not interaction.guild:
             if action == "view":
-                await interaction.followup.send("❌ This only works in servers!", ephemeral=True)
+                await interaction.followup.send(SERVERS_ONLY, ephemeral=True)
             else:
-                await interaction.response.send_message("❌ This only works in servers!", ephemeral=True)
+                await interaction.response.send_message(SERVERS_ONLY, ephemeral=True)
             return
 
         guild_id = interaction.guild.id
@@ -404,7 +404,7 @@ class AdminCog(commands.Cog):
 
         elif action == "enable":
             if not module:
-                await interaction.response.send_message("❌ Specify a module to enable!", ephemeral=True)
+                await interaction.response.send_message("❌ Enable what, mate? Pick a module.", ephemeral=True)
                 return
 
             if module == "schedule_announcement":
@@ -421,7 +421,7 @@ class AdminCog(commands.Cog):
             try:
                 mod = FeatureModule(module)
             except ValueError:
-                await interaction.response.send_message(f"❌ Unknown module: {module}", ephemeral=True)
+                await interaction.response.send_message(f"❌ No module called `{module}`, mate.", ephemeral=True)
                 return
 
             if mod == FeatureModule.CORE:
@@ -440,7 +440,7 @@ class AdminCog(commands.Cog):
 
         elif action == "disable":
             if not module:
-                await interaction.response.send_message("❌ Specify a module to disable!", ephemeral=True)
+                await interaction.response.send_message("❌ Disable what, mate? Pick a module.", ephemeral=True)
                 return
 
             if module == "schedule_announcement":
@@ -457,7 +457,7 @@ class AdminCog(commands.Cog):
             try:
                 mod = FeatureModule(module)
             except ValueError:
-                await interaction.response.send_message(f"❌ Unknown module: {module}", ephemeral=True)
+                await interaction.response.send_message(f"❌ No module called `{module}`, mate.", ephemeral=True)
                 return
 
             if mod == FeatureModule.CORE:
@@ -563,7 +563,7 @@ class AdminCog(commands.Cog):
     ):
         """Manage channel whitelist"""
         if not interaction.guild:
-            await interaction.response.send_message("❌ This only works in servers!", ephemeral=True)
+            await interaction.response.send_message(SERVERS_ONLY, ephemeral=True)
             return
 
         guild_id = interaction.guild.id
@@ -655,7 +655,7 @@ class AdminCog(commands.Cog):
     async def zyte_usage(self, interaction: discord.Interaction, view: str = "local"):
         """Check Zyte API usage statistics"""
         if not interaction.guild:
-            await interaction.response.send_message("❌ This only works in servers!", ephemeral=True)
+            await interaction.response.send_message(SERVERS_ONLY, ephemeral=True)
             return
 
         await interaction.response.defer(ephemeral=True)
@@ -889,7 +889,7 @@ class AdminCog(commands.Cog):
     async def ai_usage(self, interaction: discord.Interaction, view: str = "local"):
         """Check AI token usage and cost statistics"""
         if not interaction.guild:
-            await interaction.response.send_message("❌ This only works in servers!", ephemeral=True)
+            await interaction.response.send_message(SERVERS_ONLY, ephemeral=True)
             return
 
         await interaction.response.defer(ephemeral=True)
@@ -1104,7 +1104,7 @@ class AdminCog(commands.Cog):
     async def cache_management(self, interaction: discord.Interaction, action: str = "stats"):
         """Manage bot cache"""
         if not interaction.guild:
-            await interaction.response.send_message("❌ This only works in servers!", ephemeral=True)
+            await interaction.response.send_message(SERVERS_ONLY, ephemeral=True)
             return
 
         await interaction.response.defer(ephemeral=True)
@@ -1203,7 +1203,7 @@ class AdminCog(commands.Cog):
     async def budget_status(self, interaction: discord.Interaction, action: str = "view"):
         """View monthly budget status, or reconcile from provider APIs."""
         if not interaction.guild:
-            await interaction.response.send_message("❌ This only works in servers!", ephemeral=True)
+            await interaction.response.send_message(SERVERS_ONLY, ephemeral=True)
             return
 
         await interaction.response.defer(ephemeral=True)
@@ -1343,7 +1343,7 @@ class AdminCog(commands.Cog):
     async def weekly_digest(self, interaction: discord.Interaction, action: str = "view"):
         """View or send the weekly digest"""
         if not interaction.guild:
-            await interaction.response.send_message("❌ This only works in servers!", ephemeral=True)
+            await interaction.response.send_message(SERVERS_ONLY, ephemeral=True)
             return
 
         await interaction.response.defer(ephemeral=True)
@@ -1368,7 +1368,7 @@ class AdminCog(commands.Cog):
         """Reload the schedule from schedule.json without restarting the bot"""
 
         if not self.schedule_manager:
-            await interaction.response.send_message("❌ Schedule manager not available", ephemeral=True)
+            await interaction.response.send_message(NOT_READY, ephemeral=True)
             return
 
         await interaction.response.defer(ephemeral=True)
@@ -1396,7 +1396,7 @@ class AdminCog(commands.Cog):
             logger.info(f"Schedule reloaded by {interaction.user}")
         else:
             await interaction.followup.send(
-                "❌ Failed to reload schedule! Check logs for errors.",
+                "❌ Couldn't reload the schedule, mate. Check the logs.",
                 ephemeral=True
             )
             logger.error(f"Schedule reload failed (requested by {interaction.user})")

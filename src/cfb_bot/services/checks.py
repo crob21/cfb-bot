@@ -47,8 +47,8 @@ async def check_module_enabled(
     if not server_config.is_module_enabled(guild_id, module):
         module_name = module.value.replace('_', ' ').title()
         await interaction.response.send_message(
-            f"❌ The **{module_name}** module is disabled on this server.\n"
-            f"Ask an admin to enable it with `/admin config`",
+            f"❌ The **{module_name}** module is switched off here, mate.\n"
+            f"Ask an admin to turn it on with `/admin config`",
             ephemeral=True
         )
         return False
@@ -57,8 +57,8 @@ async def check_module_enabled(
     enabled_channels = server_config.get_enabled_channels(guild_id)
     if enabled_channels and channel_id not in enabled_channels:
         await interaction.response.send_message(
-            "❌ Commands are not enabled in this channel.\n"
-            "Ask an admin to whitelist this channel with `/admin channels`",
+            "❌ I'm not allowed to talk in this channel, mate.\n"
+            "Ask an admin to let me in with `/admin channels`",
             ephemeral=True
         )
         return False
@@ -92,8 +92,8 @@ async def check_module_enabled_deferred(
     if not server_config.is_module_enabled(guild_id, module):
         module_name = module.value.replace('_', ' ').title()
         await interaction.followup.send(
-            f"❌ The **{module_name}** module is disabled on this server.\n"
-            f"Ask an admin to enable it with `/admin config`",
+            f"❌ The **{module_name}** module is switched off here, mate.\n"
+            f"Ask an admin to turn it on with `/admin config`",
             ephemeral=True
         )
         return False
@@ -102,8 +102,8 @@ async def check_module_enabled_deferred(
     enabled_channels = server_config.get_enabled_channels(guild_id)
     if enabled_channels and channel_id not in enabled_channels:
         await interaction.followup.send(
-            "❌ Commands are not enabled in this channel.\n"
-            "Ask an admin to whitelist this channel with `/admin channels`",
+            "❌ I'm not allowed to talk in this channel, mate.\n"
+            "Ask an admin to let me in with `/admin channels`",
             ephemeral=True
         )
         return False

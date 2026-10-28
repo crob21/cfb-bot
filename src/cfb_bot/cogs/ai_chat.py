@@ -23,7 +23,7 @@ from discord.ext import commands
 from ..config import GAME_NAME, Colors
 from ..utils.server_config import server_config, FeatureModule
 from ..utils.input_validation import sanitize_string, MAX_INPUT_LENGTH
-from ..services.oops import report
+from ..services.oops import NOT_READY, report
 
 logger = logging.getLogger('CFBBot.AIChat')
 
@@ -54,8 +54,8 @@ class AIChatCog(commands.Cog):
         # Validate and sanitize input
         if len(question) > MAX_INPUT_LENGTH:
             await interaction.response.send_message(
-                f"❌ Question too long! Must be under {MAX_INPUT_LENGTH} characters. "
-                f"(You provided {len(question)} characters)",
+                f"❌ That's an essay, mate. Keep it under {MAX_INPUT_LENGTH} characters "
+                f"(that was {len(question)}).",
                 ephemeral=True
             )
             return
@@ -235,7 +235,7 @@ class AIChatCog(commands.Cog):
             return
 
         if not self.channel_summarizer:
-            await interaction.response.send_message("❌ Channel summarizer not available", ephemeral=True)
+            await interaction.response.send_message(NOT_READY, ephemeral=True)
             return
 
         try:

@@ -1117,7 +1117,7 @@ class RecruitingScraper:
     def format_recruit(self, recruit: Dict[str, Any]) -> str:
         """Format a single recruit for display"""
         if not recruit:
-            return "❌ Recruit not found"
+            return "❌ Can't find that recruit, mate. Check the spelling, or add a position."
 
         lines = []
 
@@ -1232,7 +1232,7 @@ class RecruitingScraper:
     def format_team_class(self, team_data: Dict[str, Any]) -> str:
         """Format team recruiting class for display"""
         if not team_data:
-            return "❌ Team not found"
+            return "❌ Never heard of that team, mate. Check the spelling."
 
         lines = []
 
@@ -1272,7 +1272,7 @@ class RecruitingScraper:
     def format_top_recruits(self, recruits: List[Dict[str, Any]], title: str = "Top Recruits") -> str:
         """Format list of top recruits"""
         if not recruits:
-            return "❌ No recruits found"
+            return "❌ No recruits there, mate. Try different filters."
 
         lines = [f"**{title}**", ""]
 

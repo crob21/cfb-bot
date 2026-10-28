@@ -183,7 +183,7 @@ class HSStatsCog(commands.Cog):
 
             if not player_list:
                 await interaction.followup.send(
-                    "❌ No valid player names provided.\n"
+                    "❌ Didn't spot any player names in that, mate.\n"
                     "Format: `Arch Manning (LA), Dylan Raiola (AZ)`",
                     ephemeral=True
                 )

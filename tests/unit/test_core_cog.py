@@ -212,4 +212,5 @@ class TestTokensCommand:
 
         mock_interaction.response.send_message.assert_called_once()
         call_args = mock_interaction.response.send_message.call_args
-        assert "not available" in str(call_args)
+        from cfb_bot.services.oops import NO_AI
+        assert NO_AI in str(call_args)

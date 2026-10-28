@@ -214,7 +214,8 @@ class TestLeagueGames:
             # Should send error message
             assert mock_interaction.followup.send.called
             call_kwargs = mock_interaction.followup.send.call_args
-            assert "not available" in str(call_kwargs)
+            from cfb_bot.services.oops import NOT_READY
+            assert NOT_READY in str(call_kwargs)
 
 
 class TestLeagueFindGame:

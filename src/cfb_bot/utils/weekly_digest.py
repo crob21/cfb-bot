@@ -12,6 +12,7 @@ import discord
 from .storage import get_storage
 from .cache import get_cache
 from ..services.oops import oops
+from ..config import Colors
 
 logger = logging.getLogger('CFBBot.WeeklyDigest')
 
@@ -59,7 +60,7 @@ class WeeklyDigest:
         embed = discord.Embed(
             title="📊 Weekly Bot Digest",
             description=f"Summary for week of {(datetime.now() - timedelta(days=7)).strftime('%B %d')} - {datetime.now().strftime('%B %d, %Y')}",
-            color=discord.Color.blue()
+            color=Colors.PRIMARY
         )
 
         # Cache performance

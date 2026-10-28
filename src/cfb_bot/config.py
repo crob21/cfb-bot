@@ -85,6 +85,8 @@ class Colors:
     ADMIN = 0xffaa00      # Golden - admin logs
     HS_STATS = 0x2ecc71   # Emerald - HS stats module
     RECRUITING = 0xffd700 # Gold - recruiting module
+    FUN = 0xff6b6b        # Coral - trolling and roasts
+    NEUTRAL = 0x808080    # Grey - off/idle states
 
 
 # =============================================================================
