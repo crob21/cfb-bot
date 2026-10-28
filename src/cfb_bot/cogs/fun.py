@@ -21,7 +21,8 @@ from discord import app_commands
 from discord.ext import commands
 
 from ..config import Colors
-from ..services.checks import requires_admin
+from ..services.checks import requires_admin, requires_module
+from ..utils.server_config import FeatureModule, server_config
 
 logger = logging.getLogger('CFBBot.Fun')
 
@@ -168,6 +169,7 @@ class FunCog(commands.Cog):
         engage="Should Harry argue back if they respond? (default: True)",
         everywhere="Troll them in every channel instead of just this one (default: False)"
     )
+    @requires_module(FeatureModule.FUN_GAMES)
     @requires_admin()
     async def target(
         self,
@@ -233,6 +235,7 @@ class FunCog(commands.Cog):
 
     @fun_group.command(name="untarget", description="🛑 Stop trolling a user (Admin only)")
     @app_commands.describe(user="The user to stop trolling")
+    @requires_module(FeatureModule.FUN_GAMES)
     @requires_admin()
     async def untarget(self, interaction: discord.Interaction, user: discord.Member):
         """Disable trolling for a specific user"""
@@ -267,6 +270,7 @@ class FunCog(commands.Cog):
         user="The targeted user",
         timeout="New timeout in minutes"
     )
+    @requires_module(FeatureModule.FUN_GAMES)
     @requires_admin()
     async def set_timeout(
         self,
@@ -313,6 +317,7 @@ class FunCog(commands.Cog):
 
     @fun_group.command(name="toggle_engage", description="🔥 Toggle argument mode for a user (Admin only)")
     @app_commands.describe(user="The targeted user")
+    @requires_module(FeatureModule.FUN_GAMES)
     @requires_admin()
     async def toggle_engage(self, interaction: discord.Interaction, user: discord.Member):
         """Toggle whether Harry will argue back if they respond"""
@@ -354,6 +359,7 @@ class FunCog(commands.Cog):
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @fun_group.command(name="status", description="📋 Check trolling status (Admin only)")
+    @requires_module(FeatureModule.FUN_GAMES)
     @requires_admin()
     async def status(self, interaction: discord.Interaction):
         """View all currently targeted users"""
@@ -415,6 +421,7 @@ class FunCog(commands.Cog):
         engage="Should Harry argue back if they respond? (default: True)",
         everywhere="Troll them in every channel instead of just this one (default: False)"
     )
+    @requires_module(FeatureModule.FUN_GAMES)
     @requires_admin()
     async def target_all(
         self,
@@ -527,6 +534,7 @@ class FunCog(commands.Cog):
 
     @fun_group.command(name="roast", description="🔥 Roast a user immediately (Admin only)")
     @app_commands.describe(user="The user to roast")
+    @requires_module(FeatureModule.FUN_GAMES)
     @requires_admin()
     async def roast(self, interaction: discord.Interaction, user: discord.Member):
         """Roast a user immediately"""
@@ -564,6 +572,7 @@ Do NOT start with "Oh," or "Look," - start directly with the roast."""
             await interaction.followup.send(self._get_targeted_insult(user.mention))
 
     @fun_group.command(name="untarget_all", description="🛑 Stop trolling ALL users (Admin only)")
+    @requires_module(FeatureModule.FUN_GAMES)
     @requires_admin()
     async def untarget_all(self, interaction: discord.Interaction):
         """Disable trolling for all users at once"""
@@ -609,8 +618,8 @@ Do NOT start with "Oh," or "Look," - start directly with the roast."""
         if message.author.bot:
             return
 
-        # Only act in servers (not DMs)
-        if not message.guild:
+        # Only act in servers (not DMs), and only where Fun & Games is on
+        if not message.guild or not server_config.is_module_enabled(message.guild.id, FeatureModule.FUN_GAMES):
             return
 
         guild_targets = self._targets_for_guild(message.guild.id)
