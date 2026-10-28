@@ -249,7 +249,7 @@ class CoreCog(commands.Cog):
             inline=False
         )
 
-        changes = latest_info.get('changes', [])
+        changes = [c for group in latest_info.get('features', []) for c in group.get('changes', [])]
         if changes:
             changes_text = "\n".join([f"• {c}" for c in changes[:10]])
             if len(changes_text) > 1000:
@@ -290,10 +290,11 @@ class CoreCog(commands.Cog):
                 avg_tokens = stats['total_tokens'] / stats['total_requests']
                 embed.add_field(name="📈 Averages", value=f"**Avg per Request:** {avg_tokens:.1f}", inline=False)
 
-            openai_cost = stats['openai_tokens'] * 0.000002
             embed.add_field(
                 name="💰 Estimated Costs",
-                value=f"**OpenAI Cost:** ~${openai_cost:.4f}",
+                value=(f"**OpenAI:** ~${stats['openai_cost']:.4f}\n"
+                       f"**Anthropic:** ~${stats['anthropic_cost']:.4f}\n"
+                       f"**Total:** ~${stats['total_cost']:.4f}"),
                 inline=False
             )
 

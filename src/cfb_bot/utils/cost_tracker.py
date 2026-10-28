@@ -12,6 +12,19 @@ from .storage import get_storage
 
 logger = logging.getLogger('CFBBot.CostTracker')
 
+# Months of cost history kept. Each namespace is one Discord message (2000 chars), and
+# a month is ~150 chars, so keeping every month eventually made every save fail.
+MONTHS_KEPT = 3
+
+
+def _month_index(key: str) -> int:
+    """'2026-10' or '2026-10_alerts' -> a comparable month number (0 if unparseable)."""
+    try:
+        year, month = key[:7].split('-')
+        return int(year) * 12 + int(month)
+    except ValueError:
+        return 0
+
 
 class CostTracker:
     """Track costs and send alerts when thresholds are exceeded"""
@@ -32,6 +45,13 @@ class CostTracker:
         # Alert thresholds (percentage of budget)
         self.alert_thresholds = [0.5, 0.8, 0.9, 1.0]  # 50%, 80%, 90%, 100%
 
+
+    async def _save_month(self, namespace: str, key: str, data: Dict[str, Any]) -> None:
+        """Save this month's entry, dropping months older than MONTHS_KEPT."""
+        cutoff = _month_index(datetime.now().strftime('%Y-%m')) - MONTHS_KEPT + 1
+        for old in [k for k in await self._storage.load_all(namespace) if _month_index(k) < cutoff]:
+            await self._storage.delete(namespace, old)
+        await self._storage.save(namespace, key, data)
 
     async def get_monthly_costs(self) -> Dict[str, float]:
         """Get costs for current month"""
@@ -83,7 +103,7 @@ class CostTracker:
         data['last_updated'] = datetime.now().isoformat()
 
         # Save updated data
-        await self._storage.save("cost_tracker", current_month, data)
+        await self._save_month("cost_tracker", current_month, data)
 
         logger.debug(f"Recorded ${amount:.4f} for {service} (total this month: ${data['total_cost']:.4f})")
 
@@ -109,7 +129,7 @@ class CostTracker:
         data['total_cost'] = data.get('ai_cost', 0.0) + data.get('zyte_cost', 0.0)
         data['last_updated'] = datetime.now().isoformat()
         data['last_reconciled'] = datetime.now().isoformat()
-        await self._storage.save("cost_tracker", current_month, data)
+        await self._save_month("cost_tracker", current_month, data)
         logger.info(f"Set monthly costs: AI=${data.get('ai_cost', 0):.4f}, Zyte=${data.get('zyte_cost', 0):.4f}")
         return {
             'ai': data.get('ai_cost', 0.0),
@@ -173,7 +193,7 @@ class CostTracker:
         if alerts_to_send:
             await self._send_alerts(alerts_to_send)
             # Save updated alerts
-            await self._storage.save("cost_alerts", alert_key, alerts_data)
+            await self._save_month("cost_alerts", alert_key, alerts_data)
 
     async def _send_alerts(self, alerts):
         """Send cost alert notifications"""

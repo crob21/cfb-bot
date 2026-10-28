@@ -78,3 +78,26 @@ def _empty_history():
                 yield  # pragma: no cover
             return gen()
     return _H()
+
+
+class TestSaveKeepsOtherKeys:
+    """A namespace is one message: saving one key must not wipe the others."""
+
+    @pytest.mark.asyncio
+    async def test_unloaded_namespace_is_read_before_saving(self, storage):
+        async def load(namespace):
+            storage._cache[namespace] = {"2026-09": {"ai_cost": 1.0}}
+            return True
+        storage._load_namespace = AsyncMock(side_effect=load)
+        storage._save_namespace = AsyncMock(return_value=True)
+
+        assert await storage.save("cost_tracker", "2026-10", {"ai_cost": 2.0})
+        assert storage._cache["cost_tracker"] == {"2026-09": {"ai_cost": 1.0}, "2026-10": {"ai_cost": 2.0}}
+
+    @pytest.mark.asyncio
+    async def test_unreadable_namespace_is_not_overwritten(self, storage):
+        storage._load_namespace = AsyncMock(return_value=False)
+        storage._save_namespace = AsyncMock(return_value=True)
+
+        assert not await storage.save("cost_tracker", "2026-10", {"ai_cost": 2.0})
+        storage._save_namespace.assert_not_called()

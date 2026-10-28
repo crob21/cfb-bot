@@ -17,9 +17,18 @@ def mock_storage():
     async def save(namespace, key, value):
         data[key] = value
 
+    async def load_all(namespace):
+        return dict(data)
+
+    async def delete(namespace, key):
+        data.pop(key, None)
+
     storage = MagicMock()
+    storage.data = data
     storage.load = AsyncMock(side_effect=load)
     storage.save = AsyncMock(side_effect=save)
+    storage.load_all = AsyncMock(side_effect=load_all)
+    storage.delete = AsyncMock(side_effect=delete)
     return storage
 
 
@@ -81,3 +90,18 @@ async def test_is_zyte_over_limit_zero_disabled(mock_storage):
 
         await tracker.set_monthly_costs(zyte_cost=100.0)
         assert await tracker.is_zyte_over_limit() is False
+
+
+@pytest.mark.asyncio
+async def test_old_months_are_dropped_so_the_message_stays_under_discords_limit(mock_storage):
+    """One Discord message holds every month; keeping them all eventually broke every save."""
+    from cfb_bot.utils.cost_tracker import MONTHS_KEPT
+    for month in ("2024-01", "2025-06", "2025-12"):
+        mock_storage.data[month] = {"ai_cost": 1.0}
+    with patch("cfb_bot.utils.cost_tracker.get_storage", return_value=mock_storage):
+        from cfb_bot.utils.cost_tracker import CostTracker
+        await CostTracker().set_monthly_costs(ai_cost=2.0)
+    now = datetime.now().strftime('%Y-%m')
+    assert now in mock_storage.data
+    assert len(mock_storage.data) <= MONTHS_KEPT
+    assert "2024-01" not in mock_storage.data

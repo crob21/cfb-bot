@@ -48,3 +48,19 @@ def test_long_questions_fit_an_embed_field():
     from cfb_bot.cogs.ai_chat import _echo
     assert len(_echo("x" * 2000)) <= 1024
     assert _echo("hi") == "*hi*"
+
+
+@pytest.mark.asyncio
+async def test_whats_new_lists_the_latest_changes():
+    """Releases nest changes under 'features'; /whats_new used to look for a 'changes' key and show none."""
+    from unittest.mock import AsyncMock, MagicMock
+    from cfb_bot.cogs.core import CoreCog
+    from cfb_bot.utils.version_manager import CHANGELOG, CURRENT_VERSION
+    cog = CoreCog(MagicMock())
+    interaction = MagicMock()
+    interaction.response.send_message = AsyncMock()
+    await cog.whats_new.callback(cog, interaction)
+    embed = interaction.response.send_message.call_args.kwargs['embed']
+    changes = next(f.value for f in embed.fields if f.name == "📝 Changes")
+    first = CHANGELOG[CURRENT_VERSION]['features'][0]['changes'][0]
+    assert first[:40] in changes
