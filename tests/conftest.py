@@ -118,7 +118,6 @@ def mock_server_config():
         "core", "ai_chat", "cfb_data", "league", "hs_stats", "recruiting"
     ])
     config.get_enabled_channels = MagicMock(return_value=[111222333])
-    config.get_admin_channel = MagicMock(return_value=111222333)
     config.get_recruiting_source = MagicMock(return_value="on3")
     config.auto_responses_enabled = MagicMock(return_value=True)
     config.save_to_discord = AsyncMock()

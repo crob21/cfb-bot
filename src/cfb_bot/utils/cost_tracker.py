@@ -18,7 +18,6 @@ class CostTracker:
 
     def __init__(self):
         self._storage = get_storage()
-        self._alert_channel_id = int(os.getenv('ADMIN_CHANNEL_ID', 0)) if os.getenv('ADMIN_CHANNEL_ID') else None
 
         # Monthly budget thresholds (in USD)
         self.monthly_budget = {
@@ -33,7 +32,6 @@ class CostTracker:
         # Alert thresholds (percentage of budget)
         self.alert_thresholds = [0.5, 0.8, 0.9, 1.0]  # 50%, 80%, 90%, 100%
 
-        self._alerts_sent = {}  # Track which alerts have been sent
 
     async def get_monthly_costs(self) -> Dict[str, float]:
         """Get costs for current month"""

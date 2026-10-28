@@ -9,15 +9,14 @@ moved to CFB 27, because the name was hardcoded in a dozen prompts and titles.
 import pathlib
 import re
 
-from cfb_bot.config import GAME_NAME, Footers
+from cfb_bot.config import GAME_NAME
 from cfb_bot.utils.server_config import HARRY_PERSONALITY
 
 SRC = pathlib.Path(__file__).resolve().parents[2] / "src" / "cfb_bot"
 
 
-def test_personality_and_footer_use_the_configured_game():
+def test_personality_uses_the_configured_game():
     assert GAME_NAME in HARRY_PERSONALITY
-    assert GAME_NAME in Footers.LEAGUE
 
 
 def test_no_hardcoded_game_year_in_source():

@@ -104,15 +104,6 @@ ANTHROPIC_API_KEY=your_anthropic_api_key_here
 CFB_DATA_API_KEY=your_cfb_data_api_key_here
 ```
 
-**Optional (Dashboard):**
-```env
-DISCORD_CLIENT_ID=your_discord_app_client_id
-DISCORD_CLIENT_SECRET=your_discord_app_client_secret
-DISCORD_REDIRECT_URI=http://localhost:8080/auth/callback
-DASHBOARD_SECRET_KEY=generate_a_random_secret_key
-DASHBOARD_PORT=8080
-```
-
 ### 3.4 Test the Bot Locally
 
 ```bash
@@ -250,22 +241,11 @@ Enable/disable features:
 ### Storage issues
 - For Discord storage: Check bot can DM the owner
 
-## 🌐 Web Dashboard
-
-Run the dashboard for visual configuration:
-
-```bash
-python run_dashboard.py
-# Visit http://localhost:8080
-```
-
-For production, deploy dashboard separately or alongside the bot.
-
 ## 🎉 You're Done!
 
 Harry is now ready to help your league! Key commands:
 
-- `/help_cfb` - See all commands
+- `/help` - See all commands
 - `/whats_new` - Latest features
 - `/channel enable` - Enable in current channel
 - `/config` - Configure modules

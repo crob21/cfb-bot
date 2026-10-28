@@ -55,13 +55,13 @@ Every cog command must call `check_module_enabled()` or `check_module_enabled_de
 
 **Python 3.13 compatibility**: `utils/audioop_fix.py` must be imported before discord.py on Python 3.13+ (the `audioop` module was removed). Handled automatically via the import chain.
 
-**Recruiting scraper fallback chain**: Playwright (headless Chromium) → cloudscraper → plain httpx. On Render, Playwright's Chromium must be installed separately.
+**Recruiting scraper fallback chain**: On3 tries Playwright (headless Chromium) → cloudscraper → Zyte (when `ZYTE_API_KEY` is set and under `ZYTE_SPEND_LIMIT`) → plain httpx. 247Sports is plain httpx only. On Render, Playwright's Chromium must be installed in the build command.
 
 **Version tracking**: Version is defined in both `src/cfb_bot/__init__.py` (`__version__`) and `utils/version_manager.py` (`CURRENT_VERSION`). Update both when bumping, and add the changelog entry to the top of `CHANGELOG` in `version_manager.py` (keeps the last ~10 releases for `/changelog`) and to `docs/CHANGELOG.md` (full history; a test checks they agree). Log messages are plain text — emoji go in embeds only (also tested).
 
 **Harry's personality**: Core prompt defined as `HARRY_PERSONALITY` in `utils/server_config.py`. `sanitize_ai_response()` in `security.py` redacts key/token-like strings from all AI output before Discord delivery.
 
-**Embed consistency**: Use `Colors` and `Footers` constants from `config.py`. `EmbedBuilder` in `services/embeds.py` provides `success()`, `error()`, and `warning()` helpers.
+**Embed consistency**: Use `Colors` and `Footers` constants from `config.py`.
 
 **Tests**: Unit tests in `tests/unit/` never make real HTTP or Discord API calls. Integration tests in `tests/integration/` may require real env vars and run with `continue-on-error: true` in CI. Shared fixtures are in `tests/conftest.py`.
 

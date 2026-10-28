@@ -81,9 +81,6 @@ class On3Scraper:
     POSITION_RANKINGS_URL = "https://www.on3.com/rivals/rankings/player/football/{year}/?position={position}"
     STATE_RANKINGS_URL = "https://www.on3.com/rivals/rankings/player/football/{year}/?state={state}"
 
-    # Player profile URL pattern
-    PLAYER_PROFILE_URL = "https://www.on3.com/rivals/{slug}/"
-
     # Position mapping
     POSITIONS = {
         'QB': 'qb', 'RB': 'rb', 'WR': 'wr', 'TE': 'te',

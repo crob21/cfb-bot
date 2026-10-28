@@ -769,54 +769,6 @@ class HSStatsScraper:
             logger.debug(f"Error parsing stats table: {e}")
             return []
 
-    def _parse_stat_block(self, block) -> Optional[Dict[str, Any]]:
-        """Parse a stat block (non-table format) into structured data"""
-        try:
-            text = block.get_text()
-            stats = {
-                'year': None,
-                'passing': {},
-                'rushing': {},
-                'receiving': {},
-                'defense': {}
-            }
-
-            # Try to extract stats using regex patterns
-            # Passing: "150/250, 2500 YDS, 25 TD, 5 INT"
-            pass_match = re.search(r'(\d+)[/-](\d+)[,\s]+(\d+)\s*(?:YDS|yards)[,\s]+(\d+)\s*TD', text, re.I)
-            if pass_match:
-                stats['passing'] = {
-                    'completions': pass_match.group(1),
-                    'attempts': pass_match.group(2),
-                    'yards': pass_match.group(3),
-                    'touchdowns': pass_match.group(4)
-                }
-
-            # Rushing: "150 CAR, 1200 YDS, 15 TD"
-            rush_match = re.search(r'(\d+)\s*(?:CAR|carries)[,\s]+(\d+)\s*(?:YDS|yards)[,\s]+(\d+)\s*TD', text, re.I)
-            if rush_match:
-                stats['rushing'] = {
-                    'carries': rush_match.group(1),
-                    'yards': rush_match.group(2),
-                    'touchdowns': rush_match.group(3)
-                }
-
-            # Receiving: "50 REC, 800 YDS, 10 TD"
-            rec_match = re.search(r'(\d+)\s*(?:REC|receptions)[,\s]+(\d+)\s*(?:YDS|yards)[,\s]+(\d+)\s*TD', text, re.I)
-            if rec_match:
-                stats['receiving'] = {
-                    'receptions': rec_match.group(1),
-                    'yards': rec_match.group(2),
-                    'touchdowns': rec_match.group(3)
-                }
-
-            has_stats = stats['passing'] or stats['rushing'] or stats['receiving']
-            return stats if has_stats else None
-
-        except Exception as e:
-            logger.debug(f"Error parsing stat block: {e}")
-            return None
-
     async def lookup_player(self, name: str, state: str = None, school: str = None) -> Optional[Dict[str, Any]]:
         """
         Complete player lookup: search + get stats.

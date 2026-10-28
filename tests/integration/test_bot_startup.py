@@ -99,7 +99,7 @@ class TestBotStartup:
     def test_config_imports(self):
         """Test that config module imports correctly"""
         try:
-            from cfb_bot.config import Colors, Footers, Emojis
+            from cfb_bot.config import Colors, Footers
 
             # Verify Colors has expected attributes
             assert hasattr(Colors, 'PRIMARY')
@@ -108,7 +108,7 @@ class TestBotStartup:
             assert hasattr(Colors, 'WARNING')
 
             # Verify Footers has expected attributes
-            assert hasattr(Footers, 'DEFAULT')
+            assert hasattr(Footers, 'CFB_DATA')
 
         except ImportError as e:
             pytest.fail(f"Failed to import config: {e}")

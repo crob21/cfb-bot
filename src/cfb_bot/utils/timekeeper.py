@@ -608,7 +608,6 @@ class TimekeeperManager:
         self.bot = bot
         self.timers: Dict[int, AdvanceTimer] = {}  # channel_id -> timer
         self.state_message_id: Optional[int] = None  # Discord message ID for state storage
-        self.state_channel_id: Optional[int] = None  # Channel ID for state storage
         self.season: Optional[int] = None  # Current season number
         self.week: Optional[int] = None  # Current week number
         # League staff tracking
@@ -747,7 +746,6 @@ class TimekeeperManager:
                     silent=True  # Don't notify users (but message still visible)
                 )
                 self.state_message_id = message.id
-                self.state_channel_id = channel_id
                 logger.info(f"Created timer state message in #{channel.name} (fallback - visible to users)")
                 return True
             except Exception as e:
@@ -867,7 +865,6 @@ class TimekeeperManager:
                                     if 'channel_id' in state and 'end_time' in state:
                                         # Found state in public channel - migrate to DM and delete this one
                                         self.state_message_id = message.id
-                                        self.state_channel_id = channel.id
                                         logger.info(f"Found timer state message in #{channel.name}, will migrate to DM")
 
                                         # Delete the visible message after we've loaded it
@@ -1390,34 +1387,6 @@ class TimekeeperManager:
             return True
         except Exception as e:
             logger.error(f"Failed to set league owner: {e}")
-            return False
-
-    async def set_co_commish(self, user: Optional[discord.User] = None, no_co_commish: bool = False) -> bool:
-        """
-        Set the co-commissioner.
-
-        Args:
-            user: The Discord user to set as co-commish, or None
-            no_co_commish: If True, set to "We don't fucking have one"
-        """
-        try:
-            if no_co_commish:
-                self.co_commish_id = None
-                self.co_commish_name = self.NO_CO_COMMISH
-                logger.info(f"Co-commish set to: {self.NO_CO_COMMISH}")
-            elif user:
-                self.co_commish_id = user.id
-                self.co_commish_name = user.display_name
-                logger.info(f"Co-commish set to {user.display_name} (ID: {user.id})")
-            else:
-                self.co_commish_id = None
-                self.co_commish_name = None
-                logger.info("Co-commish cleared")
-
-            await self._save_league_staff_state()
-            return True
-        except Exception as e:
-            logger.error(f"Failed to set co-commish: {e}")
             return False
 
     async def set_notification_channel(self, channel_id: int) -> bool:

@@ -41,9 +41,6 @@ def env_float(name: str, default: float) -> float:
         return default
 
 
-# Discord token
-DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
-
 # The game the league plays. Everything Harry says or prompts with reads this, so a new
 # season's game is a GAME_NAME env change on the host — no code change needed.
 GAME_NAME = env_str('GAME_NAME', 'CFB 27')
@@ -73,11 +70,6 @@ GITHUB_REPO = env_str('GITHUB_REPO', '')
 GITHUB_TOKEN = os.getenv('GITHUB_TOKEN', '')
 GITHUB_BASE_BRANCH = env_str('GITHUB_BASE_BRANCH', 'main')
 
-# Admin channel for notifications
-ADMIN_CHANNEL_ID = 1417663211292852244
-
-# Bot intents configuration
-BOT_PREFIX = "!"  # Not used but kept for compatibility
 
 
 # =============================================================================
@@ -105,28 +97,3 @@ class Footers:
     PLAYER_LOOKUP = "Harry's Player Lookup 🏈 | Data from CollegeFootballData.com"
     HS_STATS = "Harry's HS Stats 🏈 | Data scraped from MaxPreps"
     CONFIG = "Harry's Server Config 🏈"
-    RECRUITING = "Harry's Recruiting 🏈"
-    PORTAL = "Harry's Portal Tracker 🔄"
-    # League-specific footer (only when LEAGUE module enabled)
-    LEAGUE = f"Harry - Your {GAME_NAME} League Assistant 🏈"
-    # Generic footer (when LEAGUE module disabled)
-    DEFAULT = "Harry - Your CFB Assistant 🏈"
-
-
-# =============================================================================
-# Emojis used throughout the bot
-# =============================================================================
-
-class Emojis:
-    """Commonly used emojis"""
-    CHECKMARK = "✅"
-    CROSS = "❌"
-    WARNING = "⚠️"
-    STAR = "⭐"
-    FOOTBALL = "🏈"
-    TROPHY = "🏆"
-    TIMER = "⏰"
-    CALENDAR = "📅"
-    CHART = "📊"
-    SCHOOL = "🏫"
-    TRANSFER = "🔄"
