@@ -895,6 +895,8 @@ class LeagueCog(commands.Cog):
 
         self.schedule_manager.load_from_dict(data)
         saved = await self.schedule_manager.save_to_discord()
+        if self.ai_assistant:
+            self.ai_assistant.clear_response_cache()  # old answers quote the old schedule
 
         weeks = len(data.get('schedule', {}))
         teams = len(data.get('teams', []))
@@ -954,6 +956,8 @@ class LeagueCog(commands.Cog):
 
         self.schedule_manager.set_week_games(week, parsed_games, bye_teams)
         saved = await self.schedule_manager.save_to_discord()
+        if self.ai_assistant:
+            self.ai_assistant.clear_response_cache()  # old answers quote the old schedule
 
         week_info = {'name': f"Week {week}"}
         lines = [self.schedule_manager.format_game(g) for g in parsed_games] or ["_No games_"]

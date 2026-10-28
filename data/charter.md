@@ -5,9 +5,6 @@
 League Commish: Wusty  
 Discord Owner: BOOZEROB
 
-Current Season: 4  
-Current Week: Week 10 (step 12 of 27)
-
 ## **1. League Rules**
 
 **1.1. Game Settings**

@@ -291,6 +291,10 @@ class AICharterAssistant:
                 del self._response_cache[cache_key]
         return None
 
+    def clear_response_cache(self) -> None:
+        """Forget cached answers, e.g. after a new schedule upload, so Harry doesn't repeat stale ones."""
+        self._response_cache.clear()
+
     def _cache_response(self, cache_key: str, response: str):
         """Cache a response"""
         import time

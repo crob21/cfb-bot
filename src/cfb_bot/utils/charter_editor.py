@@ -5,6 +5,8 @@ Handles editing and updating the league charter with interactive AI updates
 Supports Discord-based persistence for charter content across deployments
 """
 
+import hashlib
+import io
 import json
 import logging
 import os
@@ -21,6 +23,14 @@ logger = logging.getLogger('CFBBot.CharterEditor')
 # Discord message limit is 2000 chars, so we chunk the charter
 DISCORD_CHUNK_SIZE = 1900  # Leave room for markers
 
+# Saved next to the chunks: which committed charter the Discord copy started from.
+# On startup that tells "edited in Discord since" apart from "a newer charter was merged".
+BASE_MARKER = "📜CHARTER_BASE "
+
+
+def charter_fingerprint(content: str) -> str:
+    return hashlib.sha256((content or "").strip().encode("utf-8")).hexdigest()[:16]
+
 
 class CharterEditor:
     """Handles editing and updating the league charter"""
@@ -32,6 +42,9 @@ class CharterEditor:
         self.charter_file = (CHARTER_FILE if os.path.exists(CHARTER_FILE)
                              or not os.path.exists(CHARTER_FILE_LEGACY) else CHARTER_FILE_LEGACY)
         self.backup_dir = "data/charter_backups"
+        # The committed charter, read before any Discord copy is restored over it
+        self._committed_fingerprint = charter_fingerprint(self.read_charter() or "")
+        self._discord_base: Optional[str] = None
 
         # Create backup directory if it doesn't exist
         os.makedirs(self.backup_dir, exist_ok=True)
@@ -41,8 +54,13 @@ class CharterEditor:
         from .owner_dm import get_owner_dm
         return await get_owner_dm(self.bot)
 
-    async def save_to_discord(self, content: str) -> bool:
-        """Save charter content to Discord DM for persistence across deployments"""
+    async def save_to_discord(self, content: Optional[str] = None) -> bool:
+        """Save charter content (default: the current file) to the owner DM so it survives redeploys."""
+        if content is None:
+            content = self.read_charter()
+            if not content:
+                logger.warning("No charter to save to Discord")
+                return False
         if not self.bot:
             logger.warning("No bot reference, cannot save charter to Discord")
             return False
@@ -57,7 +75,7 @@ class CharterEditor:
             try:
                 async for message in dm_channel.history(limit=50):
                     if (message.author == self.bot.user and
-                        message.content.startswith("📜CHARTER_CHUNK_")):
+                        message.content.startswith(("📜CHARTER_CHUNK_", BASE_MARKER))):
                         await message.delete()
             except Exception:
                 pass  # Ignore delete failures
@@ -77,6 +95,8 @@ class CharterEditor:
             for i, chunk in enumerate(chunks):
                 marker = f"📜CHARTER_CHUNK_{i+1}of{total_chunks}📜\n"
                 await dm_channel.send(marker + chunk)
+            await dm_channel.send(f"{BASE_MARKER}{self._committed_fingerprint}")
+            self._discord_base = self._committed_fingerprint
 
             logger.info(f"Charter saved to Discord ({total_chunks} chunks, {len(content)} chars)")
             return True
@@ -99,7 +119,11 @@ class CharterEditor:
             chunks = {}
             total_chunks = 0
 
+            self._discord_base = None
             async for message in dm_channel.history(limit=50):
+                if message.author == self.bot.user and message.content.startswith(BASE_MARKER):
+                    self._discord_base = message.content[len(BASE_MARKER):].strip()
+                    continue
                 if (message.author == self.bot.user and
                     message.content.startswith("📜CHARTER_CHUNK_")):
                     # Parse chunk marker: 📜CHARTER_CHUNK_1of5📜
@@ -139,25 +163,55 @@ class CharterEditor:
 
     async def restore_from_discord(self) -> bool:
         """
-        Load the Discord-persisted charter into the local file at startup.
+        Pick the live charter at startup: the committed file or the Discord copy.
 
-        The file is what /charter search and Harry's AI context read, and it resets to the
-        committed copy on every redeploy — so without this, charter edits silently revert.
+        The file resets to the committed copy on every redeploy, so edits made in Discord
+        (/charter add, update, restore) live in the Discord copy. But a merged charter PR
+        changes the committed copy, and restoring Discord over it would silently undo the
+        merge. The Discord copy records which committed charter it started from, so:
+        - committed charter unchanged since -> the Discord copy wins (keeps Discord edits)
+        - committed charter changed (or an old copy that predates the marker) -> the repo
+          wins, and the replaced Discord copy is DM'd to the owner so nothing is lost.
         """
         content = await self.load_from_discord()
+        committed = self.read_charter() or ""
         if not content:
+            if committed:
+                await self.save_to_discord(committed)
             return False
-        if (self.read_charter() or "").strip() == content.strip():
+        if content.strip() == committed.strip():
             logger.info("Local charter already matches the Discord copy")
+            if self._discord_base != self._committed_fingerprint:
+                await self.save_to_discord(committed)
             return True
+        if self._discord_base == self._committed_fingerprint:
+            try:
+                with open(self.charter_file, 'w', encoding='utf-8') as f:
+                    f.write(content)
+                logger.info(f"Restored charter edits from Discord into {self.charter_file} ({len(content)} chars)")
+                return True
+            except Exception as e:
+                logger.error(f"Could not write restored charter: {e}")
+                return False
+
+        logger.info("Charter changed in the repo since the Discord copy was saved - using the repo copy")
+        await self._send_replaced_copy(content)
+        await self.save_to_discord(committed)
+        return True
+
+    async def _send_replaced_copy(self, content: str) -> None:
+        """DM the owner the Discord copy that a newer committed charter replaced."""
         try:
-            with open(self.charter_file, 'w', encoding='utf-8') as f:
-                f.write(content)
-            logger.info(f"Restored charter from Discord into {self.charter_file} ({len(content)} chars)")
-            return True
+            import discord
+            dm = await self._get_bot_owner_dm()
+            if dm:
+                await dm.send(
+                    "The charter in the repo changed, so I'm using it instead of my saved copy. "
+                    "Here's the copy I replaced, in case it had edits you want back.",
+                    file=discord.File(io.BytesIO(content.encode("utf-8")), filename="charter_replaced.md"),
+                )
         except Exception as e:
-            logger.error(f"Could not write restored charter: {e}")
-            return False
+            logger.warning(f"Could not DM the replaced charter copy: {e}")
 
     def read_charter(self) -> Optional[str]:
         """Read the current charter content from file (sync version)"""
