@@ -9,6 +9,10 @@
     "Syracuse",
     "Arizona State"
   ],
+  "ghost_teams": [
+    "South Carolina",
+    "Syracuse"
+  ],
   "schedule": {
     "0": {
       "bye_teams": [

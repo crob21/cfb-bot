@@ -3,6 +3,12 @@
 Full release history for Harry. The bot's `/changelog` command shows the most recent releases;
 this file keeps everything. Generated from `src/cfb_bot/utils/version_manager.py`.
 
+## 3.23.0 — Ghosts of the League 👻 (2026-10-28)
+
+### League
+- NEW: 👻 next to ghost teams wherever they show up (games, byes, team schedules)
+- Mark them with `ghost_teams` in the schedule JSON; Harry knows who they are too
+
 ## 3.22.3 — The Charter Sticks 📜 (2026-10-28)
 
 ### Fixes

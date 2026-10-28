@@ -410,3 +410,42 @@ class TestSideTimerManager:
         embed = channel.send.call_args.kwargs['embed']
         assert "Madden" in embed.title
         assert "advanced" not in embed.description  # no dynasty-advance instructions
+
+
+class TestGhostTeams:
+    """Ghost teams (coaches who never show up) get a 👻 wherever their name is printed."""
+
+    def _manager(self):
+        from cfb_bot.utils.schedule_manager import ScheduleManager
+        m = ScheduleManager()
+        m.load_from_dict({"season": 5, "teams": ["Syracuse", "Duke"], "ghost_teams": ["Syracuse"],
+                          "schedule": {"1": {"bye_teams": ["Syracuse"], "games": [{"away": "Duke", "home": "Penn State"}]},
+                                       "3": {"bye_teams": [], "games": [{"away": "FCS Midwest", "home": "Syracuse"}]}}})
+        return m
+
+    def test_ghost_gets_a_ghost_and_still_bold(self):
+        m = self._manager()
+        assert m.format_team("Syracuse") == "**Syracuse** 👻"
+        assert m.format_team("Duke") == "**Duke**"
+        assert m.format_game({"away": "FCS Midwest", "home": "Syracuse"}) == "🏈 FCS Midwest @ **Syracuse** 👻"
+        assert m.format_bye_teams(["Syracuse"]) == "**Syracuse** 👻"
+
+    def test_harry_is_told_about_the_ghosts(self):
+        assert "GHOST TEAMS" in self._manager().get_schedule_context_for_ai()
+
+    def test_no_ghosts_no_ghost_line(self):
+        from cfb_bot.utils.schedule_manager import ScheduleManager
+        m = ScheduleManager()
+        m.load_from_dict({"season": 5, "teams": ["Duke"], "schedule": {"0": {"bye_teams": [], "games": []}}})
+        assert m.format_team("Duke") == "**Duke**"
+        assert "GHOST" not in m.get_schedule_context_for_ai()
+
+    def test_ghost_teams_must_be_a_list(self):
+        from cfb_bot.utils.schedule_manager import ScheduleManager
+        ok, err = ScheduleManager.validate_schedule({"ghost_teams": "Syracuse", "schedule": {"0": {}}})
+        assert not ok and "ghost_teams" in err
+
+    def test_season_5_file_marks_the_ghosts(self):
+        import json
+        from cfb_bot.utils.schedule_manager import SCHEDULE_FILE
+        assert json.loads(SCHEDULE_FILE.read_text())["ghost_teams"] == ["South Carolina", "Syracuse"]

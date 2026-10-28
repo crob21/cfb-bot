@@ -980,6 +980,7 @@ class LeagueCog(commands.Cog):
             '{\n'
             '  "season": 1,\n'
             '  "teams": ["Texas", "LSU"],          // your user-controlled teams (bolded)\n'
+            '  "ghost_teams": ["LSU"],             // coaches who never show up (👻)\n'
             '  "schedule": {\n'
             '    "0": {"bye_teams": ["LSU"], "games": [{"away": "Stanford", "home": "Texas"}]},\n'
             '    "1": {"bye_teams": [], "games": [{"away": "LSU", "home": "FSU"}]}\n'
@@ -993,7 +994,8 @@ class LeagueCog(commands.Cog):
                 f"```json\n{example}\n```\n"
                 f"• Week keys are strings (`\"0\"`–`\"{MAX_GAME_WEEK}\"`).\n"
                 "• Each game needs `away` and `home`.\n"
-                "• `teams` (optional) are your user-controlled teams — Harry bolds them.\n\n"
+                "• `teams` (optional) are your user-controlled teams — Harry bolds them.\n"
+                "• `ghost_teams` (optional) get a 👻 wherever they show up.\n\n"
                 "To edit just one week without a file, use `/league set_week_games`."
             ),
             color=Colors.SUCCESS,

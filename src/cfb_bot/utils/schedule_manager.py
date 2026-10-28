@@ -152,6 +152,8 @@ class ScheduleManager:
             return False, "Missing or empty 'schedule' object."
         if 'teams' in data and not isinstance(data['teams'], list):
             return False, "'teams' must be a list."
+        if 'ghost_teams' in data and not isinstance(data['ghost_teams'], list):
+            return False, "'ghost_teams' must be a list."
         for wk, wd in schedule.items():
             if not str(wk).isdigit():
                 return False, f"Week key '{wk}' must be a number (e.g. \"0\", \"1\")."
@@ -179,11 +181,15 @@ class ScheduleManager:
         schedule = self.schedule_data.setdefault('schedule', {})
         schedule[str(week)] = {'bye_teams': bye_teams, 'games': games}
 
+    @property
+    def ghost_teams(self) -> List[str]:
+        """League teams whose coaches never show up. Listed per season in the schedule JSON."""
+        return self.schedule_data.get('ghost_teams', [])
+
     def format_team(self, team_name: str) -> str:
-        """Format a team name, bolding user-controlled teams"""
-        if team_name in self.teams:
-            return f"**{team_name}**"
-        return team_name
+        """Format a team name: user-controlled teams in bold, ghost teams with a 👻."""
+        name = f"**{team_name}**" if team_name in self.teams else team_name
+        return f"{name} 👻" if team_name in self.ghost_teams else name
 
     def format_game(self, game: Dict, emoji: str = "🏈") -> str:
         """Format a game matchup with user teams bolded"""
@@ -365,6 +371,8 @@ class ScheduleManager:
             f"League Schedule Information (Season {self.season}):",
             f"USER-CONTROLLED TEAMS (bold these in responses): {', '.join(self.teams)}",
             "NOTE: When listing matchups, **bold** any team from the user-controlled list above.",
+            *([f"GHOST TEAMS (their coaches basically never show up - put a 👻 after them, and feel free "
+               f"to rib them for it): {', '.join(self.ghost_teams)}"] if self.ghost_teams else []),
             "",
             "Schedule by week:"
         ]
