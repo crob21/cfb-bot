@@ -297,197 +297,15 @@ class AICharterAssistant:
         self._response_cache[cache_key] = (response, time.time())
         logger.debug(f"Cached response (key: {cache_key[:8]}...)")
 
-    async def ask_openai(self, question: str, context: str, max_tokens: int = 500, personality_prompt: str = None, include_league_context: bool = True) -> Optional[str]:
-        """Ask OpenAI - optionally includes league charter and schedule context
-
-        Args:
-            question: The question to ask
-            context: Additional context (charter content, etc.)
-            max_tokens: Maximum tokens for response
-            personality_prompt: Custom personality prompt
-            include_league_context: Whether to include league schedule/charter info (False for non-league servers)
-            max_tokens: Cap on the answer - raise it for long output like a charter rewrite
-        """
-        # Check cache first
-        cache_key = self._get_cache_key(question, include_league_context)
-        cached = self._get_cached_response(cache_key)
-        if cached:
-            return sanitize_ai_response(cached)
-
-        if not self.openai_api_key:
-            logger.warning("OpenAI API key not found")
-            return None
-
-        headers = {
-            'Authorization': f'Bearer {self.openai_api_key}',
-            'Content-Type': 'application/json'
-        }
-
+    def _build_prompt(self, question: str, context: str, personality_prompt: Optional[str],
+                      include_league_context: bool) -> tuple:
+        """Harry's persona plus the question, with league charter/schedule when asked for."""
         # Harry's one persona (includes the never-reveal-secrets rule)
         personality = personality_prompt or HARRY_PERSONALITY
-
-        # Build prompt based on whether league context should be included
         if include_league_context:
-            # Get schedule context for league servers
-            schedule_context = self.get_schedule_context()
-
-            prompt = league_prompt(personality, context, schedule_context, question)
-        else:
-            # Generic CFB assistant mode (no league-specific data)
-            prompt = f"""
-            {personality}
-            Answer this question about college football in a hilariously sarcastic way.
-
-            Question: {question}
-
-            IMPORTANT INSTRUCTIONS:
-            - Provide helpful, accurate information about college football
-            - Be extremely sarcastic and witty, like a completely insane but knowledgeable CFB fan
-            - You can discuss teams, players, games, rankings, history, etc.
-            - If you don't know something, say so with sarcasm
-            - Keep responses informative but hilariously sarcastic
-            - Do NOT make up specific league schedules, rosters, or game results
-            """
-
-        data = openai_request_body(
-            OPENAI_MODEL,
-            f'{personality} Be hilariously sarcastic and helpful.',
-            prompt,
-            max_tokens,
-        )
-
-        try:
-            # Log the full prompt being sent
-            logger.info(f"Asking OpenAI: {question[:100]}...")
-            logger.info(f"Full prompt length: {len(prompt)} characters")
-            logger.info(f"Context length: {len(context)} characters")
-
-            # Estimate token count (rough approximation: 1 token ≈ 4 characters)
-            estimated_tokens = len(prompt) // 4
-            logger.info(f"Estimated input tokens: ~{estimated_tokens}")
-
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    'https://api.openai.com/v1/chat/completions',
-                    headers=headers,
-                    json=data,
-                    timeout=aiohttp.ClientTimeout(total=HTTP_TIMEOUT)
-                ) as response:
-                    if response.status == 200:
-                        result = await response.json()
-
-                        # Extract token usage information
-                        usage = result.get('usage', {})
-                        prompt_tokens = usage.get('prompt_tokens', 0)
-                        completion_tokens = usage.get('completion_tokens', 0)
-                        total_tokens = usage.get('total_tokens', 0)
-
-                        # Log detailed usage information
-                        logger.info("OpenAI response received")
-                        logger.info(f"Token usage - Prompt: {prompt_tokens}, Completion: {completion_tokens}, Total: {total_tokens}")
-
-                        # Log any rate limit information if available
-                        if 'x-ratelimit-remaining-requests' in response.headers:
-                            remaining_requests = response.headers.get('x-ratelimit-remaining-requests')
-                            logger.info(f"Rate limit - Remaining requests: {remaining_requests}")
-
-                        if 'x-ratelimit-remaining-tokens' in response.headers:
-                            remaining_tokens = response.headers.get('x-ratelimit-remaining-tokens')
-                            logger.info(f"Rate limit - Remaining tokens: {remaining_tokens}")
-
-                        if 'x-ratelimit-reset-requests' in response.headers:
-                            reset_requests = response.headers.get('x-ratelimit-reset-requests')
-                            logger.info(f"Rate limit - Requests reset at: {reset_requests}")
-
-                        if 'x-ratelimit-reset-tokens' in response.headers:
-                            reset_tokens = response.headers.get('x-ratelimit-reset-tokens')
-                            logger.info(f"Rate limit - Tokens reset at: {reset_tokens}")
-
-                        # Update token counters
-                        self.total_openai_tokens += total_tokens
-                        self.total_requests += 1
-
-                        # Save updated stats
-                        await self._save_usage_stats()
-
-                        # Record cost for /admin budget and alerts
-                        request_cost = (total_tokens / 1000) * self.openai_cost_per_1k
-                        await self._record_ai_cost(request_cost)
-
-                        logger.info(f"Total OpenAI tokens used: {self.total_openai_tokens} (across {self.total_requests} requests)")
-
-                        choice = result['choices'][0]
-                        response_text = (choice['message'].get('content') or '').strip()
-                        logger.info(f"Response length: {len(response_text)} characters")
-
-                        if not response_text:
-                            # Usually a reasoning model using the whole completion budget
-                            # before writing anything; say so instead of failing silently.
-                            reasoning_tokens = (usage.get('completion_tokens_details', {})
-                                                .get('reasoning_tokens', 0))
-                            logger.error(
-                                f"OpenAI returned no text (model={OPENAI_MODEL}, "
-                                f"finish_reason={choice.get('finish_reason')}, "
-                                f"completion_tokens={completion_tokens}, "
-                                f"reasoning_tokens={reasoning_tokens}) - "
-                                f"raise the token cap or lower reasoning_effort"
-                            )
-                            return None
-
-                        # Never send keys/secrets to users (sneaky prompts)
-                        response_text = sanitize_ai_response(response_text)
-
-                        # Cache the response
-                        self._cache_response(cache_key, response_text)
-
-                        return response_text
-                    else:
-                        error_text = await response.text()
-                        from ..utils.log_utils import sanitize_for_log
-                        logger.error(f"OpenAI API error: {response.status} - {sanitize_for_log(error_text)}")
-                        return None
-        except Exception as e:
-            logger.error(f"Error calling OpenAI: {e}")
-            return None
-
-    async def ask_anthropic(self, question: str, context: str, max_tokens: int = 500, personality_prompt: str = None, include_league_context: bool = True) -> Optional[str]:
-        """Ask Anthropic Claude - optionally includes league charter and schedule context
-
-        Args:
-            question: The question to ask
-            context: Additional context (charter content, etc.)
-            max_tokens: Maximum tokens for response
-            personality_prompt: Custom personality prompt
-            include_league_context: Whether to include league schedule/charter info (False for non-league servers)
-        """
-        # Check cache first
-        cache_key = self._get_cache_key(question, include_league_context)
-        cached = self._get_cached_response(cache_key)
-        if cached:
-            return sanitize_ai_response(cached)
-
-        if not self.anthropic_api_key:
-            logger.warning("Anthropic API key not found")
-            return None
-
-        headers = {
-            'x-api-key': self.anthropic_api_key,
-            'Content-Type': 'application/json',
-            'anthropic-version': '2023-06-01'
-        }
-
-        # Harry's one persona (includes the never-reveal-secrets rule)
-        personality = personality_prompt or HARRY_PERSONALITY
-
-        # Build prompt based on whether league context should be included
-        if include_league_context:
-            # Get schedule context for league servers
-            schedule_context = self.get_schedule_context()
-
-            prompt = league_prompt(personality, context, schedule_context, question)
-        else:
-            # Generic CFB assistant mode (no league-specific data)
-            prompt = f"""
+            return personality, league_prompt(personality, context, self.get_schedule_context(), question)
+        # Generic CFB assistant mode (no league-specific data)
+        return personality, f"""
             {personality}
             Answer this question about college football.
 
@@ -498,77 +316,110 @@ class AICharterAssistant:
             - Be extremely sarcastic and witty, like a completely insane but knowledgeable CFB fan
             - You can discuss teams, players, games, rankings, history, etc.
             - If you don't know something, say so with sarcasm
-            - Keep responses informative but hilariously sarcastic
             - Do NOT make up specific league schedules, rosters, or game results
             """
 
+    async def _post(self, provider: str, url: str, headers: dict, body: dict) -> Optional[dict]:
+        """POST to a provider and return its JSON, or None (logged) on any failure."""
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(url, headers=headers, json=body,
+                                        timeout=aiohttp.ClientTimeout(total=HTTP_TIMEOUT)) as response:
+                    if response.status == 200:
+                        return await response.json()
+                    from ..utils.log_utils import sanitize_for_log
+                    logger.error(f"{provider} API error: {response.status} - {sanitize_for_log(await response.text())}")
+        except Exception as e:
+            logger.error(f"Error calling {provider}: {e}")
+        return None
+
+    async def _record_usage(self, provider: str, tokens: int, cost_per_1k: float):
+        """Count a billed request toward /admin budget and alerts, even if it came back empty."""
+        self.total_requests += 1
+        await self._save_usage_stats()
+        await self._record_ai_cost((tokens / 1000) * cost_per_1k)
+        logger.info(f"{provider} used {tokens} tokens")
+
+    def _finish(self, cache_key: str, text: str) -> str:
+        """Sanitize and cache a reply."""
+        text = sanitize_ai_response(text)  # never send keys/secrets to users (sneaky prompts)
+        self._cache_response(cache_key, text)
+        return text
+
+    async def ask_openai(self, question: str, context: str, max_tokens: int = 500, personality_prompt: str = None, include_league_context: bool = True) -> Optional[str]:
+        """Ask OpenAI. max_tokens caps the answer - raise it for long output like a charter rewrite."""
+        cache_key = self._get_cache_key(question, include_league_context)
+        cached = self._get_cached_response(cache_key)
+        if cached:
+            return sanitize_ai_response(cached)
+        if not self.openai_api_key:
+            logger.warning("OpenAI API key not found")
+            return None
+
+        personality, prompt = self._build_prompt(question, context, personality_prompt, include_league_context)
+        data = openai_request_body(
+            OPENAI_MODEL,
+            f'{personality} Be hilariously sarcastic and helpful.',
+            prompt,
+            max_tokens,
+        )
+        logger.info(f"Asking OpenAI: {question[:100]}... (prompt ~{len(prompt) // 4} tokens)")
+        result = await self._post('OpenAI', 'https://api.openai.com/v1/chat/completions',
+                                  {'Authorization': f'Bearer {self.openai_api_key}', 'Content-Type': 'application/json'},
+                                  data)
+        if not result:
+            return None
+
+        usage = result.get('usage', {})
+        self.total_openai_tokens += usage.get('total_tokens', 0)
+        await self._record_usage('OpenAI', usage.get('total_tokens', 0), self.openai_cost_per_1k)
+
+        choice = result['choices'][0]
+        text = (choice['message'].get('content') or '').strip()
+        if not text:
+            # Usually a reasoning model using the whole completion budget
+            # before writing anything; say so instead of failing silently.
+            logger.error(
+                f"OpenAI returned no text (model={OPENAI_MODEL}, "
+                f"finish_reason={choice.get('finish_reason')}, "
+                f"completion_tokens={usage.get('completion_tokens', 0)}, "
+                f"reasoning_tokens={usage.get('completion_tokens_details', {}).get('reasoning_tokens', 0)}) - "
+                f"raise the token cap or lower reasoning_effort"
+            )
+            return None
+
+        return self._finish(cache_key, text)
+
+    async def ask_anthropic(self, question: str, context: str, max_tokens: int = 500, personality_prompt: str = None, include_league_context: bool = True) -> Optional[str]:
+        """Ask Anthropic. Same contract as ask_openai."""
+        cache_key = self._get_cache_key(question, include_league_context)
+        cached = self._get_cached_response(cache_key)
+        if cached:
+            return sanitize_ai_response(cached)
+        if not self.anthropic_api_key:
+            logger.warning("Anthropic API key not found")
+            return None
+
+        personality, prompt = self._build_prompt(question, context, personality_prompt, include_league_context)
         data = {
             'model': ANTHROPIC_MODEL,
             'max_tokens': max_tokens,
-            'messages': [
-                {'role': 'user', 'content': prompt}
-            ]
+            'system': personality,
+            'messages': [{'role': 'user', 'content': prompt}],
         }
-
-        try:
-            # Log the request details
-            logger.info(f"Asking Anthropic: {question[:100]}...")
-            logger.info(f"Full prompt length: {len(prompt)} characters")
-            logger.info(f"Context length: {len(context)} characters")
-
-            # Estimate token count (rough approximation: 1 token ≈ 4 characters)
-            estimated_tokens = len(prompt) // 4
-            logger.info(f"Estimated input tokens: ~{estimated_tokens}")
-
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    'https://api.anthropic.com/v1/messages',
-                    headers=headers,
-                    json=data,
-                    timeout=aiohttp.ClientTimeout(total=HTTP_TIMEOUT)
-                ) as response:
-                    if response.status == 200:
-                        result = await response.json()
-
-                        # Extract token usage information
-                        usage = result.get('usage', {})
-                        input_tokens = usage.get('input_tokens', 0)
-                        output_tokens = usage.get('output_tokens', 0)
-
-                        # Update token counters
-                        total_tokens = input_tokens + output_tokens
-                        self.total_anthropic_tokens += total_tokens
-                        self.total_requests += 1
-
-                        # Save updated stats
-                        await self._save_usage_stats()
-
-                        # Record cost for /admin budget and alerts
-                        request_cost = (total_tokens / 1000) * self.anthropic_cost_per_1k
-                        await self._record_ai_cost(request_cost)
-
-                        logger.info("Anthropic response received")
-                        logger.info(f"Token usage - Input: {input_tokens}, Output: {output_tokens}")
-                        logger.info(f"Total Anthropic tokens used: {self.total_anthropic_tokens} (across {self.total_requests} requests)")
-
-                        response_text = result['content'][0]['text'].strip()
-                        logger.info(f"Response length: {len(response_text)} characters")
-
-                        # Never send keys/secrets to users (sneaky prompts)
-                        response_text = sanitize_ai_response(response_text)
-
-                        # Cache the response
-                        self._cache_response(cache_key, response_text)
-
-                        return response_text
-                    else:
-                        error_text = await response.text()
-                        from ..utils.log_utils import sanitize_for_log
-                        logger.error(f"Anthropic API error: {response.status} - {sanitize_for_log(error_text)}")
-                        return None
-        except Exception as e:
-            logger.error(f"Error calling Anthropic: {e}")
+        logger.info(f"Asking Anthropic: {question[:100]}... (prompt ~{len(prompt) // 4} tokens)")
+        result = await self._post('Anthropic', 'https://api.anthropic.com/v1/messages',
+                                  {'x-api-key': self.anthropic_api_key, 'Content-Type': 'application/json',
+                                   'anthropic-version': '2023-06-01'},
+                                  data)
+        if not result:
             return None
+
+        usage = result.get('usage', {})
+        tokens = usage.get('input_tokens', 0) + usage.get('output_tokens', 0)
+        self.total_anthropic_tokens += tokens
+        await self._record_usage('Anthropic', tokens, self.anthropic_cost_per_1k)
+        return self._finish(cache_key, result['content'][0]['text'].strip())
 
     async def ask_ai(self, question: str, user_info: str = None, include_league_context: bool = True, max_tokens: int = 500) -> Optional[str]:
         """Ask AI about the charter (tries OpenAI first, then Anthropic)
