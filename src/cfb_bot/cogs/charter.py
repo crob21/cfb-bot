@@ -27,7 +27,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from ..config import GAME_NAME, Colors
-from ..services.checks import check_module_enabled, requires_admin, requires_module
+from ..services.checks import check_module_enabled, check_module_enabled_deferred, requires_admin, requires_module
 from ..utils.server_config import server_config, FeatureModule
 
 # The league charter lives in a shared Google Doc; CHARTER_URL overrides it per deployment.
@@ -131,6 +131,7 @@ class CharterCog(commands.Cog):
         channel="Channel to scan (e.g., #offseason-voting)",
         hours="Hours of history to scan (default: 168 = 1 week)"
     )
+    @requires_module(FeatureModule.LEAGUE)
     @requires_admin("❌ Only admins can scan for rule changes!")
     async def scan(
         self,
@@ -246,6 +247,7 @@ class CharterCog(commands.Cog):
 
     @charter_group.command(name="import", description="Import the charter from its Google Doc (Admin only)")
     @app_commands.describe(url="Charter document link (defaults to the league charter doc)")
+    @requires_module(FeatureModule.LEAGUE)
     @requires_admin("❌ Only admins can import the charter!")
     async def import_charter(self, interaction: discord.Interaction, url: Optional[str] = None):
         """Replace the stored charter with the text of the league's shared doc."""
@@ -275,6 +277,7 @@ class CharterCog(commands.Cog):
         await interaction.followup.send(embed=embed, ephemeral=True)
 
     @charter_group.command(name="sync", description="Sync charter to Discord (Admin only)")
+    @requires_module(FeatureModule.LEAGUE)
     @requires_admin("❌ Only admins can sync the charter!")
     async def sync(self, interaction: discord.Interaction):
         """Manually sync the charter"""
@@ -297,6 +300,7 @@ class CharterCog(commands.Cog):
             await interaction.followup.send(f"❌ Error syncing: {str(e)}", ephemeral=True)
 
     @charter_group.command(name="history", description="View recent charter changes")
+    @requires_module(FeatureModule.LEAGUE)
     async def history(self, interaction: discord.Interaction):
         """View recent charter update history"""
         if not self.charter_editor:
@@ -343,6 +347,7 @@ class CharterCog(commands.Cog):
 
     @charter_group.command(name="search", description="Search the official league charter")
     @app_commands.describe(search_term="Text to search for in the charter")
+    @requires_module(FeatureModule.LEAGUE)
     async def search(self, interaction: discord.Interaction, search_term: str):
         """Search for specific terms in the league charter"""
         await interaction.response.send_message("🔍 Searching...", ephemeral=True)
@@ -382,6 +387,8 @@ class CharterCog(commands.Cog):
         rule_content="The rule text content",
         position="Where to add: 'end' or 'start' (default: end)"
     )
+    @requires_module(FeatureModule.LEAGUE)
+    @requires_admin("❌ Only admins can add rules!")
     async def add(
         self,
         interaction: discord.Interaction,
@@ -390,10 +397,6 @@ class CharterCog(commands.Cog):
         position: str = "end"
     ):
         """Add a new rule section"""
-        if not interaction.user.guild_permissions.administrator:
-            await interaction.response.send_message("❌ You need administrator permissions!", ephemeral=True)
-            return
-
         if not self.charter_editor:
             await interaction.response.send_message("❌ Charter editor not available", ephemeral=True)
             return
@@ -453,6 +456,8 @@ class CharterCog(commands.Cog):
             await interaction.response.defer()
         except discord.NotFound:
             logger.warning("/charter propose: interaction expired before it could be acknowledged")
+            return
+        if not await check_module_enabled_deferred(interaction, FeatureModule.LEAGUE, server_config):
             return
 
         from ..utils.charter_git import (CharterPullRequest, is_configured,
@@ -578,6 +583,8 @@ class CharterCog(commands.Cog):
         section_identifier="Section title or number to update",
         new_content="New content for the section"
     )
+    @requires_module(FeatureModule.LEAGUE)
+    @requires_admin("❌ Only admins can update rules!")
     async def update(
         self,
         interaction: discord.Interaction,
@@ -585,10 +592,6 @@ class CharterCog(commands.Cog):
         new_content: str
     ):
         """Update an existing rule section"""
-        if not interaction.user.guild_permissions.administrator:
-            await interaction.response.send_message("❌ You need administrator permissions!", ephemeral=True)
-            return
-
         if not self.charter_editor:
             await interaction.response.send_message("❌ Charter editor not available", ephemeral=True)
             return
@@ -618,12 +621,10 @@ class CharterCog(commands.Cog):
             await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
 
     @charter_group.command(name="backups", description="View available backups (Admin only)")
+    @requires_module(FeatureModule.LEAGUE)
+    @requires_admin("❌ Only admins can view charter backups!")
     async def backups(self, interaction: discord.Interaction):
         """View available charter backups"""
-        if not interaction.user.guild_permissions.administrator:
-            await interaction.response.send_message("❌ You need administrator permissions!", ephemeral=True)
-            return
-
         if not self.charter_editor:
             await interaction.response.send_message("❌ Charter editor not available", ephemeral=True)
             return
@@ -663,12 +664,10 @@ class CharterCog(commands.Cog):
 
     @charter_group.command(name="restore", description="Restore from backup (Admin only)")
     @app_commands.describe(backup_filename="Name of the backup file to restore")
+    @requires_module(FeatureModule.LEAGUE)
+    @requires_admin("❌ Only admins can restore the charter!")
     async def restore(self, interaction: discord.Interaction, backup_filename: str):
         """Restore the charter from a backup"""
-        if not interaction.user.guild_permissions.administrator:
-            await interaction.response.send_message("❌ You need administrator permissions!", ephemeral=True)
-            return
-
         if not self.charter_editor:
             await interaction.response.send_message("❌ Charter editor not available", ephemeral=True)
             return

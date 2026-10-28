@@ -112,3 +112,27 @@ class TestFunModuleToggle:
         with patch('cfb_bot.cogs.fun.server_config', off):
             await cog.on_message(message)
         cog._targets_for_guild.assert_not_called()
+
+
+class TestAIRoasts:
+    """/fun roast and argument comebacks call the real AI method (ask_question never existed)."""
+
+    @pytest.mark.asyncio
+    async def test_roast_uses_ask_ai(self, mock_interaction, mock_server_config):
+        from unittest.mock import AsyncMock, patch
+        cog = make_cog()
+        cog.ai_assistant.ask_ai = AsyncMock(return_value="ya muppet 💀")
+        cog._is_duplicate_interaction = MagicMock(return_value=False)
+        target = MagicMock(bot=False, mention="<@1>")
+        with patch('cfb_bot.cogs.fun.server_config', mock_server_config):
+            await cog.roast.callback(cog, mock_interaction, target)
+        cog.ai_assistant.ask_ai.assert_awaited_once()
+        assert mock_interaction.followup.send.call_args.args[0] == "<@1> ya muppet 💀"
+
+    @pytest.mark.asyncio
+    async def test_comeback_falls_back_when_ai_is_silent(self):
+        from unittest.mock import AsyncMock
+        cog = make_cog()
+        cog.ai_assistant.ask_ai = AsyncMock(return_value=None)
+        cog._get_fallback_comeback = MagicMock(return_value="canned")
+        assert await cog._generate_ai_comeback("you suck", "Bob") == "canned"

@@ -13,6 +13,7 @@ from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
 from ..config import GAME_NAME
+from .server_config import CHARTER_PERSONALITY
 
 
 logger = logging.getLogger('CFBBot.CharterEditor')
@@ -501,7 +502,7 @@ class CharterEditor:
         try:
             context_text = f"\n\nContext: {context}" if context else ""
 
-            prompt = f"""You are Harry, helping to format a new league rule for the {GAME_NAME} League Charter.
+            prompt = f"""Format a new league rule for the {GAME_NAME} League Charter.
 
 Given this rule summary: {rule_summary}{context_text}
 
@@ -514,7 +515,7 @@ Format it as a proper charter rule entry. Use this style:
 Just provide the formatted rule text, nothing else."""
 
             logger.info(f"Requesting AI formatting for rule: {rule_summary[:50]}...")
-            formatted_rule = await self.ai_assistant.ask_ai(prompt, "Charter Editor")
+            formatted_rule = await self.ai_assistant.ask_ai(prompt, "Charter Editor", personality_prompt=CHARTER_PERSONALITY)
 
             if formatted_rule:
                 logger.info("AI rule formatting successful")
@@ -579,7 +580,8 @@ Current charter:
 
         logger.info(f"Requesting charter revision: {instruction[:80]}")
         revised = await self.ai_assistant.ask_ai(
-            prompt, "Charter Editor", include_league_context=False, max_tokens=8000)
+            prompt, "Charter Editor", include_league_context=False, max_tokens=8000,
+            personality_prompt=CHARTER_PERSONALITY)
 
         if not revised:
             logger.error("Charter revision returned nothing")
@@ -782,9 +784,8 @@ If truly nothing is found, respond with exactly: []
 IMPORTANT: Even if you're not 100% sure, include anything that looks like a rule vote or proposal!"""
 
         try:
-            response = await self.ai_assistant.ask_openai(prompt, "Rule Change Finder", max_tokens=2000)
-            if not response:
-                response = await self.ai_assistant.ask_anthropic(prompt, "Rule Change Finder", max_tokens=2000)
+            response = await self.ai_assistant.ask_ai(prompt, "Rule Change Finder", max_tokens=2000,
+                                                      personality_prompt=CHARTER_PERSONALITY)
 
             if not response:
                 return None

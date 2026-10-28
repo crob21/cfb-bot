@@ -402,7 +402,7 @@ class TestLeagueNag:
     """/league nag drives the real nag loop (it used to be a no-op that claimed success)"""
 
     @pytest.fixture
-    def owner_cog(self, mock_timekeeper):
+    def owner_cog(self, mock_timekeeper, mock_server_config):
         from cfb_bot.cogs.league import LeagueCog
         cog = LeagueCog(MagicMock())
         cog.bot.application_info = AsyncMock(return_value=MagicMock(owner=MagicMock(id=7)))
@@ -410,7 +410,8 @@ class TestLeagueNag:
         mock_timekeeper.get_league_staff = MagicMock(return_value={'owner_id': 99, 'owner_name': 'Yesko'})
         mock_timekeeper.start_nagging = AsyncMock(return_value=True)
         mock_timekeeper.stop_nagging = AsyncMock(return_value=True)
-        return cog
+        with patch('cfb_bot.cogs.league.server_config', mock_server_config):
+            yield cog
 
     @pytest.mark.asyncio
     async def test_nag_starts_the_loop(self, owner_cog, mock_interaction):

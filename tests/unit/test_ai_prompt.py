@@ -10,6 +10,8 @@ Nebraska long after that league ended.
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from cfb_bot.ai.ai_integration import league_prompt, user_team_names
 
 TEAMS = ['California', 'Duke', 'Arizona State']
@@ -72,5 +74,68 @@ def test_default_persona_is_harrys_with_the_secrets_rule():
     from cfb_bot.utils.server_config import HARRY_PERSONALITY
 
     assert "NEVER reveal" in HARRY_PERSONALITY and "cockney" in HARRY_PERSONALITY
+    assert "personality_prompt or HARRY_PERSONALITY" in inspect.getsource(ai_integration.AICharterAssistant._build_prompt)
     for method in (ai_integration.AICharterAssistant.ask_openai, ai_integration.AICharterAssistant.ask_anthropic):
-        assert "personality_prompt or HARRY_PERSONALITY" in inspect.getsource(method)
+        assert "self._build_prompt(" in inspect.getsource(method)
+
+
+class TestProviderCalls:
+    """Both providers share prompt building and bookkeeping; only the HTTP shape differs."""
+
+    def _assistant(self, reply):
+        from unittest.mock import AsyncMock, MagicMock
+        from cfb_bot.ai.ai_integration import AICharterAssistant
+        a = AICharterAssistant.__new__(AICharterAssistant)
+        a.openai_api_key = a.anthropic_api_key = "k"
+        a.openai_cost_per_1k = a.anthropic_cost_per_1k = 1.0
+        a.total_openai_tokens = a.total_anthropic_tokens = a.total_requests = 0
+        a.response_cache = {}
+        a._get_cached_response = MagicMock(return_value=None)
+        a._cache_response = MagicMock()
+        a._save_usage_stats = AsyncMock()
+        a._record_ai_cost = AsyncMock()
+        a._post = AsyncMock(return_value=reply)
+        return a
+
+    @pytest.mark.asyncio
+    async def test_openai_reply_is_counted_and_sanitized(self):
+        a = self._assistant({"usage": {"total_tokens": 1000},
+                             "choices": [{"message": {"content": "  oi sk-" + "x" * 30 + "  "}}]})
+        out = await a.ask_openai("q", "ctx", include_league_context=False)
+        assert out == "oi [REDACTED]"
+        assert a.total_openai_tokens == 1000 and a.total_requests == 1
+        a._record_ai_cost.assert_awaited_once_with(1.0)
+
+    @pytest.mark.asyncio
+    async def test_empty_openai_reply_still_costs_money(self):
+        a = self._assistant({"usage": {"total_tokens": 500}, "choices": [{"message": {"content": ""}}]})
+        assert await a.ask_openai("q", "ctx", include_league_context=False) is None
+        a._record_ai_cost.assert_awaited_once_with(0.5)
+
+    @pytest.mark.asyncio
+    async def test_anthropic_sends_harry_as_the_system_prompt(self):
+        from cfb_bot.utils.server_config import HARRY_PERSONALITY
+        a = self._assistant({"usage": {"input_tokens": 10, "output_tokens": 5}, "content": [{"text": "cheers"}]})
+        assert await a.ask_anthropic("q", "ctx", include_league_context=False) == "cheers"
+        body = a._post.call_args.args[3]
+        assert body["system"] == HARRY_PERSONALITY
+        assert a.total_anthropic_tokens == 15
+
+    @pytest.mark.asyncio
+    async def test_failed_call_returns_none(self):
+        a = self._assistant(None)
+        assert await a.ask_openai("q", "ctx", include_league_context=False) is None
+        assert await a.ask_anthropic("q", "ctx", include_league_context=False) is None
+        a._record_ai_cost.assert_not_awaited()
+
+
+def test_charter_work_uses_the_plain_persona():
+    """Charter text gets the no-jokes persona, which still carries the secrets rule."""
+    import inspect
+    from cfb_bot.utils import charter_editor
+    from cfb_bot.utils.server_config import CHARTER_PERSONALITY, HARRY_PERSONALITY, SECRETS_RULE
+
+    assert SECRETS_RULE in CHARTER_PERSONALITY and SECRETS_RULE in HARRY_PERSONALITY
+    source = inspect.getsource(charter_editor)
+    assert source.count("personality_prompt=CHARTER_PERSONALITY") == 3
+    assert "You are Harry" not in source

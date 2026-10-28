@@ -556,8 +556,10 @@ class FunCog(commands.Cog):
 Make it vulgar, offensive, and funny. Max 2 sentences. End with an emoji.
 Do NOT start with "Oh," or "Look," - start directly with the roast."""
                 
-                insult = await self.ai_assistant.ask_question(prompt, include_charter=False)
-                
+                insult = await self.ai_assistant.ask_ai(
+                    prompt, f"{interaction.user} roasting {user}", include_league_context=False, max_tokens=150
+                ) or self._get_targeted_insult(user.mention)
+
                 # Mention them at the start if not included
                 if user.mention not in insult:
                     insult = f"{user.mention} {insult}"
@@ -778,7 +780,7 @@ Do NOT start with "Oh," or "Look," - start directly with the roast."""
     async def _generate_ai_comeback(self, user_message: str, user_name: str) -> str:
         """Generate contextual AI comeback"""
         try:
-            prompt = f"""You are Harry, an extremely vulgar and rude British football bot who just told {user_name} "Fuck you" and they responded with: "{user_message}"
+            prompt = f"""You just told {user_name} "Fuck you" and they responded with: "{user_message}"
 
 Generate a SHORT, BRUTAL comeback that:
 - Is EXTREMELY rude and vulgar (use fuck, shit, cunt, wanker, bellend, twat, etc. liberally)
@@ -798,7 +800,10 @@ Example comebacks:
 Your BRUTAL comeback (max 200 chars):"""
 
             # Use AI to generate response
-            response = await self.ai_assistant.ask_question(prompt, include_charter=False)
+            response = await self.ai_assistant.ask_ai(
+                prompt, f"comeback for {user_name}", include_league_context=False, max_tokens=150)
+            if not response:
+                return self._get_fallback_comeback(user_message)
 
             # Trim if too long
             if len(response) > 200:
