@@ -13,7 +13,7 @@ import re
 import logging
 from typing import Any
 
-from .security import LOG_MESSAGE_TRUNCATE, REDACT_PATTERNS
+from ..security import LOG_MESSAGE_TRUNCATE, REDACT_PATTERNS
 
 
 def sanitize_for_log(message: Any) -> str:

@@ -21,6 +21,7 @@ from discord.ext import commands
 from ..config import Colors
 from ..utils.server_config import server_config
 from ..utils.version_manager import VersionManager
+from ..services.oops import NO_AI
 
 logger = logging.getLogger('CFBBot.Core')
 
@@ -299,7 +300,7 @@ class CoreCog(commands.Cog):
             embed.set_footer(text="Token usage since bot startup")
             await interaction.response.send_message(embed=embed)
         else:
-            await interaction.response.send_message("❌ AI integration not available")
+            await interaction.response.send_message(NO_AI)
 
 
 async def setup(bot: commands.Bot):

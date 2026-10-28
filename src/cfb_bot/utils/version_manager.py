@@ -15,11 +15,28 @@ def version_key(version: str) -> tuple:
     return tuple(int(part) for part in version.split('.'))
 
 # Current version
-CURRENT_VERSION = "3.22.1"
+CURRENT_VERSION = "3.22.2"
 
 # Recent releases, newest first. /changelog reads these; the full history is in
 # docs/CHANGELOG.md. Add new releases at the top.
 CHANGELOG: Dict[str, Dict] = {
+    "3.22.2": {
+        "date": "2026-10-28",
+        "title": "Harry Talks Like Harry 🗣️",
+        "emoji": "🗣️",
+        "features": [
+            {
+                "category": "Voice",
+                "emoji": "🗣️",
+                "changes": [
+                    "FIX: OpenAI/Anthropic and On3 errors are logged again (the logging helper never imported)",
+                    "Error messages reworded in Harry's voice, from module checks to bad input",
+                    "One line when Harry's still starting up, one for DMs, one for no AI",
+                    "Embed colours all come from one palette"
+                ]
+            }
+        ]
+    },
     "3.22.1": {
         "date": "2026-10-28",
         "title": "Harry Owns His Mistakes 🙃",

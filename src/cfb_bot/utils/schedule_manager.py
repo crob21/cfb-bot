@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from .timekeeper import MAX_GAME_WEEK
+from ..config import Colors
 
 logger = logging.getLogger('CFBBot.Schedule')
 
@@ -268,7 +269,7 @@ class ScheduleManager:
         embed = discord_module.Embed(
             title=f"📅 Week {week} Matchups",
             description="Here's what's on the slate this week, ya muppets!",
-            color=0x00ff00,
+            color=Colors.SUCCESS,
         )
         bye_teams = week_data.get('bye_teams', [])
         if bye_teams:

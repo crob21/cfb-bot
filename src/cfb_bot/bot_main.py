@@ -50,6 +50,7 @@ bot = commands.Bot(
 
 # Import utilities after bot setup to avoid circular imports
 from .utils.server_config import server_config
+from .config import Colors
 
 # ==================== COG LOADING ====================
 
@@ -309,7 +310,7 @@ async def send_startup_notification():
         title="🏈 Harry is Online!",
         description=f"**Version {current_version}** - {version_title} {version_emoji}\n"
                    f"**Status:** Deployed ✅ | **Time:** {datetime.now().strftime('%I:%M:%S %p')}\n",
-        color=0x00ff00,
+        color=Colors.SUCCESS,
         timestamp=datetime.now()
     )
 

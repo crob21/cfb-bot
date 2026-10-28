@@ -29,7 +29,7 @@ from discord.ext import commands
 from ..config import GAME_NAME, Colors
 from ..services.checks import check_module_enabled, check_module_enabled_deferred, requires_admin, requires_module
 from ..utils.server_config import server_config, FeatureModule
-from ..services.oops import oops
+from ..services.oops import NOT_READY, oops
 
 # The league charter lives in a shared Google Doc; CHARTER_URL overrides it per deployment.
 CHARTER_URL = os.getenv(
@@ -143,18 +143,18 @@ class CharterCog(commands.Cog):
         """Scan a channel for rule changes"""
 
         if not self.charter_editor:
-            await interaction.response.send_message("❌ Charter editor not available", ephemeral=True)
+            await interaction.response.send_message(NOT_READY, ephemeral=True)
             return
 
         if not self.channel_summarizer:
-            await interaction.response.send_message("❌ Channel summarizer not available", ephemeral=True)
+            await interaction.response.send_message(NOT_READY, ephemeral=True)
             return
 
         if hours < 24:
-            await interaction.response.send_message("❌ Need at least 24 hours of history!", ephemeral=True)
+            await interaction.response.send_message("❌ Give me at least 24 hours of history, mate.", ephemeral=True)
             return
         if hours > 720:
-            await interaction.response.send_message("❌ Max 720 hours (30 days)", ephemeral=True)
+            await interaction.response.send_message("❌ 30 days (720 hours) max, mate.", ephemeral=True)
             return
 
         await interaction.response.defer()
@@ -163,7 +163,7 @@ class CharterCog(commands.Cog):
             messages = await self.channel_summarizer.fetch_messages(channel, hours=hours, limit=500)
 
             if not messages:
-                await interaction.followup.send(f"❌ No messages found in {channel.mention} in the last {hours} hours")
+                await interaction.followup.send(f"❌ Nothing in {channel.mention} from the last {hours} hours, mate.")
                 return
 
             # Format messages
@@ -254,7 +254,7 @@ class CharterCog(commands.Cog):
         """Replace the stored charter with the text of the league's shared doc."""
 
         if not self.charter_editor:
-            await interaction.response.send_message("❌ Charter editor not available", ephemeral=True)
+            await interaction.response.send_message(NOT_READY, ephemeral=True)
             return
 
         await interaction.response.defer(ephemeral=True)
@@ -284,7 +284,7 @@ class CharterCog(commands.Cog):
         """Manually sync the charter"""
 
         if not self.charter_editor:
-            await interaction.response.send_message("❌ Charter editor not available", ephemeral=True)
+            await interaction.response.send_message(NOT_READY, ephemeral=True)
             return
 
         await interaction.response.defer(ephemeral=True)
@@ -305,7 +305,7 @@ class CharterCog(commands.Cog):
     async def history(self, interaction: discord.Interaction):
         """View recent charter update history"""
         if not self.charter_editor:
-            await interaction.response.send_message("❌ Charter editor not available", ephemeral=True)
+            await interaction.response.send_message(NOT_READY, ephemeral=True)
             return
 
         changes = self.charter_editor.get_recent_changes(limit=10)
@@ -399,7 +399,7 @@ class CharterCog(commands.Cog):
     ):
         """Add a new rule section"""
         if not self.charter_editor:
-            await interaction.response.send_message("❌ Charter editor not available", ephemeral=True)
+            await interaction.response.send_message(NOT_READY, ephemeral=True)
             return
 
         await interaction.response.defer()
@@ -480,7 +480,7 @@ class CharterCog(commands.Cog):
             return
 
         if not self.charter_editor:
-            await interaction.followup.send("❌ Charter editor not available", ephemeral=True)
+            await interaction.followup.send(NOT_READY, ephemeral=True)
             return
 
         try:
@@ -594,7 +594,7 @@ class CharterCog(commands.Cog):
     ):
         """Update an existing rule section"""
         if not self.charter_editor:
-            await interaction.response.send_message("❌ Charter editor not available", ephemeral=True)
+            await interaction.response.send_message(NOT_READY, ephemeral=True)
             return
 
         await interaction.response.defer()
@@ -627,7 +627,7 @@ class CharterCog(commands.Cog):
     async def backups(self, interaction: discord.Interaction):
         """View available charter backups"""
         if not self.charter_editor:
-            await interaction.response.send_message("❌ Charter editor not available", ephemeral=True)
+            await interaction.response.send_message(NOT_READY, ephemeral=True)
             return
 
         try:
@@ -637,7 +637,7 @@ class CharterCog(commands.Cog):
                 embed = discord.Embed(
                     title="📋 Charter Backups",
                     description="No backups found.",
-                    color=0x808080
+                    color=Colors.NEUTRAL
                 )
                 await interaction.response.send_message(embed=embed, ephemeral=True)
                 return
@@ -670,7 +670,7 @@ class CharterCog(commands.Cog):
     async def restore(self, interaction: discord.Interaction, backup_filename: str):
         """Restore the charter from a backup"""
         if not self.charter_editor:
-            await interaction.response.send_message("❌ Charter editor not available", ephemeral=True)
+            await interaction.response.send_message(NOT_READY, ephemeral=True)
             return
 
         await interaction.response.defer()
@@ -687,7 +687,7 @@ class CharterCog(commands.Cog):
                 await interaction.followup.send(embed=embed)
                 logger.info(f"Charter restored by {interaction.user} from {backup_filename}")
             else:
-                await interaction.followup.send("❌ Failed to restore. Check the filename.", ephemeral=True)
+                await interaction.followup.send("❌ Couldn't restore that, mate. Check the filename with `/charter backups`.", ephemeral=True)
 
         except Exception as e:
             logger.error(f"Error restoring backup: {e}")

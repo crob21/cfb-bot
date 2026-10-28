@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Dict, Optional
 
 import discord
+from ..config import Colors
 
 try:
     from zoneinfo import ZoneInfo  # Python 3.9+
@@ -477,7 +478,7 @@ class AdvanceTimer:
             embed = discord.Embed(
                 title=f"⏰ {hours} Hour{'s' if hours > 1 else ''} Remaining — {self.label}",
                 description=f"**{self.label}**: {hours} hour{'s' if hours > 1 else ''} left on the clock!",
-                color=0xffa500 if hours > 6 else 0xff4500,
+                color=Colors.WARNING if hours > 6 else 0xff4500,
             )
             embed.set_footer(text=f"Harry's Side Timer ⏱️ | Ends at {format_est_time(self.end_time, '%I:%M %p')}")
             try:
@@ -531,7 +532,7 @@ class AdvanceTimer:
                     f"RIGHT THEN, TIME'S UP FOR **{self.label}**!\n\n"
                     "Get your games done, ya muppets!"
                 ),
-                color=0xff0000,
+                color=Colors.ERROR,
             )
             embed.set_footer(text="Harry's Side Timer ⏱️")
             try:
@@ -566,7 +567,7 @@ class AdvanceTimer:
         embed = discord.Embed(
             title="⏰ TIME'S UP! LET'S ADVANCE! ⏰",
             description=description,
-            color=0xff0000
+            color=Colors.ERROR
         )
         embed.set_footer(text="Harry's Advance Timer 🏈")
 

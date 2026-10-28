@@ -49,7 +49,7 @@ from ..utils.server_config import server_config, FeatureModule
 from ..utils.timekeeper import (CFB_DYNASTY_WEEKS, FIRST_WEEK, LAST_WEEK, MAX_GAME_WEEK,
                                 get_game_week, get_week_info, get_week_name,
                                 is_valid_week)
-from ..services.oops import oops
+from ..services.oops import NOT_READY, NO_AI, oops
 
 
 logger = logging.getLogger('CFBBot.League')
@@ -94,7 +94,7 @@ class LeagueCog(commands.Cog):
 
         embed = discord.Embed(
             title=f"{GAME_NAME} Recruiting: {topic.title()}",
-            color=0x32cd32
+            color=Colors.SUCCESS
         )
 
         if hasattr(self.bot, 'league_data') and 'rules' in self.bot.league_data and 'recruiting' in self.bot.league_data['rules']:
@@ -126,7 +126,7 @@ class LeagueCog(commands.Cog):
         embed = discord.Embed(
             title=f"Team: {team_name.title()}",
             description="Team lookup functionality coming soon!",
-            color=0x32cd32
+            color=Colors.SUCCESS
         )
         embed.add_field(name="Status", value="🚧 Under Development", inline=False)
         await interaction.followup.send(embed=embed)
@@ -140,7 +140,7 @@ class LeagueCog(commands.Cog):
 
         embed = discord.Embed(
             title=f"{GAME_NAME} Dynasty: {topic.title()}",
-            color=0xff6b6b
+            color=Colors.FUN
         )
 
         if hasattr(self.bot, 'league_data') and 'rules' in self.bot.league_data:
@@ -174,14 +174,14 @@ class LeagueCog(commands.Cog):
         """Start the advance countdown timer"""
 
         if not self.timekeeper_manager:
-            await interaction.response.send_message("❌ Timekeeper not available", ephemeral=True)
+            await interaction.response.send_message(NOT_READY, ephemeral=True)
             return
 
         if hours < 1:
-            await interaction.response.send_message("❌ Hours must be at least 1!", ephemeral=True)
+            await interaction.response.send_message("❌ At least an hour, mate.", ephemeral=True)
             return
         if hours > 336:
-            await interaction.response.send_message("❌ Maximum is 336 hours (2 weeks)!", ephemeral=True)
+            await interaction.response.send_message("❌ Two weeks (336 hours) max, mate.", ephemeral=True)
             return
 
         await interaction.response.defer()
@@ -200,7 +200,7 @@ class LeagueCog(commands.Cog):
         success = await self.timekeeper_manager.start_timer(advance_channel, hours)
 
         if not success:
-            await interaction.followup.send("❌ Failed to start timer!", ephemeral=True)
+            await interaction.followup.send("❌ Couldn't start the timer, mate. Try again.", ephemeral=True)
             return
 
         current_step = season_info.get('week')
@@ -238,7 +238,7 @@ class LeagueCog(commands.Cog):
         """Start (or restart) a named countdown that never touches the dynasty week."""
 
         if not self.timekeeper_manager:
-            await interaction.response.send_message("❌ Timekeeper not available", ephemeral=True)
+            await interaction.response.send_message(NOT_READY, ephemeral=True)
             return
 
         name = league.strip()[:40]
@@ -246,7 +246,7 @@ class LeagueCog(commands.Cog):
             await interaction.response.send_message("❌ Give the league a name, mate.", ephemeral=True)
             return
         if hours < 1 or hours > 336:
-            await interaction.response.send_message("❌ Hours must be 1-336 (2 weeks).", ephemeral=True)
+            await interaction.response.send_message("❌ Hours run 1-336 (2 weeks), mate.", ephemeral=True)
             return
 
         await interaction.response.defer(ephemeral=True)
@@ -258,7 +258,7 @@ class LeagueCog(commands.Cog):
         )
         started = await self.timekeeper_manager.start_timer(interaction.channel, hours, label=name)
         if not started:
-            await interaction.followup.send("❌ Failed to start that timer!", ephemeral=True)
+            await interaction.followup.send("❌ Couldn't start the timer, mate. Try again.", ephemeral=True)
             return
 
         embed = discord.Embed(
@@ -286,7 +286,7 @@ class LeagueCog(commands.Cog):
         await interaction.response.defer(ephemeral=True)
 
         if not self.timekeeper_manager:
-            await interaction.followup.send("❌ Timekeeper not available", ephemeral=True)
+            await interaction.followup.send(NOT_READY, ephemeral=True)
             return
 
         stopped = await self.timekeeper_manager.stop_side_timer(league)
@@ -306,7 +306,7 @@ class LeagueCog(commands.Cog):
         await interaction.response.defer()
 
         if not self.timekeeper_manager:
-            await interaction.followup.send("❌ Timekeeper not available", ephemeral=True)
+            await interaction.followup.send(NOT_READY, ephemeral=True)
             return
 
         advance_channel = self.timekeeper_manager.get_advance_channel(interaction.channel)
@@ -322,7 +322,7 @@ class LeagueCog(commands.Cog):
             embed = discord.Embed(
                 title="⏰ No Countdown Active",
                 description="No countdown running. Use `/league timer` to start one.",
-                color=0x808080
+                color=Colors.NEUTRAL
             )
         else:
             hours = status['hours']
@@ -397,7 +397,7 @@ class LeagueCog(commands.Cog):
         await interaction.response.defer(ephemeral=True)
 
         if not self.timekeeper_manager:
-            await interaction.followup.send("❌ Timekeeper not available", ephemeral=True)
+            await interaction.followup.send(NOT_READY, ephemeral=True)
             return
 
         stopped = await self.timekeeper_manager.stop_all_timers()
@@ -415,7 +415,7 @@ class LeagueCog(commands.Cog):
         """List every active timer with a menu to stop them one at a time."""
 
         if not self.timekeeper_manager:
-            await interaction.response.send_message("❌ Timekeeper not available", ephemeral=True)
+            await interaction.response.send_message(NOT_READY, ephemeral=True)
             return
 
         invoker_id = interaction.user.id
@@ -426,7 +426,7 @@ class LeagueCog(commands.Cog):
                 return discord.Embed(
                     title="⏰ Active Timers",
                     description="No active advance timers right now.",
-                    color=0x808080,
+                    color=Colors.NEUTRAL,
                 ), active
             embed = discord.Embed(
                 title=f"⏰ Active Timers ({len(active)})",
@@ -490,7 +490,7 @@ class LeagueCog(commands.Cog):
     async def week(self, interaction: discord.Interaction):
         """Check the current season and week"""
         if not self.timekeeper_manager:
-            await interaction.response.send_message("❌ Timekeeper not available", ephemeral=True)
+            await interaction.response.send_message(NOT_READY, ephemeral=True)
             return
 
         season_info = self.timekeeper_manager.get_season_week()
@@ -499,7 +499,7 @@ class LeagueCog(commands.Cog):
             embed = discord.Embed(
                 title="📅 Season/Week Not Set",
                 description="An admin needs to use `/league set_week` to set it up.",
-                color=0x808080
+                color=Colors.NEUTRAL
             )
             await interaction.response.send_message(embed=embed)
             return
@@ -593,15 +593,15 @@ class LeagueCog(commands.Cog):
         """
         if week is not None:
             if week < 0 or week > MAX_GAME_WEEK:
-                return None, f"❌ Week must be 0-{MAX_GAME_WEEK}."
+                return None, f"❌ Weeks run 0-{MAX_GAME_WEEK}, mate."
             return week, None
 
         if not self.timekeeper_manager:
-            return None, "❌ Week not specified and current week not set!"
+            return None, "❌ Which week, mate? I don't know the current one, so pass a week or have an admin run `/league set_week`."
         season_info = self.timekeeper_manager.get_season_week()
         current_step = season_info.get('week')
         if current_step is None:
-            return None, "❌ Week not specified and current week not set!"
+            return None, "❌ Which week, mate? I don't know the current one, so pass a week or have an admin run `/league set_week`."
 
         game_week = get_game_week(current_step)
         if game_week is None:
@@ -625,7 +625,7 @@ class LeagueCog(commands.Cog):
             return
 
         if not self.schedule_manager:
-            await interaction.followup.send("❌ Schedule manager not available", ephemeral=True)
+            await interaction.followup.send(NOT_READY, ephemeral=True)
             return
 
         week_data = self.schedule_manager.get_week_schedule(target_week)
@@ -679,7 +679,7 @@ class LeagueCog(commands.Cog):
         await interaction.response.defer()
 
         if not self.schedule_manager:
-            await interaction.followup.send("❌ Schedule manager not available", ephemeral=True)
+            await interaction.followup.send(NOT_READY, ephemeral=True)
             return
 
         current_game_week, _ = self._resolve_game_week(None)
@@ -758,7 +758,7 @@ class LeagueCog(commands.Cog):
             return
 
         if not self.schedule_manager:
-            await interaction.followup.send("❌ Schedule manager not available", ephemeral=True)
+            await interaction.followup.send(NOT_READY, ephemeral=True)
             return
 
         # Use schedule_manager's get_team_game method which handles formatting
@@ -804,7 +804,7 @@ class LeagueCog(commands.Cog):
             return
 
         if not self.schedule_manager:
-            await interaction.followup.send("❌ Schedule manager not available", ephemeral=True)
+            await interaction.followup.send(NOT_READY, ephemeral=True)
             return
 
         bye_teams = self.schedule_manager.get_bye_teams(target_week)
@@ -837,12 +837,12 @@ class LeagueCog(commands.Cog):
         await interaction.response.defer(ephemeral=True)
 
         if not self.timekeeper_manager:
-            await interaction.followup.send("❌ Timekeeper not available", ephemeral=True)
+            await interaction.followup.send(NOT_READY, ephemeral=True)
             return
 
         if season < 1 or not is_valid_week(week):
             await interaction.followup.send(
-                f"❌ Invalid season/week! Season must be ≥ 1 and week must be a step number {FIRST_WEEK}-{LAST_WEEK} (see `/league weeks`).",
+                f"❌ That's not a real week, mate. Season is 1 or more, and week is a step {FIRST_WEEK}-{LAST_WEEK} (see `/league weeks`).",
                 ephemeral=True,
             )
             return
@@ -858,7 +858,7 @@ class LeagueCog(commands.Cog):
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
         else:
-            await interaction.followup.send("❌ Failed to set season/week!", ephemeral=True)
+            await interaction.followup.send("❌ Couldn't set the week, mate. Try again.", ephemeral=True)
 
     @league_group.command(name="upload_schedule", description="Upload a full schedule JSON file (Admin only)")
     @app_commands.describe(file="A .json schedule file (see /league schedule_template for the format)")
@@ -868,16 +868,16 @@ class LeagueCog(commands.Cog):
         """Replace the league schedule from an uploaded JSON file — no git needed."""
 
         if not self.schedule_manager:
-            await interaction.response.send_message("❌ Schedule manager not available", ephemeral=True)
+            await interaction.response.send_message(NOT_READY, ephemeral=True)
             return
 
         await interaction.response.defer(ephemeral=True)
 
         if not file.filename.lower().endswith('.json'):
-            await interaction.followup.send("❌ Please upload a `.json` file.", ephemeral=True)
+            await interaction.followup.send("❌ That's not a `.json` file, mate.", ephemeral=True)
             return
         if file.size > 1_000_000:  # 1 MB sanity cap
-            await interaction.followup.send("❌ That file is too large (max 1 MB).", ephemeral=True)
+            await interaction.followup.send("❌ That file's too big, mate. Max 1 MB.", ephemeral=True)
             return
 
         import json as _json
@@ -890,7 +890,7 @@ class LeagueCog(commands.Cog):
 
         ok, err = self.schedule_manager.validate_schedule(data)
         if not ok:
-            await interaction.followup.send(f"❌ Invalid schedule: {err}", ephemeral=True)
+            await interaction.followup.send(f"❌ That schedule doesn't hold up, mate: {err}", ephemeral=True)
             return
 
         self.schedule_manager.load_from_dict(data)
@@ -920,11 +920,11 @@ class LeagueCog(commands.Cog):
         await interaction.response.defer(ephemeral=True)
 
         if not self.schedule_manager:
-            await interaction.followup.send("❌ Schedule manager not available", ephemeral=True)
+            await interaction.followup.send(NOT_READY, ephemeral=True)
             return
         if week < 0 or week > MAX_GAME_WEEK:
             await interaction.followup.send(
-                f"❌ Week must be 0-{MAX_GAME_WEEK}.", ephemeral=True
+                f"❌ Weeks run 0-{MAX_GAME_WEEK}, mate.", ephemeral=True
             )
             return
 
@@ -1006,7 +1006,7 @@ class LeagueCog(commands.Cog):
         await interaction.response.defer(ephemeral=True)
 
         if not self.timekeeper_manager:
-            await interaction.followup.send("❌ Timekeeper not available", ephemeral=True)
+            await interaction.followup.send(NOT_READY, ephemeral=True)
             return
 
         success = await self.timekeeper_manager.set_notification_channel(channel.id)
@@ -1018,14 +1018,14 @@ class LeagueCog(commands.Cog):
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
         else:
-            await interaction.followup.send("❌ Failed to save!", ephemeral=True)
+            await interaction.followup.send("❌ Couldn't save that, mate. Try again.", ephemeral=True)
 
     @league_group.command(name="staff", description="View the current league owner and co-commissioner")
     @requires_module(FeatureModule.LEAGUE)
     async def staff(self, interaction: discord.Interaction):
         """View current league staff"""
         if not self.timekeeper_manager:
-            await interaction.response.send_message("❌ Timekeeper not available", ephemeral=True)
+            await interaction.response.send_message(NOT_READY, ephemeral=True)
             return
 
         staff_info = self.timekeeper_manager.get_league_staff()
@@ -1052,7 +1052,7 @@ class LeagueCog(commands.Cog):
         await interaction.response.defer(ephemeral=True)
 
         if not self.timekeeper_manager:
-            await interaction.followup.send("❌ Timekeeper not available", ephemeral=True)
+            await interaction.followup.send(NOT_READY, ephemeral=True)
             return
 
         await self.timekeeper_manager.set_league_owner(user.id, user.display_name)
@@ -1079,7 +1079,7 @@ class LeagueCog(commands.Cog):
         """Set the co-commissioner"""
 
         if not self.timekeeper_manager:
-            await interaction.response.send_message("❌ Timekeeper not available", ephemeral=True)
+            await interaction.response.send_message(NOT_READY, ephemeral=True)
             return
 
         if none:
@@ -1097,7 +1097,7 @@ class LeagueCog(commands.Cog):
                 color=Colors.SUCCESS
             )
         else:
-            await interaction.response.send_message("❌ Provide a user or set `none:True`", ephemeral=True)
+            await interaction.response.send_message("❌ Give me a user, mate, or set `none:True`.", ephemeral=True)
             return
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
@@ -1122,15 +1122,15 @@ class LeagueCog(commands.Cog):
             return
 
         if not self.channel_summarizer:
-            await interaction.followup.send("❌ Channel summarizer not available", ephemeral=True)
+            await interaction.followup.send(NOT_READY, ephemeral=True)
             return
 
         if not self.AI_AVAILABLE or not self.ai_assistant:
-            await interaction.followup.send("❌ AI not available for this analysis", ephemeral=True)
+            await interaction.followup.send(NO_AI, ephemeral=True)
             return
 
         if hours < 24 or hours > 720:
-            await interaction.followup.send("❌ Hours must be between 24 and 720!", ephemeral=True)
+            await interaction.followup.send("❌ Hours run 24-720, mate.", ephemeral=True)
             return
 
         target_channel = channel or interaction.channel
@@ -1139,7 +1139,7 @@ class LeagueCog(commands.Cog):
             messages = await self.channel_summarizer.fetch_messages(target_channel, hours, limit=1000)
 
             if not messages or len(messages) < 10:
-                await interaction.followup.send("❌ Not enough chat activity to analyze!")
+                await interaction.followup.send("❌ Not enough chat to go on, mate.")
                 return
 
             # Count participation
@@ -1204,7 +1204,7 @@ class LeagueCog(commands.Cog):
             return
 
         if not self.timekeeper_manager:
-            await interaction.followup.send("❌ Timekeeper not available", ephemeral=True)
+            await interaction.followup.send(NOT_READY, ephemeral=True)
             return
 
         if action == "stop":
@@ -1218,7 +1218,7 @@ class LeagueCog(commands.Cog):
             return
 
         if interval < 1 or interval > 1440:
-            await interaction.followup.send("❌ Interval must be 1-1440 minutes.", ephemeral=True)
+            await interaction.followup.send("❌ Intervals run 1-1440 minutes, mate.", ephemeral=True)
             return
 
         staff = self.timekeeper_manager.get_league_staff()

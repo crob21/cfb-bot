@@ -23,6 +23,7 @@ from discord.ext import commands
 from ..config import Colors
 from ..services.checks import requires_admin, requires_module
 from ..utils.server_config import FeatureModule, server_config
+from ..services.oops import SERVERS_ONLY
 
 logger = logging.getLogger('CFBBot.Fun')
 
@@ -186,11 +187,11 @@ class FunCog(commands.Cog):
 
         # Validation
         if timeout < 1:
-            await interaction.response.send_message("❌ Timeout must be at least 1 minute!", ephemeral=True)
+            await interaction.response.send_message("❌ Timeouts run 1-1440 minutes (24 hours), mate.", ephemeral=True)
             return
 
         if timeout > 1440:  # 24 hours
-            await interaction.response.send_message("❌ Timeout can't exceed 1440 minutes (24 hours)!", ephemeral=True)
+            await interaction.response.send_message("❌ Timeouts run 1-1440 minutes (24 hours), mate.", ephemeral=True)
             return
 
         if user.bot:
@@ -198,7 +199,7 @@ class FunCog(commands.Cog):
             return
 
         if not interaction.guild_id:
-            await interaction.response.send_message("❌ This command only works in a server!", ephemeral=True)
+            await interaction.response.send_message(SERVERS_ONLY, ephemeral=True)
             return
 
         guild_targets = self._targets_for_guild(interaction.guild_id)
@@ -227,7 +228,7 @@ class FunCog(commands.Cog):
                        f"{engage_text}\n"
                        f"🤫 **Silent mode:** They won't know it's intentional\n\n"
                        f"Harry will respond to their messages with creative greetings and argue if they fight back!",
-            color=0xff6b6b
+            color=Colors.FUN
         )
         embed.set_footer(text="Use /fun toggle_engage to disable | /fun status to check")
 
@@ -244,7 +245,7 @@ class FunCog(commands.Cog):
             return
 
         if not interaction.guild_id:
-            await interaction.response.send_message("❌ This command only works in a server!", ephemeral=True)
+            await interaction.response.send_message(SERVERS_ONLY, ephemeral=True)
             return
 
         guild_targets = self._targets_for_guild(interaction.guild_id)
@@ -256,12 +257,12 @@ class FunCog(commands.Cog):
                 title="🛑 Target Released",
                 description=f"**{user.display_name}** is no longer being trolled.\n\n"
                            f"They can live in peace... for now.",
-                color=0x00ff00
+                color=Colors.SUCCESS
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
         else:
             await interaction.response.send_message(
-                f"❌ {user.display_name} isn't being targeted in this server!",
+                f"❌ {user.display_name} isn't on my list here, mate.",
                 ephemeral=True
             )
 
@@ -286,13 +287,13 @@ class FunCog(commands.Cog):
         # Validation
         if timeout < 1 or timeout > 1440:
             await interaction.response.send_message(
-                "❌ Timeout must be between 1 and 1440 minutes (24 hours)!",
+                "❌ Timeouts run 1-1440 minutes (24 hours), mate.",
                 ephemeral=True
             )
             return
 
         if not interaction.guild_id:
-            await interaction.response.send_message("❌ This command only works in a server!", ephemeral=True)
+            await interaction.response.send_message(SERVERS_ONLY, ephemeral=True)
             return
 
         guild_targets = self._targets_for_guild(interaction.guild_id)
@@ -311,7 +312,7 @@ class FunCog(commands.Cog):
             await interaction.response.send_message(embed=embed, ephemeral=True)
         else:
             await interaction.response.send_message(
-                f"❌ {user.display_name} isn't being targeted in this server! Use `/fun target` first.",
+                f"❌ {user.display_name} isn't on my list here, mate. Use `/fun target` first.",
                 ephemeral=True
             )
 
@@ -326,13 +327,13 @@ class FunCog(commands.Cog):
             return
 
         if not interaction.guild_id:
-            await interaction.response.send_message("❌ This command only works in a server!", ephemeral=True)
+            await interaction.response.send_message(SERVERS_ONLY, ephemeral=True)
             return
 
         guild_targets = self._targets_for_guild(interaction.guild_id)
         if user.id not in guild_targets:
             await interaction.response.send_message(
-                f"❌ {user.display_name} isn't being targeted in this server! Use `/fun target` first.",
+                f"❌ {user.display_name} isn't on my list here, mate. Use `/fun target` first.",
                 ephemeral=True
             )
             return
@@ -353,7 +354,7 @@ class FunCog(commands.Cog):
             title=f"{status_emoji} Engage Mode {'Activated' if new_state else 'Deactivated'}",
             description=f"**{user.display_name}** engage mode: **{status_text}**\n\n"
                        f"{'Harry will now use AI to generate contextual comebacks when they reply!' if new_state else 'Harry will ignore their responses.'}",
-            color=0xff0000 if new_state else 0x808080
+            color=Colors.ERROR if new_state else 0x808080
         )
         embed.set_footer(text="Argument counter reset to 0 | Max 5 arguments per user")
         await interaction.response.send_message(embed=embed, ephemeral=True)
@@ -368,7 +369,7 @@ class FunCog(commands.Cog):
             return
 
         if not interaction.guild_id:
-            await interaction.response.send_message("❌ This command only works in a server!", ephemeral=True)
+            await interaction.response.send_message(SERVERS_ONLY, ephemeral=True)
             return
 
         guild_targets = self._targets_for_guild(interaction.guild_id)
@@ -382,7 +383,7 @@ class FunCog(commands.Cog):
             embed = discord.Embed(
                 title="📋 Active Targets (this server)",
                 description=f"Currently trolling **{len(guild_targets)}** user(s) in this server:",
-                color=0xff6b6b
+                color=Colors.FUN
             )
 
             for info in guild_targets.values():
@@ -439,7 +440,7 @@ class FunCog(commands.Cog):
         # Validation
         if timeout < 1 or timeout > 1440:
             await interaction.response.send_message(
-                "❌ Timeout must be between 1 and 1440 minutes (24 hours)!",
+                "❌ Timeouts run 1-1440 minutes (24 hours), mate.",
                 ephemeral=True
             )
             return
@@ -450,7 +451,7 @@ class FunCog(commands.Cog):
 
         if not user_ids:
             await interaction.response.send_message(
-                "❌ No valid user mentions found!\n\n"
+                "❌ Didn't spot any user mentions in that, mate.\n\n"
                 "**Usage:** `/fun target_all users:@user1 @user2 @user3 timeout:30`",
                 ephemeral=True
             )
@@ -458,7 +459,7 @@ class FunCog(commands.Cog):
 
         # Get guild members
         if not interaction.guild:
-            await interaction.response.send_message("❌ This command only works in servers!", ephemeral=True)
+            await interaction.response.send_message(SERVERS_ONLY, ephemeral=True)
             return
 
         guild_targets = self._targets_for_guild(interaction.guild_id)
@@ -497,7 +498,7 @@ class FunCog(commands.Cog):
         # Build response
         if not added:
             await interaction.response.send_message(
-                "❌ No users were added!\n\n" +
+                "❌ Nobody got added, mate.\n\n" +
                 (f"**Skipped:** {', '.join(skipped)}" if skipped else ""),
                 ephemeral=True
             )
@@ -513,7 +514,7 @@ class FunCog(commands.Cog):
                        f"⏱️ **Timeout:** {timeout} minutes\n"
                        f"{engage_text}\n"
                        f"🤫 **Silent mode:** They won't know it's intentional",
-            color=0xff6b6b
+            color=Colors.FUN
         )
 
         embed.add_field(
@@ -583,12 +584,12 @@ Do NOT start with "Oh," or "Look," - start directly with the roast."""
             return
 
         if not interaction.guild_id:
-            await interaction.response.send_message("❌ This command only works in a server!", ephemeral=True)
+            await interaction.response.send_message(SERVERS_ONLY, ephemeral=True)
             return
 
         guild_targets = self._targets_for_guild(interaction.guild_id)
         if not guild_targets:
-            await interaction.response.send_message("❌ No active targets in this server to remove!", ephemeral=True)
+            await interaction.response.send_message("❌ Nobody's being trolled here, mate.", ephemeral=True)
             return
 
         count = len(guild_targets)
@@ -601,7 +602,7 @@ Do NOT start with "Oh," or "Look," - start directly with the roast."""
             title="🛑 All Targets Released (this server)",
             description=f"Removed **{count} users** from trolling list in this server.\n\n"
                        f"They can live in peace here... for now.",
-            color=0x00ff00
+            color=Colors.SUCCESS
         )
 
         if len(target_names) <= 10:

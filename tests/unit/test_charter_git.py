@@ -269,5 +269,5 @@ class TestCharterNeedsTheLeagueModule:
              patch.object(charter_git.CharterPullRequest, 'open', AsyncMock()) as opened:
             await cog.propose.callback(cog, interaction, instruction="x", summary="y")
         interaction.response.defer.assert_awaited_once()  # still acknowledged first
-        assert "module is disabled" in interaction.followup.send.call_args.args[0]
+        assert "module is switched off" in interaction.followup.send.call_args.args[0]
         opened.assert_not_awaited()

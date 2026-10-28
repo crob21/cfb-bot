@@ -39,3 +39,12 @@ async def oops(interaction: discord.Interaction, error: BaseException) -> None:
             await interaction.response.send_message(OOPS, ephemeral=True)
     except Exception:
         pass  # Interaction may have expired; the owner already has the report
+
+
+# Shown when a dependency hasn't been wired up yet, which in practice means the bot is
+# still starting up. Nothing the user did, nothing they can fix.
+NOT_READY = "❌ Give us a sec, mate. I'm still waking up. Try again in a minute."
+
+SERVERS_ONLY = "❌ Servers only, mate. Not in DMs."
+
+NO_AI = "❌ My brain's not plugged in, mate. No AI is configured."
