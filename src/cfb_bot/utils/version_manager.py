@@ -15,11 +15,49 @@ def version_key(version: str) -> tuple:
     return tuple(int(part) for part in version.split('.'))
 
 # Current version
-CURRENT_VERSION = "3.25.0"
+CURRENT_VERSION = "3.26.0"
 
 # Recent releases, newest first. /changelog reads these; the full history is in
 # docs/CHANGELOG.md. Add new releases at the top.
 CHANGELOG: Dict[str, Dict] = {
+    "3.26.0": {
+        "date": "2026-10-28",
+        "title": "The Big Tidy 🧹",
+        "emoji": "🧹",
+        "features": [
+            {
+                "category": "Fixes",
+                "emoji": "🔧",
+                "changes": [
+                    "FIX: /charter search works (it called a method that didn't exist)",
+                    "FIX: /charter add, update and restore survive a restart (they only wrote the local file)",
+                    "FIX: /league set_commish works (it called a method that didn't exist)",
+                    "FIX: /whats_new lists the changes again",
+                    "FIX: Long /harry and /ask questions no longer break the reply",
+                    "FIX: /cfb player checks this year's transfer portal, not 2024's",
+                    "FIX: Saving one setting can't wipe the others; cost history no longer outgrows its Discord message"
+                ]
+            },
+            {
+                "category": "Banter",
+                "emoji": "🎭",
+                "changes": [
+                    "Team banter matches whole names: Oregon State gets BEAVS!, Michigan State isn't Michigan, millions isn't the Lions",
+                    "Trolled users saying hello or class no longer start an argument"
+                ]
+            },
+            {
+                "category": "Cleanup",
+                "emoji": "🧹",
+                "changes": [
+                    "Removed /league rules, /league dynasty and /charter lookup, which could never find anything. Use /charter search",
+                    "Timer state lives only in the owner DM; no more JSON posted in channels",
+                    "/league pick_commish no longer needs an AI key; /tokens counts Anthropic too",
+                    "Command reference rewritten to match the bot, and tested so it stays that way"
+                ]
+            }
+        ]
+    },
     "3.25.0": {
         "date": "2026-10-28",
         "title": "Harry the Historian 📜",

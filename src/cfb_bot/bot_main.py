@@ -86,6 +86,8 @@ _startup_complete = False
 version_manager = None
 schedule_manager = None
 _background_tasks = set()
+# guild id -> commands synced at startup, for the dev-channel status embed
+_sync_results = {}
 
 
 async def setup_dependencies():
@@ -242,6 +244,7 @@ async def on_ready():
         for guild in bot.guilds:
             bot.tree.copy_global_to(guild=guild)
             synced = await bot.tree.sync(guild=guild)
+            _sync_results[guild.id] = len(synced)
             logger.info(f"Synced {len(synced)} command(s) to {guild.name}")
 
         # Global sync (takes up to 1 hour for other servers)
@@ -330,7 +333,8 @@ async def send_startup_notification():
     # ⚙️ Command Sync Status
     sync_status = []
     for guild in bot.guilds:
-        sync_status.append(f"• **{guild.name}**: Synced ✅")
+        count = _sync_results.get(guild.id)
+        sync_status.append(f"• **{guild.name}**: " + (f"{count} commands ✅" if count is not None else "not synced ❌"))
 
     embed.add_field(
         name="⚙️ Command Sync Status",
@@ -420,10 +424,12 @@ async def on_app_command_error(interaction: discord.Interaction, error):
     original = getattr(error, 'original', error)
     command_name = interaction.command.qualified_name if interaction.command else "unknown command"
 
-    # Expected, user-facing conditions — no need to wake the owner
-    if isinstance(error, (app_commands.CommandOnCooldown, app_commands.MissingPermissions,
-                          app_commands.CheckFailure)):
-        message = f"❌ {error}"
+    # Expected, user-facing conditions — no need to wake the owner. Harry's words,
+    # not discord.py's ("The check functions for command ... failed").
+    if isinstance(error, app_commands.CommandOnCooldown):
+        message = f"❌ Slow down, mate. Try again in {error.retry_after:.0f}s."
+    elif isinstance(error, (app_commands.MissingPermissions, app_commands.CheckFailure)):
+        message = "❌ You can't use that one here, mate."
     else:
         logger.error(f"Error in /{command_name}: {original}", exc_info=original)
         from .utils.error_reporter import get_error_reporter
