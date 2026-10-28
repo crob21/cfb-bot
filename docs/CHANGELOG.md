@@ -3,6 +3,14 @@
 Full release history for Harry. The bot's `/changelog` command shows the most recent releases;
 this file keeps everything. Generated from `src/cfb_bot/utils/version_manager.py`.
 
+## 3.25.0 — Harry the Historian 📜 (2026-10-28)
+
+### Charter
+- NEW: At End of Season Recap Harry opens a history thread with what he found and questions for the gaps
+- Answer him there; a charter editor says done and he opens a charter PR with the season's history
+- Champion, playoff teams, big moments, job changes and retirements. He asks rather than guesses
+- /charter season_recap starts it by hand, or finishes it when run inside the thread
+
 ## 3.24.0 — Ghosts & Grudge Matches 👻 (2026-10-28)
 
 ### League

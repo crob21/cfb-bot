@@ -105,7 +105,7 @@ Discord Owner: BOOZEROB
 * SpartyMO - Michigan State  
 * BALK3 - USC 🙁
 
-**5. League History**
+## **5. League History**
 
 ### 2025 Season
 
