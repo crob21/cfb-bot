@@ -535,3 +535,44 @@ class TestSideLeagueTimers:
         # the command acknowledges first, so its reply comes back as a followup
         reply = mock_interaction.followup.send.call_args[0][0]
         assert "No **NBA2K**" in reply and "Madden" in reply
+
+
+class TestUploadReachesHarry:
+    """An uploaded schedule must be what Harry's AI answers from, not just /league."""
+
+    @pytest.mark.asyncio
+    async def test_upload_updates_the_shared_schedule(self, mock_interaction, mock_server_config):
+        import json
+        from cfb_bot.cogs.league import LeagueCog
+        from cfb_bot.ai.ai_integration import user_team_names
+        from cfb_bot.utils import schedule_manager as sm
+
+        with patch.object(sm, 'schedule_manager', None):  # fresh singleton for this test
+            shared = sm.get_schedule_manager()
+            shared.save_to_discord = AsyncMock(return_value=True)
+
+            upload = MagicMock()
+            upload.filename = "schedule.json"
+            upload.size = 100
+            upload.read = AsyncMock(return_value=json.dumps({
+                "season": 9, "teams": ["Syracuse"],
+                "schedule": {"0": {"bye_teams": ["Syracuse"], "games": []}},
+            }).encode())
+
+            with patch('cfb_bot.cogs.league.server_config', mock_server_config):
+                cog = LeagueCog(MagicMock())
+                cog.schedule_manager = shared
+                cog._is_league_admin = MagicMock(return_value=True)
+                await cog.upload_schedule.callback(cog, mock_interaction, upload)
+
+            assert user_team_names() == ["Syracuse"]
+            assert sm.get_schedule_manager().season == 9
+
+
+def test_bot_wires_the_shared_schedule_manager():
+    """bot_main must hand the cogs the same instance the AI reads."""
+    import inspect
+    from cfb_bot import bot_main
+    source = inspect.getsource(bot_main)
+    assert "get_schedule_manager()" in source
+    assert "ScheduleManager()" not in source
