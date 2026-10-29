@@ -588,14 +588,14 @@ async def on_message(message):
     if message.author.bot:
         return
 
-    # Halloween week: 🎃 / 👻 / 🪦 on every post from certain members
-    from .utils.halloween import halloween_reaction, is_halloween
-    reaction = halloween_reaction(message.author) if is_halloween() else None
+    # Holiday reactions (Halloween week: 🎃 / 👻 / 🪦) on every post from certain members
+    from .utils.holidays import current_holiday, holiday_reaction
+    reaction = holiday_reaction(message.author, current_holiday())
     if reaction:
         try:
             await message.add_reaction(reaction)
         except discord.HTTPException as e:
-            logger.warning(f"Could not add Halloween reaction: {e}")
+            logger.warning(f"Could not add holiday reaction: {e}")
 
     # PRIORITY: Check for @everyone/@here + "advanced" to restart timer
     # This advances the week and restarts the countdown (available to everyone)
