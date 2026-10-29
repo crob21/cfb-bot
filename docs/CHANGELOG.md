@@ -3,6 +3,21 @@
 Full release history for Harry. The bot's `/changelog` command shows the most recent releases;
 this file keeps everything. Generated from `src/cfb_bot/utils/version_manager.py`.
 
+## 3.27.0 — Second Tidy 🧽 (2026-10-29)
+
+### Fixes
+- FIX: On3 lookups gave up before trying Zyte when the free methods were blocked or errored; every fallback is tried now
+- FIX: /admin budget reconcile could overwrite the month's AI spend with $0; it reconciles Zyte only
+- FIX: A timer that runs out while Harry is restarting still gets its TIME'S UP (within 12 hours)
+- FIX: /recruiting rankings errors left 'Harry is thinking...' up forever
+- FIX: /tokens shows saved counts straight away, names the real models, and no longer claims to reset on restart
+
+### Simpler
+- Removed /admin ai (repeated /tokens with gpt-3.5-turbo labels) and /recruiting portal (/recruiting player does it)
+- /admin zyte is one view instead of three
+- /admin and /fun are hidden in DMs
+- 247Sports and On3 share their cache and card formatting code
+
 ## 3.26.1 — Spooky All the Way 👻 (2026-10-29)
 
 ### Holidays

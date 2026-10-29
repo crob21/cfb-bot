@@ -15,11 +15,39 @@ def version_key(version: str) -> tuple:
     return tuple(int(part) for part in version.split('.'))
 
 # Current version
-CURRENT_VERSION = "3.26.1"
+CURRENT_VERSION = "3.27.0"
 
 # Recent releases, newest first. /changelog reads these; the full history is in
 # docs/CHANGELOG.md. Add new releases at the top.
 CHANGELOG: Dict[str, Dict] = {
+    "3.27.0": {
+        "date": "2026-10-29",
+        "title": "Second Tidy 🧽",
+        "emoji": "🧽",
+        "features": [
+            {
+                "category": "Fixes",
+                "emoji": "🐛",
+                "changes": [
+                    "FIX: On3 lookups gave up before trying Zyte when the free methods were blocked or errored; every fallback is tried now",
+                    "FIX: /admin budget reconcile could overwrite the month's AI spend with $0; it reconciles Zyte only",
+                    "FIX: A timer that runs out while Harry is restarting still gets its TIME'S UP (within 12 hours)",
+                    "FIX: /recruiting rankings errors left 'Harry is thinking...' up forever",
+                    "FIX: /tokens shows saved counts straight away, names the real models, and no longer claims to reset on restart"
+                ]
+            },
+            {
+                "category": "Simpler",
+                "emoji": "🧹",
+                "changes": [
+                    "Removed /admin ai (repeated /tokens with gpt-3.5-turbo labels) and /recruiting portal (/recruiting player does it)",
+                    "/admin zyte is one view instead of three",
+                    "/admin and /fun are hidden in DMs",
+                    "247Sports and On3 share their cache and card formatting code"
+                ]
+            }
+        ]
+    },
     "3.26.1": {
         "date": "2026-10-29",
         "title": "Spooky All the Way 👻",
