@@ -23,7 +23,6 @@ from discord.ext import commands
 from ..config import Colors
 from ..services.checks import requires_admin, requires_module
 from ..utils.server_config import FeatureModule, server_config
-from ..services.oops import SERVERS_ONLY
 
 logger = logging.getLogger('CFBBot.Fun')
 
@@ -204,7 +203,8 @@ class FunCog(commands.Cog):
     # Command group
     fun_group = app_commands.Group(
         name="fun",
-        description="🎭 Secret fun commands (Admin only)"
+        description="🎭 Secret fun commands (Admin only)",
+        guild_only=True,  # servers only; Discord hides it in DMs
     )
 
     @fun_group.command(name="target", description="🎯 Start trolling a user (Admin only)")
@@ -240,10 +240,6 @@ class FunCog(commands.Cog):
 
         if user.bot:
             await interaction.response.send_message("❌ Can't target bots, mate!", ephemeral=True)
-            return
-
-        if not interaction.guild_id:
-            await interaction.response.send_message(SERVERS_ONLY, ephemeral=True)
             return
 
         guild_targets = self._targets_for_guild(interaction.guild_id)
@@ -286,10 +282,6 @@ class FunCog(commands.Cog):
         """Disable trolling for a specific user"""
         # Check for duplicate interactions
         if self._is_duplicate_interaction(interaction):
-            return
-
-        if not interaction.guild_id:
-            await interaction.response.send_message(SERVERS_ONLY, ephemeral=True)
             return
 
         guild_targets = self._targets_for_guild(interaction.guild_id)
@@ -336,10 +328,6 @@ class FunCog(commands.Cog):
             )
             return
 
-        if not interaction.guild_id:
-            await interaction.response.send_message(SERVERS_ONLY, ephemeral=True)
-            return
-
         guild_targets = self._targets_for_guild(interaction.guild_id)
         if user.id in guild_targets:
             old_timeout = guild_targets[user.id]['timeout']
@@ -368,10 +356,6 @@ class FunCog(commands.Cog):
         """Toggle whether Harry will argue back if they respond"""
         # Check for duplicate interactions
         if self._is_duplicate_interaction(interaction):
-            return
-
-        if not interaction.guild_id:
-            await interaction.response.send_message(SERVERS_ONLY, ephemeral=True)
             return
 
         guild_targets = self._targets_for_guild(interaction.guild_id)
@@ -410,10 +394,6 @@ class FunCog(commands.Cog):
         """View all currently targeted users"""
         # Check for duplicate interactions
         if self._is_duplicate_interaction(interaction):
-            return
-
-        if not interaction.guild_id:
-            await interaction.response.send_message(SERVERS_ONLY, ephemeral=True)
             return
 
         guild_targets = self._targets_for_guild(interaction.guild_id)
@@ -502,10 +482,6 @@ class FunCog(commands.Cog):
             return
 
         # Get guild members
-        if not interaction.guild:
-            await interaction.response.send_message(SERVERS_ONLY, ephemeral=True)
-            return
-
         guild_targets = self._targets_for_guild(interaction.guild_id)
 
         # Add all mentioned users (this server only)
@@ -625,10 +601,6 @@ Do NOT start with "Oh," or "Look," - start directly with the roast."""
         """Disable trolling for all users at once"""
         # Check for duplicate interactions
         if self._is_duplicate_interaction(interaction):
-            return
-
-        if not interaction.guild_id:
-            await interaction.response.send_message(SERVERS_ONLY, ephemeral=True)
             return
 
         guild_targets = self._targets_for_guild(interaction.guild_id)

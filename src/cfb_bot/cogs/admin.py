@@ -27,7 +27,7 @@ from discord.ext import commands
 from ..config import Colors, Footers
 from ..utils.server_config import server_config, FeatureModule
 from ..services.checks import ADMINS_ONLY, requires_admin
-from ..services.oops import NOT_READY, SERVERS_ONLY, oops
+from ..services.oops import NOT_READY, oops
 
 logger = logging.getLogger('CFBBot.Admin')
 
@@ -56,7 +56,8 @@ class AdminCog(commands.Cog):
     # Command group
     admin_group = app_commands.Group(
         name="admin",
-        description="🔧 Admin commands for managing Harry"
+        description="🔧 Admin commands for managing Harry",
+        guild_only=True,  # servers only; Discord hides it in DMs
     )
 
     @admin_group.command(name="set_channel", description="Set the channel for admin outputs")
@@ -73,10 +74,6 @@ class AdminCog(commands.Cog):
     ):
         """Set the admin notification channel"""
         await interaction.response.defer(ephemeral=True)
-
-        if not interaction.guild:
-            await interaction.followup.send(SERVERS_ONLY, ephemeral=True)
-            return
 
         if channel:
             target_channel_id = channel.id
@@ -302,13 +299,6 @@ class AdminCog(commands.Cog):
         # Defer IMMEDIATELY to prevent timeout (building the embed is slow)
         if action == "view":
             await interaction.response.defer(ephemeral=True)
-
-        if not interaction.guild:
-            if action == "view":
-                await interaction.followup.send(SERVERS_ONLY, ephemeral=True)
-            else:
-                await interaction.response.send_message(SERVERS_ONLY, ephemeral=True)
-            return
 
         guild_id = interaction.guild.id
 
@@ -562,10 +552,6 @@ class AdminCog(commands.Cog):
         channel: Optional[discord.TextChannel] = None
     ):
         """Manage channel whitelist"""
-        if not interaction.guild:
-            await interaction.response.send_message(SERVERS_ONLY, ephemeral=True)
-            return
-
         guild_id = interaction.guild.id
         target_channel = channel or interaction.channel
 
@@ -646,9 +632,6 @@ class AdminCog(commands.Cog):
     @requires_admin()
     async def zyte_usage(self, interaction: discord.Interaction):
         """This session's Zyte requests, plus Zyte's own 30-day stats when the dashboard key is set."""
-        if not interaction.guild:
-            await interaction.response.send_message(SERVERS_ONLY, ephemeral=True)
-            return
         await interaction.response.defer(ephemeral=True)
 
         from .recruiting import get_recruiting_scraper
@@ -702,10 +685,6 @@ class AdminCog(commands.Cog):
     @requires_admin()
     async def cache_management(self, interaction: discord.Interaction, action: str = "stats"):
         """Manage bot cache"""
-        if not interaction.guild:
-            await interaction.response.send_message(SERVERS_ONLY, ephemeral=True)
-            return
-
         await interaction.response.defer(ephemeral=True)
 
         from ..utils.cache import get_cache
@@ -801,10 +780,6 @@ class AdminCog(commands.Cog):
     @requires_admin()
     async def budget_status(self, interaction: discord.Interaction, action: str = "view"):
         """View monthly budget status, or reconcile from provider APIs."""
-        if not interaction.guild:
-            await interaction.response.send_message(SERVERS_ONLY, ephemeral=True)
-            return
-
         await interaction.response.defer(ephemeral=True)
 
         from ..utils.cost_tracker import get_cost_tracker
@@ -919,10 +894,6 @@ class AdminCog(commands.Cog):
     @requires_admin()
     async def weekly_digest(self, interaction: discord.Interaction, action: str = "view"):
         """View or send the weekly digest"""
-        if not interaction.guild:
-            await interaction.response.send_message(SERVERS_ONLY, ephemeral=True)
-            return
-
         await interaction.response.defer(ephemeral=True)
 
         from ..utils.weekly_digest import get_weekly_digest
