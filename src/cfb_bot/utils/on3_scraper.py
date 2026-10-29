@@ -57,7 +57,7 @@ try:
 except ImportError:
     FUZZY_AVAILABLE = False
 
-from .cache import get_cache
+from .recruiting_base import RecruitingSource
 
 logger = logging.getLogger('CFBBot.On3Recruiting')
 
@@ -68,8 +68,12 @@ PAGE_MISSING = object()
 CACHE_NAMESPACE = 'on3'
 
 
-class On3Scraper:
+class On3Scraper(RecruitingSource):
     """Scraper for On3/Rivals recruiting data"""
+
+    CACHE_NAMESPACE = CACHE_NAMESPACE
+    AVG_RATING_FORMAT = '.2f'
+    POINTS_LABEL = 'Score'
 
     BASE_URL = "https://www.on3.com"
 
@@ -180,14 +184,6 @@ class On3Scraper:
         else:
             logger.warning("Using httpx only - may encounter Cloudflare blocks")
 
-    def _get_current_recruiting_year(self) -> int:
-        """Get the current recruiting class year"""
-        now = datetime.now()
-        # Recruiting classes are for the following year until February
-        if now.month >= 2:
-            return now.year + 1
-        return now.year
-
     def _rating_to_stars(self, rating: float) -> int:
         """Convert On3/Rivals rating to star value
         
@@ -270,14 +266,6 @@ class On3Scraper:
         if elapsed < delay:
             await asyncio.sleep(delay - elapsed)
         self._last_request = datetime.now()
-
-    def _get_cached(self, key: str) -> Optional[Any]:
-        """Get cached data if still valid (shared cache, so /admin cache clear clears it)"""
-        return get_cache().get(key, namespace=CACHE_NAMESPACE)
-
-    def _set_cached(self, key: str, data: Any):
-        """Cache data with the scraper's TTL"""
-        get_cache().set(key, data, ttl_seconds=self._cache_ttl_seconds, namespace=CACHE_NAMESPACE)
 
     async def _fetch_page(self, url: str) -> Optional[str]:
         """
@@ -1715,63 +1703,7 @@ class On3Scraper:
         if not recruit:
             return "❌ Can't find that recruit, mate. Check the spelling, or add a position."
 
-        lines = []
-
-        # Name and basic info
-        name = recruit.get('name', 'Unknown')
-        stars = recruit.get('stars')
-        star_display = '⭐' * stars if stars else ''
-        position = recruit.get('position', '')
-        year = recruit.get('year', '')
-
-        lines.append(f"**{name}** {star_display}")
-        if position:
-            lines.append(f"📍 **{position}** | Class of **{year}**")
-        lines.append("")
-
-        # Ratings section
-        lines.append("**📊 Ratings**")
-        if recruit.get('rating'):
-            lines.append(f"• On3/Rivals: **{recruit['rating']}**")
-        lines.append("")
-
-        # Rankings section
-        lines.append("**🏆 Rankings**")
-        rank_lines = []
-
-        natl = recruit.get('national_rank')
-        if natl:
-            rank_lines.append(f"• National: **#{natl}**")
-
-        pos_rank = recruit.get('position_rank')
-        if pos_rank:
-            rank_lines.append(f"• {position}: **#{pos_rank}**")
-
-        state = recruit.get('state', '')
-        state_rank = recruit.get('state_rank')
-        if state_rank:
-            rank_lines.append(f"• {state}: **#{state_rank}**")
-
-        if rank_lines:
-            lines.extend(rank_lines)
-        else:
-            lines.append("• _Rankings not available_")
-        lines.append("")
-
-        # Physical & Location
-        lines.append("**📏 Profile**")
-        physical = []
-        if recruit.get('height'):
-            physical.append(f"**{recruit['height']}**")
-        if recruit.get('weight'):
-            physical.append(f"**{recruit['weight']} lbs**")
-        if physical:
-            lines.append(f"• Size: {' / '.join(physical)}")
-
-        if recruit.get('city') and recruit.get('state'):
-            lines.append(f"• Hometown: {recruit['city']}, {recruit['state']}")
-        if recruit.get('high_school'):
-            lines.append(f"• High School: {recruit['high_school']}")
+        lines = self._recruit_summary_lines(recruit, [f"• On3/Rivals: **{recruit['rating']}**"] if recruit.get('rating') else [])
 
         # NIL value if available
         if recruit.get('nil_value'):
@@ -1839,47 +1771,6 @@ class On3Scraper:
                 lines.append(f"• {type_emoji} {school} - {date} ({vtype})")
 
         # Note: Profile URL is added separately in bot.py to appear after college stats
-
-        return '\n'.join(lines)
-
-    def format_team_class(self, team_data: Dict[str, Any]) -> str:
-        """Format team recruiting class for display"""
-        if not team_data:
-            return "❌ Never heard of that team, mate. Check the spelling."
-
-        lines = []
-
-        team = team_data.get('team', 'Unknown')
-        rank = team_data.get('rank', '?')
-        year = team_data.get('year', '')
-
-        lines.append(f"**{team}** - #{rank} Nationally ({year})")
-        lines.append("")
-
-        if team_data.get('total_commits'):
-            lines.append(f"👥 **{team_data['total_commits']}** Commits")
-
-        if team_data.get('avg_rating'):
-            lines.append(f"📊 Avg Rating: **{team_data['avg_rating']:.2f}**")
-
-        if team_data.get('avg_nil'):
-            lines.append(f"💰 Avg NIL: **{team_data['avg_nil']}**")
-
-        if team_data.get('points'):
-            lines.append(f"🏆 Score: **{team_data['points']:.2f}**")
-
-        stars = []
-        if team_data.get('5_stars'):
-            stars.append(f"⭐⭐⭐⭐⭐ {team_data['5_stars']}")
-        if team_data.get('4_stars'):
-            stars.append(f"⭐⭐⭐⭐ {team_data['4_stars']}")
-        if team_data.get('3_stars'):
-            stars.append(f"⭐⭐⭐ {team_data['3_stars']}")
-
-        if stars:
-            lines.append("")
-            lines.append("**Star Breakdown:**")
-            lines.extend(stars)
 
         return '\n'.join(lines)
 
@@ -1951,26 +1842,6 @@ class On3Scraper:
         # Link to full page
         if data.get('commits_url'):
             lines.append(f"[View Full Class on On3/Rivals]({data['commits_url']})")
-
-        return '\n'.join(lines)
-
-    def format_top_recruits(self, recruits: List[Dict[str, Any]], title: str = "Top Recruits") -> str:
-        """Format list of top recruits"""
-        if not recruits:
-            return "❌ No recruits there, mate. Try different filters."
-
-        lines = [f"**{title}**", ""]
-
-        for i, r in enumerate(recruits, 1):
-            stars = '⭐' * r.get('stars', 0) if r.get('stars') else ''
-            name = r.get('name', 'Unknown')
-            pos = r.get('position', '')
-            commit = r.get('committed_to', '')
-
-            if commit:
-                lines.append(f"`{i:2d}.` {stars} **{name}** ({pos}) → {commit}")
-            else:
-                lines.append(f"`{i:2d}.` {stars} **{name}** ({pos})")
 
         return '\n'.join(lines)
 
