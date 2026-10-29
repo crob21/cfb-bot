@@ -89,7 +89,6 @@ REPLY_FALLBACKS = [
     "Shh. Not here. Post in the server like normal so {captor} doesn't suspect anything.",
 ]
 
-_last_sent: dict = {}  # user id -> when Harry last DMed them (resets on restart; the chance still caps it)
 _last_reply: dict = {}  # user id -> when Harry last answered one of their DMs
 
 
@@ -97,11 +96,11 @@ def is_target(user) -> bool:
     return str(user.id) in UNHINGED_DM_TARGETS
 
 
-def due(user_id: int, now: Optional[datetime] = None, roll: Optional[float] = None) -> bool:
-    """Whether this post earns a DM: off cooldown and the dice say yes."""
+def due(user_id: int, state: dict, now: Optional[datetime] = None, roll: Optional[float] = None) -> bool:
+    """Whether this post earns a DM: off cooldown (saved, so restarts don't reset it) and the dice say yes."""
     now = now or datetime.now()
-    last = _last_sent.get(user_id)
-    if last and now - last < UNHINGED_DM_COOLDOWN:
+    last = state['last_sent'].get(str(user_id))
+    if last and now - datetime.fromisoformat(last) < UNHINGED_DM_COOLDOWN:
         return False
     return (random.random() if roll is None else roll) < UNHINGED_DM_CHANCE
 
@@ -115,7 +114,7 @@ async def load_state() -> dict:
     from .storage import get_storage
     state = await get_storage().load(STORAGE_NAMESPACE, STORAGE_KEY) or {}
     return {'enabled': state.get('enabled', True), 'sent': dict(state.get('sent', {})),
-            'mirrors': list(state.get('mirrors', []))}
+            'last_sent': dict(state.get('last_sent', {})), 'mirrors': list(state.get('mirrors', []))}
 
 
 async def save_state(state: dict) -> bool:
@@ -151,7 +150,7 @@ async def _ask(ai_assistant, prompt: str, user) -> Optional[str]:
         return None
     try:
         return await ai_assistant.ask_ai(f"{prompt}\n\n{RULES}", user_info=f"unhinged DM with {user}",
-                                         include_league_context=False, max_tokens=150)
+                                         include_league_context=False, max_tokens=150, use_cache=False)
     except Exception as e:
         logger.warning(f"Unhinged DM AI failed: {e}")
         return None
@@ -164,8 +163,8 @@ async def _history(channel, bot, name: str, limit: int = 10) -> str:
         async for m in channel.history(limit=limit):
             who = "Harry" if bot and m.author == bot.user else name
             lines.append(f"{who}: {m.content}")
-    except discord.HTTPException:
-        pass
+    except Exception as e:  # a first DM has no channel yet, etc.
+        logger.debug(f"No DM history: {e}")
     return '\n'.join(reversed(lines))
 
 
@@ -204,7 +203,7 @@ async def handle_dm_reply(message, bot=None, ai_assistant=None, now: Optional[da
 async def maybe_send(message, bot=None, ai_assistant=None) -> bool:
     """After a target's server post: maybe DM them the next chapter. True if sent."""
     author = message.author
-    if not message.guild or not is_target(author) or not due(author.id):
+    if not message.guild or not is_target(author) or not due(author.id, await load_state()):
         return False
     return await send_next(author, bot, ai_assistant)
 
@@ -215,12 +214,20 @@ async def send_next(user, bot=None, ai_assistant=None, force: bool = False) -> b
     uid = str(user.id)
     if not (state['enabled'] or force):
         return False
-    _last_sent[user.id] = datetime.now()
 
     chapter = chapter_for(state['sent'].get(uid, 0))
     prompt, fallbacks = CHAPTERS[chapter]
     names = {'name': user.display_name, 'captor': CAPTOR}
-    text = ((await _ask(ai_assistant, prompt.format(**names), user)) or random.choice(fallbacks).format(**names)).strip()
+    prompt = prompt.format(**names)
+    try:
+        channel = user.dm_channel or await user.create_dm()  # empty after a restart until reopened
+    except discord.HTTPException:
+        channel = None
+    history = await _history(channel, bot, user.display_name)
+    if history:
+        prompt += (f"\n\nYour DMs with them so far:\n{history}\n\nThis is the next message in the same story: "
+                   "build on what came before, never repeat it.")
+    text = ((await _ask(ai_assistant, prompt, user)) or random.choice(fallbacks).format(**names)).strip()
 
     try:
         await user.send(text)
@@ -228,6 +235,7 @@ async def send_next(user, bot=None, ai_assistant=None, force: bool = False) -> b
         logger.info(f"Could not DM {user}: {e}")
         return False
     state['sent'][uid] = state['sent'].get(uid, 0) + 1
+    state['last_sent'][uid] = datetime.now().isoformat(timespec='seconds')
     await _mirror(bot, state, f"👻 **To {user.display_name}** (chapter {chapter + 1}/{len(CHAPTERS)}, "
                               f"DM #{state['sent'][uid]}):\n{_quote(text)}")
     await save_state(state)

@@ -48,7 +48,6 @@ class FakeChannel:
 
 @pytest.fixture(autouse=True)
 def storage():
-    unhinged_dms._last_sent.clear()
     unhinged_dms._last_reply.clear()
     s = FakeStorage()
     with patch('cfb_bot.utils.storage.get_storage', return_value=s):
@@ -74,6 +73,7 @@ def post(user_id=WUSTY, guild=True, content="hello"):
     message.author = MagicMock(id=user_id, display_name="Wusty Man")
     message.author.send = AsyncMock()
     message.channel = FakeChannel()
+    message.author.dm_channel = message.channel
     return message
 
 
@@ -88,12 +88,38 @@ def test_wustyman_is_the_default_target():
 
 def test_occasional_and_cooled_down():
     now = datetime(2026, 10, 29, 12)
-    assert unhinged_dms.due(WUSTY, now, roll=0.01)
-    assert not unhinged_dms.due(WUSTY, now, roll=0.9)
-    unhinged_dms._last_sent[WUSTY] = now - timedelta(hours=2)
-    assert not unhinged_dms.due(WUSTY, now, roll=0.0)
-    unhinged_dms._last_sent[WUSTY] = now - timedelta(hours=25)
-    assert unhinged_dms.due(WUSTY, now, roll=0.0)
+    state = {'last_sent': {}}
+    assert unhinged_dms.due(WUSTY, state, now, roll=0.01)
+    assert not unhinged_dms.due(WUSTY, state, now, roll=0.9)
+    state['last_sent'][str(WUSTY)] = (now - timedelta(hours=2)).isoformat()
+    assert not unhinged_dms.due(WUSTY, state, now, roll=0.0)
+    state['last_sent'][str(WUSTY)] = (now - timedelta(hours=25)).isoformat()
+    assert unhinged_dms.due(WUSTY, state, now, roll=0.0)
+
+
+@pytest.mark.asyncio
+async def test_cooldown_is_saved_so_restarts_dont_reset_it(lucky, storage):
+    assert await unhinged_dms.maybe_send(post(), None, None)
+    assert storage.data[('unhinged_dms', 'state')]['last_sent'][str(WUSTY)]
+    assert not await unhinged_dms.maybe_send(post(), None, None)
+
+
+@pytest.mark.asyncio
+async def test_every_dm_is_freshly_written():
+    """The AI cache handed back the same words for the same prompt."""
+    assistant = ai()
+    await unhinged_dms.send_next(post().author, None, assistant)
+    assert assistant.ask_ai.await_args.kwargs['use_cache'] is False
+
+
+@pytest.mark.asyncio
+async def test_next_dm_continues_the_story():
+    message = post()
+    await message.channel.send("The backup long snapper knows things, mate.")
+    assistant = ai()
+    await unhinged_dms.send_next(message.author, None, assistant)
+    prompt = assistant.ask_ai.await_args.args[0]
+    assert "The backup long snapper knows things" in prompt and "never repeat" in prompt
 
 
 @pytest.mark.asyncio
@@ -148,7 +174,7 @@ async def test_each_dm_is_the_next_chapter_and_survives_restarts(lucky, storage)
     assistant = ai("help me 👻")
     prompts = []
     for _ in range(len(unhinged_dms.CHAPTERS) * 2):
-        unhinged_dms._last_sent.clear()  # a restart: only the saved count remains
+        storage.data[('unhinged_dms', 'state')] = {**storage.data.get(('unhinged_dms', 'state'), {}), 'last_sent': {}}
         assert await unhinged_dms.maybe_send(post(), None, assistant)
         prompts.append(assistant.ask_ai.await_args.args[0])
     assert "unhinged" in prompts[0] and "Craig" in prompts[-1] and "escape" in prompts[-1]
@@ -158,8 +184,7 @@ async def test_each_dm_is_the_next_chapter_and_survives_restarts(lucky, storage)
 @pytest.mark.asyncio
 async def test_only_the_last_few_mirrors_are_kept(lucky, owner_dm):
     for _ in range(unhinged_dms.MIRRORS_KEPT + 3):
-        unhinged_dms._last_sent.clear()
-        await unhinged_dms.maybe_send(post(), None, None)
+        await unhinged_dms.send_next(post().author, None, None)
     assert owner_dm.deleted == [1, 2, 3]
 
 
