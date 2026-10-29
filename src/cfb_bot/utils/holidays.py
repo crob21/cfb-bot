@@ -95,7 +95,7 @@ def festive(text: str, holiday: Holiday) -> str:
 # the names catch anyone whose ID is wrong.
 DEFAULT_HALLOWEEN_REACTIONS = ','.join([
     f'665975155406929942:{PUMPKIN}', f'mundie:{PUMPKIN}',
-    f'10721294212066181529:{GHOST}', f'wust:{GHOST}',
+    f'1072129421206618152:{GHOST}', f'wust:{GHOST}',
     f'732443639782965268:{GRAVESTONE}', f'jaywill9:{GRAVESTONE}',
     f'1524783409963073676:{SKULL}', f'daaldrich22:{SKULL}',
 ])
