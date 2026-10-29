@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional
 from .cache import get_cache
 
 
-class RecruitingSource:
+class RecruitingScraperBase:
     """Base for a recruiting scraper. Subclasses set CACHE_NAMESPACE and _cache_ttl_seconds."""
 
     CACHE_NAMESPACE = ''

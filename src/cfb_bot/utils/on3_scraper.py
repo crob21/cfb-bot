@@ -57,7 +57,7 @@ try:
 except ImportError:
     FUZZY_AVAILABLE = False
 
-from .recruiting_base import RecruitingSource
+from .recruiting_base import RecruitingScraperBase
 
 logger = logging.getLogger('CFBBot.On3Recruiting')
 
@@ -68,7 +68,7 @@ PAGE_MISSING = object()
 CACHE_NAMESPACE = 'on3'
 
 
-class On3Scraper(RecruitingSource):
+class On3Scraper(RecruitingScraperBase):
     """Scraper for On3/Rivals recruiting data"""
 
     CACHE_NAMESPACE = CACHE_NAMESPACE

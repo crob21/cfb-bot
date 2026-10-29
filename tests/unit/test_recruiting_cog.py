@@ -8,7 +8,6 @@ Tests recruiting commands with real player data:
 - /recruiting class - Team recruiting class
 - /recruiting commits - Team commits list
 - /recruiting rankings - Team rankings
-- /recruiting portal - Transfer portal lookup
 - /recruiting source - Data source config
 
 Real players tested:
@@ -110,63 +109,33 @@ class TestRecruitingPlayer:
             mock_interaction.response.send_message.assert_called()
 
 
-class TestRecruitingPortal:
-    """Tests for /recruiting portal command"""
+class TestTransferCrossReference:
+    """/recruiting player finds a transfer's college stats even under a different name"""
 
     @pytest.mark.asyncio
-    async def test_portal_hollywood_smothers(self, mock_interaction, mock_server_config, mock_on3_scraper, mock_cfb_data):
-        """Test portal lookup for Hollywood Smothers (nickname case)"""
+    async def test_hollywood_smothers_found_by_last_name(self, mock_interaction, mock_server_config, mock_on3_scraper, mock_cfb_data):
+        """On3 knows him as Hollywood Smothers; CFB Data as Daylan, found by last name + position"""
         from cfb_bot.cogs.recruiting import RecruitingCog
 
-        # On3 knows him as "Hollywood Smothers"
-        mock_on3_scraper.search_recruit.return_value = create_mock_recruit(
-            name="Hollywood Smothers",
-            position="RB",
-            stars=4,
-            is_transfer=True
-        )
-
-        # CFB might know him by legal name
-        mock_cfb_data.get_full_player_info.return_value = None  # First attempt fails
-        mock_cfb_data.search_player.return_value = [{
-            "name": "Daylan Smothers",
-            "position": "RB",
-            "team": "NC State"
-        }]
-
-        with patch('cfb_bot.cogs.recruiting.server_config', mock_server_config), \
-             patch('cfb_bot.cogs.recruiting.on3_scraper', mock_on3_scraper), \
-             patch('cfb_bot.cogs.recruiting.cfb_data', mock_cfb_data):
-
-            cog = RecruitingCog(MagicMock())
-            await cog.portal.callback(cog, mock_interaction, name="Hollywood Smothers")
-
-            mock_on3_scraper.search_recruit.assert_called()
-
-    @pytest.mark.asyncio
-    async def test_portal_cross_reference(self, mock_interaction, mock_server_config, mock_on3_scraper, mock_cfb_data):
-        """Test portal cross-reference between On3 and CFB data"""
-        from cfb_bot.cogs.recruiting import RecruitingCog
-
-        # On3 returns different name than search term
-        mock_on3_scraper.search_recruit.return_value = create_mock_recruit(
-            name="Hollywood Smothers",
-            position="RB",
-            is_transfer=True
-        )
-
-        # CFB data first attempt with "Hollywood" fails
+        recruit = create_mock_recruit(name="Hollywood Smothers", position="RB", is_transfer=True)
+        recruit["previous_school"] = "NC State"
+        mock_on3_scraper.search_recruit.return_value = recruit
         mock_cfb_data.get_full_player_info.side_effect = [
-            None,  # First call with original name
-            {"name": "Daylan Smothers", "team": "NC State", "stats": {}}  # Second call
+            None,  # "Hollywood Smothers" isn't in CFB Data
+            {"name": "Daylan Smothers", "team": "NC State", "stats": {"2024": {"rushing": {"CAR": 100, "YDS": 600, "TD": 5}}}},
+        ]
+        mock_cfb_data.search_player.return_value = [
+            {"name": "Daylan Smothers", "position": "RB", "team": "NC State"},
         ]
 
         with patch('cfb_bot.cogs.recruiting.server_config', mock_server_config), \
              patch('cfb_bot.cogs.recruiting.on3_scraper', mock_on3_scraper), \
              patch('cfb_bot.cogs.recruiting.cfb_data', mock_cfb_data):
-
             cog = RecruitingCog(MagicMock())
-            await cog.portal.callback(cog, mock_interaction, name="Daylan Smothers")
+            await cog.player.callback(cog, mock_interaction, name="Hollywood Smothers")
+
+        mock_cfb_data.search_player.assert_awaited_with("Smothers", "NC State")
+        assert mock_cfb_data.get_full_player_info.await_args_list[-1].args == ("Daylan Smothers", "NC State")
 
 
 class TestRecruitingCommits:

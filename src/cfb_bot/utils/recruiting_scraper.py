@@ -22,7 +22,7 @@ from urllib.parse import quote_plus
 import httpx
 from bs4 import BeautifulSoup
 
-from .recruiting_base import RecruitingSource
+from .recruiting_base import RecruitingScraperBase
 
 logger = logging.getLogger('CFBBot.Recruiting')
 
@@ -30,7 +30,7 @@ logger = logging.getLogger('CFBBot.Recruiting')
 CACHE_NAMESPACE = '247sports'
 
 
-class RecruitingScraper(RecruitingSource):
+class RecruitingScraper(RecruitingScraperBase):
     """Scraper for 247Sports recruiting data"""
 
     CACHE_NAMESPACE = CACHE_NAMESPACE

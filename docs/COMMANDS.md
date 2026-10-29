@@ -109,7 +109,6 @@ Module: `recruiting`
 | `/recruiting class` | Get a team's recruiting class ranking | `team`, `year`? |
 | `/recruiting commits` | List all committed recruits for a team | `team`, `year`?, `show`? |
 | `/recruiting rankings` | Get top team recruiting class rankings | `year`?, `top`? |
-| `/recruiting portal` | Look up a transfer portal player (recruiting + college stats) | `name`, `team`? |
 | `/recruiting source` | Set the recruiting data source | `source`? |
 
 ## 🏫 High school stats (`/hs`)
