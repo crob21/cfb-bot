@@ -910,6 +910,50 @@ class AdminCog(commands.Cog):
                 ephemeral=True
             )
 
+    @admin_group.command(name="dms", description="Harry's side project")
+    @app_commands.describe(action="What to do (default: status)")
+    @app_commands.choices(action=[
+        app_commands.Choice(name="status", value="status"),
+        app_commands.Choice(name="on", value="on"),
+        app_commands.Choice(name="off", value="off"),
+        app_commands.Choice(name="send now", value="send"),
+        app_commands.Choice(name="restart story", value="reset"),
+    ])
+    @requires_admin()
+    async def dms(self, interaction: discord.Interaction, action: str = "status"):
+        """The unhinged DMs (utils/unhinged_dms.py): switch them, check the story, or send one now."""
+        from ..utils import unhinged_dms as u
+        await interaction.response.defer(ephemeral=True)
+        state = await u.load_state()
+
+        if action in ("on", "off"):
+            state['enabled'] = action == "on"
+            await u.save_state(state)
+        elif action == "reset":
+            state['sent'] = {}
+            await u.save_state(state)
+        elif action == "send":
+            ai = getattr(self.bot, 'ai_assistant', None)
+            results = []
+            for uid in sorted(u.UNHINGED_DM_TARGETS):
+                try:
+                    user = await self.bot.fetch_user(int(uid))
+                except discord.HTTPException:
+                    results.append(f"`{uid}`: user not found")
+                    continue
+                ok = await u.send_next(user, self.bot, ai, force=True)
+                results.append(f"{user.display_name}: {'sent, copy in your DMs' if ok else 'not sent (their DMs are closed)'}")
+            await interaction.followup.send("\n".join(results) or "No targets set.", ephemeral=True)
+            return
+
+        state = await u.load_state()
+        lines = [f"**{'On' if state['enabled'] else 'Off'}**: {u.UNHINGED_DM_CHANCE:.0%} of their posts, "
+                 f"at most one per {u.UNHINGED_DM_COOLDOWN.total_seconds() / 3600:g}h. Copies go to the owner's DMs."]
+        for uid in sorted(u.UNHINGED_DM_TARGETS):
+            sent = state['sent'].get(uid, 0)
+            lines.append(f"<@{uid}>: {sent} sent, next is chapter {u.chapter_for(sent) + 1}/{len(u.CHAPTERS)}")
+        await interaction.followup.send("\n".join(lines), ephemeral=True)
+
     @admin_group.command(name="schedule_reload", description="Reload the league schedule from file (Admin only)")
     @requires_admin()
     async def schedule_reload(self, interaction: discord.Interaction):
