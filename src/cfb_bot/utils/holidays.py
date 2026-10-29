@@ -2,14 +2,14 @@
 """
 Holiday Harry
 
-Harry dresses up for the holidays (league time):
-- Halloween week, Oct 25-31: Spooky Halloween Harry 🎃👻, who also reacts to every post
-  from certain members (HALLOWEEN_REACTIONS)
-- Thanksgiving week, Monday to Sunday around the 4th Thursday of November: Thanksgiving Harry 🦃
-- Christmas, Dec 18-26: Christmas Harry 🎄
+Harry dresses up for the holidays (league time), every reply, emoji and all:
+- Halloween week, Oct 25-31: Spooky Halloween Harry 🎃👻
+- Thanksgiving week, the seven days up to and including Thanksgiving (4th Thursday of Nov) 🦃
+- Christmas, from the day after Thanksgiving through Dec 26 🎄
 
-Only some replies are dressed up (HOLIDAY_REPLY_CHANCE), so the joke doesn't wear thin;
-the reactions happen on every post. Outside those dates he's plain Harry. Nothing to switch on or off; it comes back every year.
+During Halloween week he also reacts to some posts from certain members (HALLOWEEN_REACTIONS),
+now and then rather than every post (HOLIDAY_REACTION_CHANCE). Outside those dates he's plain
+Harry. Nothing to switch on or off; it comes back every year.
 """
 
 import random
@@ -22,12 +22,13 @@ from ..config import env_float, env_str
 
 LEAGUE_TIMEZONE = ZoneInfo('America/New_York')
 
-# Share of Harry's replies that get the holiday treatment while a holiday is on
-HOLIDAY_REPLY_CHANCE = env_float('HOLIDAY_REPLY_CHANCE', 0.25)
+# Share of a member's Halloween week posts that get their reaction
+HOLIDAY_REACTION_CHANCE = env_float('HOLIDAY_REACTION_CHANCE', 0.25)
 
 PUMPKIN = '🎃'
 GHOST = '👻'
 GRAVESTONE = '🪦'
+SKULL = '💀'
 TURKEY = '🦃'
 PIE = '🥧'
 TREE = '🎄'
@@ -52,8 +53,8 @@ pie {PIE} emojis, stuffing-and-gravy puns and a food coma, and you're sarcastica
 for things (mostly every Ducks loss), while still answering the question properly.""")
 
 CHRISTMAS = Holiday('Christmas', (TREE, SANTA), f"""
-It's Christmas, so you are Christmas Harry. Every reply is festive: sprinkle in Christmas tree
-{TREE} and Santa {SANTA} emojis, carol puns and a bit too much eggnog, while still answering
+It's Christmas season, so you are Christmas Harry. Every reply is festive: sprinkle in Christmas
+tree {TREE} and Santa {SANTA} emojis, carol puns and a bit too much eggnog, while still answering
 the question properly. The Ducks are top of the naughty list and get coal.""")
 
 
@@ -68,22 +69,12 @@ def current_holiday(today: Optional[date] = None) -> Optional[Holiday]:
     today = today or datetime.now(LEAGUE_TIMEZONE).date()
     if today.month == 10 and today.day >= 25:
         return HALLOWEEN
-    if today.month == 11:
-        thursday = thanksgiving_day(today.year)
-        if thursday - timedelta(days=3) <= today <= thursday + timedelta(days=3):
-            return THANKSGIVING
-    if today.month == 12 and 18 <= today.day <= 26:
+    thursday = thanksgiving_day(today.year)
+    if thursday - timedelta(days=6) <= today <= thursday:
+        return THANKSGIVING
+    if thursday < today <= date(today.year, 12, 26):
         return CHRISTMAS
     return None
-
-
-def reply_holiday(today: Optional[date] = None, roll: Optional[float] = None) -> Optional[Holiday]:
-    """The holiday to dress this one reply up for: now and then, not every time."""
-    holiday = current_holiday(today)
-    if holiday is None:
-        return None
-    roll = random.random() if roll is None else roll
-    return holiday if roll < HOLIDAY_REPLY_CHANCE else None
 
 
 def holiday_personality(personality: str, holiday: Holiday) -> str:
@@ -98,9 +89,21 @@ def festive(text: str, holiday: Holiday) -> str:
     return f"{text} {''.join(holiday.emoji[:2])}"
 
 
-# Who gets which reaction on every Halloween week post: name (username, display name or
-# server nickname, partial match) or user ID, then the emoji. Comma-separated name:emoji pairs.
-DEFAULT_HALLOWEEN_REACTIONS = f'mundie:{PUMPKIN},wustman:{GHOST},jaywill9:{GRAVESTONE}'
+# Who gets which reaction on Halloween week posts: name (username, display name or
+# server nickname; partial match ignoring case, spaces and punctuation, so 'wust' matches
+# "Wusty Man") or user ID, then the emoji. Comma-separated name:emoji pairs. IDs come first;
+# the names catch anyone whose ID is wrong.
+DEFAULT_HALLOWEEN_REACTIONS = ','.join([
+    f'665975155406929942:{PUMPKIN}', f'mundie:{PUMPKIN}',
+    f'10721294212066181529:{GHOST}', f'wust:{GHOST}',
+    f'732443639782965268:{GRAVESTONE}', f'jaywill9:{GRAVESTONE}',
+    f'1524783409963073676:{SKULL}', f'daaldrich22:{SKULL}',
+])
+
+
+def _squash(name: str) -> str:
+    """Lowercase letters and digits only: "Wusty Man" and "wusty_man" both become "wustyman"."""
+    return ''.join(c for c in name.lower() if c.isalnum())
 
 
 def parse_reactions(spec: str) -> dict:
@@ -109,7 +112,7 @@ def parse_reactions(spec: str) -> dict:
     for pair in spec.split(','):
         name, _, emoji = pair.partition(':')
         if name.strip() and emoji.strip():
-            reactions[name.strip().lower()] = emoji.strip()
+            reactions[_squash(name)] = emoji.strip()
     return reactions
 
 
@@ -118,15 +121,20 @@ REACTIONS = {HALLOWEEN: HALLOWEEN_REACTIONS}
 
 
 def holiday_reaction(author, holiday: Optional[Holiday], reactions: Optional[dict] = None) -> Optional[str]:
-    """The emoji this author gets on every post this holiday, or None."""
+    """The emoji this author gets on their posts this holiday, or None."""
     if reactions is None:
         reactions = REACTIONS.get(holiday, {})
     if str(author.id) in reactions:
         return reactions[str(author.id)]
-    names = [n.lower() for n in (getattr(author, 'name', None), getattr(author, 'global_name', None),
-                                 getattr(author, 'display_name', None), getattr(author, 'nick', None))
+    names = [_squash(n) for n in (getattr(author, 'name', None), getattr(author, 'global_name', None),
+                                  getattr(author, 'display_name', None), getattr(author, 'nick', None))
              if isinstance(n, str) and n]
     for target, emoji in reactions.items():
-        if any(target in n for n in names):
+        if target and any(target in n for n in names):
             return emoji
     return None
+
+
+def react_this_time(roll: Optional[float] = None) -> bool:
+    """Whether this post gets its reaction: now and then, not every post."""
+    return (random.random() if roll is None else roll) < HOLIDAY_REACTION_CHANCE

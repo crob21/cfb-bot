@@ -3,6 +3,14 @@
 Full release history for Harry. The bot's `/changelog` command shows the most recent releases;
 this file keeps everything. Generated from `src/cfb_bot/utils/version_manager.py`.
 
+## 3.26.1 — Spooky All the Way 👻 (2026-10-29)
+
+### Holidays
+- FIX: Holiday Harry is in character, emoji and all, on every reply again (most replies had dropped it)
+- FIX: wusty man's 👻 matches however his name is written (spaces, caps, punctuation ignored)
+- NEW: DaAldrich22 gets 💀 Halloween week; member reactions are now on about 1 in 4 posts (HOLIDAY_REACTION_CHANCE)
+- Longer seasons: Thanksgiving Harry the week up to Thanksgiving, then Christmas Harry from Black Friday to Dec 26
+
 ## 3.26.0 — The Big Tidy 🧹 (2026-10-28)
 
 ### Fixes

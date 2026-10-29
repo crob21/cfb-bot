@@ -598,9 +598,11 @@ async def on_message(message):
     if message.author.bot:
         return
 
-    # Holiday reactions (Halloween week: 🎃 / 👻 / 🪦) on every post from certain members
-    from .utils.holidays import current_holiday, holiday_reaction
+    # Holiday reactions (Halloween week: 🎃 / 👻 / 🪦 / 💀) on some posts from certain members
+    from .utils.holidays import current_holiday, holiday_reaction, react_this_time
     reaction = holiday_reaction(message.author, current_holiday())
+    if reaction and not react_this_time():
+        reaction = None
     if reaction:
         try:
             await message.add_reaction(reaction)
