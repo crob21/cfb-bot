@@ -21,16 +21,18 @@ CURRENT_VERSION = "3.26.1"
 # docs/CHANGELOG.md. Add new releases at the top.
 CHANGELOG: Dict[str, Dict] = {
     "3.26.1": {
-        "date": "2026-10-28",
+        "date": "2026-10-29",
         "title": "Spooky All the Way 👻",
         "emoji": "👻",
         "features": [
             {
-                "category": "Fixes",
-                "emoji": "🐛",
+                "category": "Holidays",
+                "emoji": "🎃",
                 "changes": [
-                    "FIX: Halloween Harry dropped out of character on most replies; he's spooky on every reply now",
-                    "Only the holiday emoji are now and then (about 1 in 4 replies, HOLIDAY_EMOJI_CHANCE)"
+                    "FIX: Holiday Harry is in character, emoji and all, on every reply again (most replies had dropped it)",
+                    "FIX: wusty man's 👻 matches however his name is written (spaces, caps, punctuation ignored)",
+                    "NEW: DaAldrich22 gets 💀 Halloween week; member reactions are now on about 1 in 4 posts (HOLIDAY_REACTION_CHANCE)",
+                    "Longer seasons: Thanksgiving Harry the week up to Thanksgiving, then Christmas Harry from Black Friday to Dec 26"
                 ]
             }
         ]
