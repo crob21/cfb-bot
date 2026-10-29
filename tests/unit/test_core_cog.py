@@ -184,6 +184,7 @@ class TestTokensCommand:
         cog = CoreCog(MagicMock())
         cog.AI_AVAILABLE = True
         cog.ai_assistant = MagicMock()
+        cog.ai_assistant.load_usage_stats = AsyncMock()
         cog.ai_assistant.get_token_usage = MagicMock(return_value={
             "total_requests": 100,
             "openai_tokens": 50000,
@@ -200,9 +201,11 @@ class TestTokensCommand:
         call_kwargs = mock_interaction.response.send_message.call_args
         embed = call_kwargs.kwargs.get('embed') or call_kwargs.args[0]
 
-        assert "Token Usage" in embed.title
-        costs = next(f.value for f in embed.fields if "Costs" in f.name)
-        assert "$0.0600" in costs and "$0.1050" in costs  # Anthropic counted, configured rates
+        assert "AI Usage" in embed.title
+        cog.ai_assistant.load_usage_stats.assert_awaited_once()  # saved counts, not zeros
+        values = " ".join(f.name + " " + f.value for f in embed.fields)
+        assert "$0.0600" in values and "$0.1050" in values  # Anthropic counted, configured rates
+        assert "gpt-3.5" not in values
 
     @pytest.mark.asyncio
     async def test_tokens_without_ai(self, mock_interaction):

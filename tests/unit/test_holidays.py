@@ -93,7 +93,7 @@ class TestHolidayAI:
     def assistant(self):
         from cfb_bot.ai.ai_integration import AICharterAssistant
         a = AICharterAssistant.__new__(AICharterAssistant)
-        a._load_usage_stats = AsyncMock()
+        a.load_usage_stats = AsyncMock()
         a.get_charter_content = AsyncMock(return_value="charter")
         a.ask_openai = AsyncMock(return_value="Bloody Ducks")
         a.ask_anthropic = AsyncMock(return_value=None)

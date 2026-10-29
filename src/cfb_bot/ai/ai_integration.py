@@ -138,7 +138,7 @@ class AICharterAssistant:
         self._response_cache = {}
         self._cache_ttl = 3600  # 1 hour cache TTL
 
-    async def _load_usage_stats(self):
+    async def load_usage_stats(self):
         """Load usage statistics from persistent storage"""
         if self._loaded:
             return
@@ -435,7 +435,7 @@ class AICharterAssistant:
             personality_prompt: Persona override (default: Harry); keep SECRETS_RULE in any override
         """
         # Load usage stats on first use
-        await self._load_usage_stats()
+        await self.load_usage_stats()
 
         # Holidays dress up Harry's own voice now and then; persona overrides (charter work) stay plain
         holiday = reply_holiday() if personality_prompt is None else None
@@ -489,85 +489,6 @@ class AICharterAssistant:
             'anthropic_cost': anthropic_cost,
             'total_cost': total_cost
         }
-
-    async def get_openai_usage_from_api(self, date: str = None) -> Optional[dict]:
-        """Query OpenAI Usage API for official usage statistics for a specific date
-
-        Args:
-            date: Date to query (YYYY-MM-DD format). Defaults to today.
-
-        Returns:
-            Dictionary with usage data or None if unavailable
-
-        Note: OpenAI Usage API returns daily usage data. For historical data,
-              check the OpenAI Dashboard at https://platform.openai.com/usage
-        """
-        if not self.openai_api_key:
-            logger.warning("OpenAI API key not found")
-            return None
-
-        headers = {
-            'Authorization': f'Bearer {self.openai_api_key}',
-            'Content-Type': 'application/json'
-        }
-
-        # Use provided date or default to today (YYYY-MM-DD format)
-        from datetime import datetime
-        if not date:
-            date = datetime.now().strftime('%Y-%m-%d')
-
-        # OpenAI Usage API takes a single 'date' parameter for daily usage
-        params = {
-            'date': date
-        }
-
-        try:
-            logger.info(f"Querying OpenAI Usage API (date: {date})...")
-            async with aiohttp.ClientSession() as session:
-                async with session.get(
-                    'https://api.openai.com/v1/usage',
-                    headers=headers,
-                    params=params,
-                    timeout=aiohttp.ClientTimeout(total=10)
-                ) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        logger.info("Retrieved OpenAI usage data")
-                        return data
-                    else:
-                        error_text = await response.text()
-                        from ..utils.log_utils import sanitize_for_log
-                        logger.warning(f"OpenAI Usage API error: {response.status} - {sanitize_for_log(error_text)}")
-                        return None
-        except asyncio.TimeoutError:
-            logger.warning("OpenAI Usage API timeout")
-            return None
-        except Exception as e:
-            logger.error(f"Error querying OpenAI Usage API: {e}")
-            return None
-
-    async def get_openai_cost_for_current_month(self) -> Optional[float]:
-        """Fetch OpenAI usage for each day in the current month and return estimated cost (USD).
-
-        Uses the OpenAI Usage API (one request per day). Cost is estimated from token counts
-        using openai_cost_per_1k. Returns None if API key missing or API errors.
-        """
-        if not self.openai_api_key:
-            return None
-        from datetime import date, timedelta
-        today = date.today()
-        first = today.replace(day=1)
-        total_tokens = 0
-        day = first
-        while day <= today:
-            data = await self.get_openai_usage_from_api(date=day.strftime('%Y-%m-%d'))
-            if data and data.get('data'):
-                for entry in data['data']:
-                    total_tokens += entry.get('n_context_tokens_total', 0) + entry.get('n_generated_tokens_total', 0)
-            day += timedelta(days=1)
-        if total_tokens == 0:
-            return 0.0
-        return (total_tokens / 1000) * self.openai_cost_per_1k
 
 
 def setup_ai_integration():

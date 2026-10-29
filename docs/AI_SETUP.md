@@ -32,8 +32,7 @@ channels enabled with `/admin channels`. An empty list means nowhere: AI chat is
 
 ## Checking usage
 
-- `/tokens`: tokens and estimated cost since the last restart
-- `/admin ai`: the same, plus OpenAI's own usage figures when available
+- `/tokens`: tokens and estimated cost per provider, all time
 - `/admin budget`: spend this month against the budget
 
 ## Troubleshooting
