@@ -61,6 +61,9 @@ from .cache import get_cache
 
 logger = logging.getLogger('CFBBot.On3Recruiting')
 
+# A fetch result meaning the page doesn't exist (404): no point trying another method
+PAGE_MISSING = object()
+
 # Namespace in the shared cache (utils/cache.py), so /admin cache clear clears it too
 CACHE_NAMESPACE = 'on3'
 
@@ -277,167 +280,107 @@ class On3Scraper:
         get_cache().set(key, data, ttl_seconds=self._cache_ttl_seconds, namespace=CACHE_NAMESPACE)
 
     async def _fetch_page(self, url: str) -> Optional[str]:
-        """Fetch a page with rate limiting and Cloudflare bypass (Playwright > Cloudscraper > httpx)"""
+        """
+        Fetch a page, trying each way past Cloudflare in turn:
+        Playwright > cloudscraper > Zyte (paid, under its spend limit) > plain httpx.
+
+        A block or error moves on to the next one; a 404 stops, since the page isn't there.
+        """
         await self._rate_limit()
 
         # Rotate user agent to reduce detection
         self._user_agent_index = (self._user_agent_index + 1) % len(self._user_agents)
         self._headers['User-Agent'] = self._user_agents[self._user_agent_index]
 
-        try:
-            logger.info(f"Fetching: {url}")
+        logger.info(f"Fetching: {url}")
+        for name, fetch in (('Playwright', self._fetch_playwright), ('cloudscraper', self._fetch_cloudscraper),
+                            ('Zyte', self._fetch_zyte), ('httpx', self._fetch_httpx)):
+            try:
+                result = await fetch(url)
+            except Exception as e:
+                logger.warning(f"{name} error fetching {url}: {e}")
+                continue
+            if result is PAGE_MISSING:
+                logger.warning(f"Page not found: {url}")
+                return None
+            if result:
+                self._is_blocked = False
+                logger.debug(f"{name} fetch successful")
+                return result
+        logger.error(f"Every fetch method failed for {url}")
+        return None
 
-            # PRIORITY 1: Use Playwright (best for Cloudflare)
-            if PLAYWRIGHT_AVAILABLE:
-                # Initialize browser if needed
-                if not self._browser:
-                    await self._init_browser()
-
-                if self._browser_context:
-                    try:
-                        page = await self._browser_context.new_page()
-
-                        # Navigate to URL with timeout
-                        response = await page.goto(url, timeout=15000, wait_until='domcontentloaded')
-
-                        if response and response.status == 200:
-                            # Wait a bit for any JS to execute
-                            await page.wait_for_timeout(1000)
-
-                            html = await page.content()
-                            await page.close()
-
-                            # Check for blocking
-                            if self._check_if_blocked(html):
-                                logger.error("BLOCKED by On3 even with Playwright!")
-                                return None
-
-                            logger.debug("Playwright fetch successful")
-                            return html
-                        elif response and response.status == 404:
-                            await page.close()
-                            logger.warning(f"Page not found: {url}")
-                            return None
-                        else:
-                            await page.close()
-                            status = response.status if response else "unknown"
-                            logger.warning(f"Playwright returned status {status}, trying fallback...")
-                            # Fall through to cloudscraper
-                    except Exception as e:
-                        logger.warning(f"Playwright error: {e}, trying fallback...")
-                        # Fall through to cloudscraper
-
-            # PRIORITY 2: Use cloudscraper if Playwright failed/unavailable
-            if self._scraper and CLOUDSCRAPER_AVAILABLE:
-                # Run sync cloudscraper in thread pool to keep async
-                response = await asyncio.to_thread(self._scraper.get, url, timeout=15)
-
-                if response.status_code == 200:
-                    html = response.text
-                    # Check for blocking indicators
-                    if self._check_if_blocked(html):
-                        logger.warning("BLOCKED by On3 with cloudscraper, trying Zyte...")
-                        # Don't return None yet - fall through to Zyte
-                    else:
-                        logger.debug("Cloudscraper fetch successful")
-                        return html
-                elif response.status_code == 403:
-                    logger.warning("BLOCKED (403 Forbidden) with cloudscraper, trying Zyte...")
-                    self._is_blocked = True
-                    # Fall through to Zyte
-                elif response.status_code == 429:
-                    logger.warning("RATE LIMITED (429) with cloudscraper, trying Zyte...")
-                    self._is_blocked = True
-                    # Fall through to Zyte
-                elif response.status_code == 404:
-                    logger.warning(f"Page not found: {url}")
-                    return None
-                else:
-                    logger.warning(f"HTTP {response.status_code} with cloudscraper, trying Zyte...")
-                    # Fall through to Zyte
-
-            # PRIORITY 3: Use Zyte API (premium, guaranteed bypass)
-            # Skip Zyte if spend limit is set and we've hit it (pay-as-you-go cap)
-            use_zyte = bool(self._zyte_client)
-            if use_zyte:
-                try:
-                    from .cost_tracker import get_cost_tracker
-                    if await get_cost_tracker().is_zyte_over_limit():
-                        use_zyte = False
-                        logger.warning("Zyte API disabled for this billing period (spend limit reached)")
-                except Exception as e:
-                    logger.debug(f"Cost tracker check failed: {e}")
-
-            if use_zyte:
-                try:
-                    # Increment usage counter
-                    self._zyte_request_count += 1
-                    cost_per_request = self._zyte_cost_per_1k / 1000
-                    estimated_cost = (self._zyte_request_count * self._zyte_cost_per_1k) / 1000
-
-                    logger.info(f"Using Zyte API for: {url}")
-                    logger.info(f"Zyte usage: {self._zyte_request_count} requests | Est. cost: ${estimated_cost:.4f}")
-
-                    # Make async request to Zyte
-                    response = await self._zyte_client.get({
-                        "url": url,
-                        "httpResponseBody": True,
-                        "httpResponseHeaders": True
-                    })
-
-                    # Decode the response
-                    import base64
-                    html = base64.b64decode(response["httpResponseBody"]).decode('utf-8')
-
-                    if html and '<html' in html.lower():
-                        logger.info("Zyte API fetch successful (bypassed Cloudflare)")
-                        self._is_blocked = False  # Clear blocked status
-                        # Record cost for spend limit and alerts
-                        try:
-                            from .cost_tracker import get_cost_tracker
-                            await get_cost_tracker().record_cost('zyte', cost_per_request)
-                            logger.info(f"Recorded ${cost_per_request:.4f} Zyte cost for /admin budget")
-                        except Exception as e:
-                            logger.warning(f"Failed to record Zyte cost (/admin budget will not update): {e}")
-                        return html
-                    else:
-                        logger.error("Zyte returned invalid HTML")
-                        # Fall through to httpx as last resort
-
-                except Exception as e:
-                    logger.error(f"Zyte API error: {e}")
-                    # Fall through to httpx as last resort
-
-            # PRIORITY 4: Fallback to httpx (will likely be blocked; runs when Zyte skipped or unavailable)
-            else:
-                async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
-                    response = await client.get(url, headers=self._headers)
-
-                    if response.status_code == 200:
-                        html = response.text
-                        if self._check_if_blocked(html):
-                            logger.error("BLOCKED by On3! Install Playwright: pip install playwright && playwright install chromium")
-                            return None
-                        logger.debug("httpx fetch successful")
-                        return html
-                    elif response.status_code == 403:
-                        logger.error("BLOCKED (403 Forbidden)")
-                        self._is_blocked = True
-                        return None
-                    elif response.status_code == 429:
-                        logger.error("RATE LIMITED (429)")
-                        self._is_blocked = True
-                        return None
-                    elif response.status_code == 404:
-                        logger.warning(f"Page not found: {url}")
-                        return None
-                    else:
-                        logger.error(f"HTTP {response.status_code}")
-                        return None
-
-        except Exception as e:
-            logger.error(f"Error fetching {url}: {e}")
+    def _page_result(self, method: str, status: Optional[int], html: str, check_blocked: bool = True):
+        """HTML if the fetch worked, PAGE_MISSING on a 404, None to try the next method."""
+        if status == 404:
+            return PAGE_MISSING
+        if status in (403, 429):
+            self._is_blocked = True
+            logger.warning(f"{method}: HTTP {status} (blocked or rate limited)")
             return None
+        if status != 200:
+            logger.warning(f"{method}: HTTP {status}")
+            return None
+        if check_blocked and self._check_if_blocked(html):
+            logger.warning(f"{method}: blocked by On3")
+            return None
+        return html
+
+    async def _fetch_playwright(self, url: str):
+        if not PLAYWRIGHT_AVAILABLE:
+            return None
+        if not self._browser:
+            await self._init_browser()
+        if not self._browser_context:
+            return None
+        page = await self._browser_context.new_page()
+        try:
+            response = await page.goto(url, timeout=15000, wait_until='domcontentloaded')
+            status = response.status if response else None
+            if status == 200:
+                await page.wait_for_timeout(1000)  # let the page's JS run
+            return self._page_result('Playwright', status, await page.content() if status == 200 else '')
+        finally:
+            await page.close()
+
+    async def _fetch_cloudscraper(self, url: str):
+        if not self._scraper:
+            return None
+        # cloudscraper is sync; keep it off the event loop
+        response = await asyncio.to_thread(self._scraper.get, url, timeout=15)
+        return self._page_result('cloudscraper', response.status_code, response.text)
+
+    async def _fetch_zyte(self, url: str):
+        if not self._zyte_client:
+            return None
+        from .cost_tracker import get_cost_tracker
+        tracker = get_cost_tracker()
+        if await tracker.is_zyte_over_limit():
+            logger.warning("Zyte API disabled for this billing period (spend limit reached)")
+            return None
+
+        self._zyte_request_count += 1
+        cost_per_request = self._zyte_cost_per_1k / 1000
+        logger.info(f"Using Zyte API ({self._zyte_request_count} requests, "
+                    f"est. ${self._zyte_request_count * cost_per_request:.4f}) for: {url}")
+        response = await self._zyte_client.get({"url": url, "httpResponseBody": True})
+        try:
+            await tracker.record_cost('zyte', cost_per_request)  # Zyte bills the request either way
+        except Exception as e:
+            logger.warning(f"Failed to record Zyte cost (/admin budget will not update): {e}")
+
+        import base64
+        html = base64.b64decode(response["httpResponseBody"]).decode('utf-8')
+        if '<html' not in html.lower():
+            logger.error("Zyte returned invalid HTML")
+            return None
+        # Zyte gets past Cloudflare itself; its pages can still mention Cloudflare's scripts
+        return self._page_result('Zyte', 200, html, check_blocked=False)
+
+    async def _fetch_httpx(self, url: str):
+        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
+            response = await client.get(url, headers=self._headers)
+        return self._page_result('httpx', response.status_code, response.text)
 
     def _check_if_blocked(self, html: str) -> bool:
         """Check if the response indicates we've been blocked"""
@@ -463,8 +406,6 @@ class On3Scraper:
         if '<html' in html_lower and 'on3' in html_lower:
             self._is_blocked = False
         return False
-
-
 
     def get_zyte_usage(self) -> Dict[str, Any]:
         """Get Zyte API usage statistics (current session)"""
