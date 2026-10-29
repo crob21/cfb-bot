@@ -15,12 +15,12 @@ def version_key(version: str) -> tuple:
     return tuple(int(part) for part in version.split('.'))
 
 # Current version
-CURRENT_VERSION = "3.25.2"
+CURRENT_VERSION = "3.25.3"
 
 # Recent releases, newest first. /changelog reads these; the full history is in
 # docs/CHANGELOG.md. Add new releases at the top.
 CHANGELOG: Dict[str, Dict] = {
-    "3.25.2": {
+    "3.25.3": {
         "date": "2026-10-28",
         "title": "Holiday Harry 🦃🎄",
         "emoji": "🎄",
@@ -33,6 +33,21 @@ CHANGELOG: Dict[str, Dict] = {
                     "NEW: Christmas Harry 🎄 Dec 18-26: festive, eggnog-soaked, and the Ducks get coal",
                     "Joins Spooky Halloween Harry 🎃 (Oct 25-31). Charter text stays plain; plain Harry the rest of the year",
                     "Only about 1 in 4 replies gets the holiday treatment (HOLIDAY_REPLY_CHANCE), so it stays funny"
+                ]
+            }
+        ]
+    },
+    "3.25.2": {
+        "date": "2026-10-28",
+        "title": "Only One Harry 🪞",
+        "emoji": "🪞",
+        "features": [
+            {
+                "category": "Fixes",
+                "emoji": "🐛",
+                "changes": [
+                    "FIX: Harry was answering twice when two copies of him were running (a deploy where the old copy hung on)",
+                    "Each copy now claims a lease in the owner DM on startup; an older copy that sees a newer one disconnects within 15 seconds"
                 ]
             }
         ]

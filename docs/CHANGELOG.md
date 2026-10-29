@@ -3,13 +3,19 @@
 Full release history for Harry. The bot's `/changelog` command shows the most recent releases;
 this file keeps everything. Generated from `src/cfb_bot/utils/version_manager.py`.
 
-## 3.25.2 — Holiday Harry 🦃🎄 (2026-10-28)
+## 3.25.3 — Holiday Harry 🦃🎄 (2026-10-28)
 
 ### Fun
 - NEW: Thanksgiving Harry 🦃 the week of Thanksgiving (Monday to Sunday): turkey, pie and sarcastic gratitude
 - NEW: Christmas Harry 🎄 Dec 18-26: festive, eggnog-soaked, and the Ducks get coal
 - Joins Spooky Halloween Harry 🎃 (Oct 25-31). Charter text stays plain; plain Harry the rest of the year
 - Only about 1 in 4 replies gets the holiday treatment (HOLIDAY_REPLY_CHANCE), so it stays funny
+
+## 3.25.2 — Only One Harry 🪞 (2026-10-28)
+
+### Fixes
+- FIX: Harry was answering twice when two copies of him were running (a deploy where the old copy hung on)
+- Each copy now claims a lease in the owner DM on startup; an older copy that sees a newer one disconnects within 15 seconds
 
 ## 3.25.1 — Spooky Halloween Harry 🎃 (2026-10-28)
 
