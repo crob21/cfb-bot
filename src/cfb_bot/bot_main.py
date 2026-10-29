@@ -609,6 +609,17 @@ async def on_message(message):
         except discord.HTTPException as e:
             logger.warning(f"Could not add holiday reaction: {e}")
 
+    # Now and then Harry DMs certain members something deranged; "stop" in the DM ends it
+    from .utils import unhinged_dms
+    if await unhinged_dms.handle_dm_reply(message):
+        return
+    if unhinged_dms.is_target(message.author) and message.guild:
+        try:
+            from .ai import AI_AVAILABLE, ai_assistant
+        except ImportError:
+            AI_AVAILABLE, ai_assistant = False, None
+        asyncio.create_task(unhinged_dms.maybe_send(message, ai_assistant if AI_AVAILABLE else None))
+
     # PRIORITY: Check for @everyone/@here + "advanced" to restart timer
     # This advances the week and restarts the countdown (available to everyone)
     # Only react to "advanced" in the designated advance/notification channel.
