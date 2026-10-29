@@ -349,10 +349,11 @@ class AICharterAssistant:
         self._cache_response(cache_key, text)
         return text
 
-    async def ask_openai(self, question: str, context: str, max_tokens: int = 500, personality_prompt: str = None, include_league_context: bool = True) -> Optional[str]:
+    async def ask_openai(self, question: str, context: str, max_tokens: int = 500, personality_prompt: str = None, include_league_context: bool = True,
+                         use_cache: bool = True) -> Optional[str]:
         """Ask OpenAI. max_tokens caps the answer - raise it for long output like a charter rewrite."""
         cache_key = self._get_cache_key(question, include_league_context, personality_prompt)
-        cached = self._get_cached_response(cache_key)
+        cached = self._get_cached_response(cache_key) if use_cache else None
         if cached:
             return sanitize_ai_response(cached)
         if not self.openai_api_key:
@@ -393,10 +394,11 @@ class AICharterAssistant:
 
         return self._finish(cache_key, text)
 
-    async def ask_anthropic(self, question: str, context: str, max_tokens: int = 500, personality_prompt: str = None, include_league_context: bool = True) -> Optional[str]:
+    async def ask_anthropic(self, question: str, context: str, max_tokens: int = 500, personality_prompt: str = None, include_league_context: bool = True,
+                            use_cache: bool = True) -> Optional[str]:
         """Ask Anthropic. Same contract as ask_openai."""
         cache_key = self._get_cache_key(question, include_league_context, personality_prompt)
-        cached = self._get_cached_response(cache_key)
+        cached = self._get_cached_response(cache_key) if use_cache else None
         if cached:
             return sanitize_ai_response(cached)
         if not self.anthropic_api_key:
@@ -425,7 +427,7 @@ class AICharterAssistant:
         return self._finish(cache_key, result['content'][0]['text'].strip())
 
     async def ask_ai(self, question: str, user_info: str = None, include_league_context: bool = True, max_tokens: int = 500,
-                     personality_prompt: Optional[str] = None) -> Optional[str]:
+                     personality_prompt: Optional[str] = None, use_cache: bool = True) -> Optional[str]:
         """Ask AI about the charter (tries OpenAI first, then Anthropic)
 
         Args:
@@ -433,6 +435,7 @@ class AICharterAssistant:
             user_info: User info for logging
             include_league_context: Whether to include league schedule/charter info (False for non-league servers)
             personality_prompt: Persona override (default: Harry); keep SECRETS_RULE in any override
+            use_cache: False for a fresh answer even if the same question was asked recently
         """
         # Load usage stats on first use
         await self.load_usage_stats()
@@ -459,7 +462,7 @@ class AICharterAssistant:
         # Try OpenAI first
         logger.info(f"Trying OpenAI... (include_league_context={include_league_context})")
         response = await self.ask_openai(question, context, max_tokens=max_tokens, personality_prompt=personality_prompt,
-                                         include_league_context=include_league_context)
+                                         include_league_context=include_league_context, use_cache=use_cache)
         if response:
             logger.info("OpenAI response received")
             return festive(response, holiday) if holiday else response
@@ -467,7 +470,7 @@ class AICharterAssistant:
         # Fallback to Anthropic
         logger.info("Trying Anthropic...")
         response = await self.ask_anthropic(question, context, max_tokens=max_tokens, personality_prompt=personality_prompt,
-                                            include_league_context=include_league_context)
+                                            include_league_context=include_league_context, use_cache=use_cache)
         if response:
             logger.info("Anthropic response received")
             return festive(response, holiday) if holiday else response
