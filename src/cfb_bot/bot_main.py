@@ -50,6 +50,7 @@ bot = commands.Bot(
 )
 
 # Import utilities after bot setup to avoid circular imports
+from .utils import instance_lock
 from .utils.server_config import server_config
 from .config import Colors
 
@@ -231,6 +232,10 @@ async def on_ready():
         return
     _startup_complete = True
 
+    # One Harry at a time: take over from any older copy, then watch for a newer one
+    if await instance_lock.claim(bot) and not watch_instance.is_running():
+        watch_instance.start()
+
     # Initialize server config with bot (needed for Discord storage)
     server_config.set_bot(bot)
     await server_config.load_from_discord()
@@ -260,6 +265,14 @@ async def on_ready():
     if not check_weekly_digest.is_running():
         check_weekly_digest.start()
         logger.info("Weekly digest task started")
+
+
+@tasks.loop(seconds=instance_lock.CHECK_SECONDS)
+async def watch_instance():
+    """Stand down if a newer copy of Harry has started (otherwise both answer everything)."""
+    if await instance_lock.superseded(bot):
+        watch_instance.stop()
+        await instance_lock.stand_down(bot)
 
 
 @tasks.loop(hours=24)
@@ -585,6 +598,15 @@ async def on_message(message):
     if message.author.bot:
         return
 
+    # Holiday reactions (Halloween week: 🎃 / 👻 / 🪦) on every post from certain members
+    from .utils.holidays import current_holiday, holiday_reaction
+    reaction = holiday_reaction(message.author, current_holiday())
+    if reaction:
+        try:
+            await message.add_reaction(reaction)
+        except discord.HTTPException as e:
+            logger.warning(f"Could not add holiday reaction: {e}")
+
     # PRIORITY: Check for @everyone/@here + "advanced" to restart timer
     # This advances the week and restarts the countdown (available to everyone)
     # Only react to "advanced" in the designated advance/notification channel.
@@ -644,6 +666,12 @@ async def main():
             # Playwright's headless Chromium outlives the bot otherwise
             from .utils.on3_scraper import on3_scraper
             await on3_scraper.cleanup()
+
+    # Exiting would get a stood-down copy restarted by the host, and it would take the
+    # lease back from the live one. Idle until the host stops it instead.
+    if instance_lock.stood_down:
+        logger.info("Standing by; the newer copy of Harry is live")
+        await asyncio.Event().wait()
 
 
 def run():
