@@ -81,6 +81,11 @@ class TestReactions:
         assert holiday_reaction(member("Mundie"), CHRISTMAS) is None
         assert holiday_reaction(member("Mundie"), None) is None
 
+    @pytest.mark.parametrize("uid, emoji", [(665975155406929942, PUMPKIN), (732443639782965268, GRAVESTONE),
+                                            (1524783409963073676, SKULL)])
+    def test_league_members_by_id(self, uid, emoji):
+        assert holiday_reaction(member("renamed", id=uid), HALLOWEEN) == emoji
+
     def test_matches_user_id(self):
         assert holiday_reaction(member("anon", id=42), HALLOWEEN, {"42": "🦇"}) == "🦇"
 

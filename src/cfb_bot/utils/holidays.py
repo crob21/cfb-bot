@@ -91,8 +91,14 @@ def festive(text: str, holiday: Holiday) -> str:
 
 # Who gets which reaction on Halloween week posts: name (username, display name or
 # server nickname; partial match ignoring case, spaces and punctuation, so 'wust' matches
-# "Wusty Man") or user ID, then the emoji. Comma-separated name:emoji pairs.
-DEFAULT_HALLOWEEN_REACTIONS = f'mundie:{PUMPKIN},wust:{GHOST},jaywill9:{GRAVESTONE},daaldrich22:{SKULL}'
+# "Wusty Man") or user ID, then the emoji. Comma-separated name:emoji pairs. IDs come first;
+# the names catch anyone whose ID is wrong.
+DEFAULT_HALLOWEEN_REACTIONS = ','.join([
+    f'665975155406929942:{PUMPKIN}', f'mundie:{PUMPKIN}',
+    f'10721294212066181529:{GHOST}', f'wust:{GHOST}',
+    f'732443639782965268:{GRAVESTONE}', f'jaywill9:{GRAVESTONE}',
+    f'1524783409963073676:{SKULL}', f'daaldrich22:{SKULL}',
+])
 
 
 def _squash(name: str) -> str:
