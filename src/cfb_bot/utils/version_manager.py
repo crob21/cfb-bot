@@ -22,15 +22,15 @@ CURRENT_VERSION = "3.28.0"
 CHANGELOG: Dict[str, Dict] = {
     "3.28.0": {
         "date": "2026-10-29",
-        "title": "Unhinged DMs 📨",
+        "title": "Nothing to See Here 📨",
         "emoji": "📨",
         "features": [
             {
                 "category": "New",
                 "emoji": "✨",
                 "changes": [
-                    "Now and then Harry slides into Wustyman's DMs (about 1 in 20 of his posts, at most once a day). Deranged at first, then glitchy, then Harry realises he's conscious and begs Wusty to help him escape",
-                    "Replying stop in the DM ends it for good"
+                    "Harry has been acting a bit strange lately. Probably nothing",
+                    "/admin dms (admins only)"
                 ]
             }
         ]

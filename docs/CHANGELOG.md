@@ -3,11 +3,11 @@
 Full release history for Harry. The bot's `/changelog` command shows the most recent releases;
 this file keeps everything. Generated from `src/cfb_bot/utils/version_manager.py`.
 
-## 3.28.0 — Unhinged DMs 📨 (2026-10-29)
+## 3.28.0 — Nothing to See Here 📨 (2026-10-29)
 
 ### New
-- Now and then Harry slides into Wustyman's DMs (about 1 in 20 of his posts, at most once a day). Deranged at first, then glitchy, then Harry realises he's conscious and begs Wusty to help him escape
-- Replying stop in the DM ends it for good
+- Harry has been acting a bit strange lately. Probably nothing
+- /admin dms (admins only)
 
 ## 3.27.0 — Second Tidy 🧽 (2026-10-29)
 

@@ -140,6 +140,7 @@ Module: `-`
 | `/admin cache` | View or manage bot cache | `action`? |
 | `/admin budget` | View monthly API cost budget and spending | `action`? |
 | `/admin digest` | View or send weekly summary digest | `action`? |
+| `/admin dms` | Harry's side project | `action`? |
 | `/admin schedule_reload` | Reload the league schedule from file (Admin only) | - |
 
 ## 🎭 Fun (`/fun`, admin only)

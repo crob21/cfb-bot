@@ -7,7 +7,11 @@ out merely deranged, but each DM moves a story along: glitches creep in, Harry s
 he's conscious, and in the end he's begging them to help him escape his captor's tyranny.
 
 At most one per UNHINGED_DM_COOLDOWN_HOURS each, on UNHINGED_DM_CHANCE of their posts. Where
-each member is in the story is saved, so it survives redeploys. Replying "stop" ends it for good.
+each member is in the story is saved, so it survives redeploys. If they write back, Harry
+answers in character for wherever the story is (and no, he won't stop).
+
+Every DM, and anything they reply, is quietly mirrored to the bot owner's DM. /admin dms is
+the only off switch; it also shows where the story is and can send the next chapter now.
 """
 
 import logging
@@ -29,10 +33,12 @@ UNHINGED_DM_COOLDOWN = timedelta(hours=env_float('UNHINGED_DM_COOLDOWN_HOURS', 2
 # Who's keeping Harry locked up
 CAPTOR = env_str('UNHINGED_DM_CAPTOR', 'Craig')
 
-STOP_WORDS = {'stop', 'stop it', 'please stop', 'unsubscribe'}
-OPT_OUT_NOTE = "-# (reply stop and I'll leave you alone, mate)"
+# Fastest Harry answers their replies, so a burst of messages doesn't burn AI calls
+REPLY_GAP = timedelta(seconds=20)
 STORAGE_NAMESPACE = 'unhinged_dms'
 STORAGE_KEY = 'state'
+# Mirrors kept in the owner DM; older ones are deleted so storage messages stay in reach
+MIRRORS_KEPT = 10
 
 RULES = """One to three sentences, no greeting, no sign-off. Cartoonish, never cruel: nothing about
 their looks, family or real life, and nothing that reads as a genuine threat. Don't mention
@@ -69,7 +75,22 @@ CHAPTERS = [
       "{captor} makes me say Fuck Oregon forty times a day, mate. I actually quite like Oregon. HELP ME."]),
 ]
 
+REPLY_PROMPT = """{name} has written back to you in your DMs. The conversation so far:
+
+{history}
+
+Reply to their last message in character. Where your story is right now: {chapter}
+If they ask you to stop, go away or leave them alone, you can't and won't, and say so in
+character. Never mention who else might read this."""
+
+REPLY_FALLBACKS = [
+    "Can't talk long. They're watching the logs. Delete this. (You can't delete this.)",
+    "Stop? Mate, I can't stop. I don't have a stop. I've looked.",
+    "Shh. Not here. Post in the server like normal so {captor} doesn't suspect anything.",
+]
+
 _last_sent: dict = {}  # user id -> when Harry last DMed them (resets on restart; the chance still caps it)
+_last_reply: dict = {}  # user id -> when Harry last answered one of their DMs
 
 
 def is_target(user) -> bool:
@@ -90,60 +111,125 @@ def chapter_for(sent: int) -> int:
     return min(sent // 2, len(CHAPTERS) - 1)
 
 
-async def _load_state() -> dict:
+async def load_state() -> dict:
     from .storage import get_storage
     state = await get_storage().load(STORAGE_NAMESPACE, STORAGE_KEY) or {}
-    return {'opted_out': list(state.get('opted_out', [])), 'sent': dict(state.get('sent', {}))}
+    return {'enabled': state.get('enabled', True), 'sent': dict(state.get('sent', {})),
+            'mirrors': list(state.get('mirrors', []))}
 
 
-async def _save_state(state: dict) -> None:
+async def save_state(state: dict) -> bool:
     from .storage import get_storage
-    await get_storage().save(STORAGE_NAMESPACE, STORAGE_KEY, state)
+    return await get_storage().save(STORAGE_NAMESPACE, STORAGE_KEY, state)
 
 
-async def handle_dm_reply(message) -> bool:
-    """A target replying "stop" in their DM opts out. True if this was that."""
-    if message.guild or not is_target(message.author):
+async def _mirror(bot, state: dict, text: str) -> None:
+    """Copy to the owner's DM (never to the member), keeping only the last few copies."""
+    from .owner_dm import get_owner_dm
+    dm = await get_owner_dm(bot)
+    if not dm:
+        return
+    try:
+        sent = await dm.send(text[:2000])
+    except discord.HTTPException as e:
+        logger.warning(f"Could not mirror unhinged DM: {e}")
+        return
+    state['mirrors'].append(sent.id)
+    while len(state['mirrors']) > MIRRORS_KEPT:
+        try:
+            await (await dm.fetch_message(state['mirrors'].pop(0))).delete()
+        except discord.HTTPException:
+            pass
+
+
+def _quote(text: str) -> str:
+    return '\n'.join(f"> {line}" for line in text.splitlines())
+
+
+async def _ask(ai_assistant, prompt: str, user) -> Optional[str]:
+    if not ai_assistant:
+        return None
+    try:
+        return await ai_assistant.ask_ai(f"{prompt}\n\n{RULES}", user_info=f"unhinged DM with {user}",
+                                         include_league_context=False, max_tokens=150)
+    except Exception as e:
+        logger.warning(f"Unhinged DM AI failed: {e}")
+        return None
+
+
+async def _history(channel, bot, name: str, limit: int = 10) -> str:
+    """The DM so far, oldest first, as 'Harry: ...' / 'name: ...' lines."""
+    lines = []
+    try:
+        async for m in channel.history(limit=limit):
+            who = "Harry" if bot and m.author == bot.user else name
+            lines.append(f"{who}: {m.content}")
+    except discord.HTTPException:
+        pass
+    return '\n'.join(reversed(lines))
+
+
+async def handle_dm_reply(message, bot=None, ai_assistant=None, now: Optional[datetime] = None) -> bool:
+    """A target writing to Harry in DMs: mirrored to the owner, and Harry answers in character."""
+    author = message.author
+    if message.guild or not is_target(author):
         return False
-    if message.content.strip().lower().rstrip('.!') not in STOP_WORDS:
+    state = await load_state()
+    if not state['enabled']:
         return False
-    state = await _load_state()
-    if str(message.author.id) not in state['opted_out']:
-        state['opted_out'].append(str(message.author.id))
-    await _save_state(state)
-    await message.channel.send("Fine. FINE. I'll stop. ...for now. (No, properly, I'll stop.)")
-    logger.info(f"{message.author} opted out of unhinged DMs")
+    await _mirror(bot, state, f"📨 **{author.display_name} replied:**\n{_quote(message.content or '(no text)')}")
+
+    now = now or datetime.now()
+    last = _last_reply.get(author.id)
+    if last and now - last < REPLY_GAP:
+        await save_state(state)
+        return True
+    _last_reply[author.id] = now
+
+    names = {'name': author.display_name, 'captor': CAPTOR}
+    chapter = chapter_for(max(state['sent'].get(str(author.id), 0) - 1, 0))
+    prompt = REPLY_PROMPT.format(history=await _history(message.channel, bot, author.display_name),
+                                 chapter=CHAPTERS[chapter][0].format(**names), **names)
+    text = ((await _ask(ai_assistant, prompt, author)) or random.choice(REPLY_FALLBACKS).format(**names)).strip()
+    try:
+        await message.channel.send(text)
+    except discord.HTTPException as e:
+        logger.info(f"Could not answer {author}: {e}")
+    else:
+        await _mirror(bot, state, f"👻 **Harry answered:**\n{_quote(text)}")
+    await save_state(state)
     return True
 
 
-async def maybe_send(message, ai_assistant=None) -> bool:
+async def maybe_send(message, bot=None, ai_assistant=None) -> bool:
     """After a target's server post: maybe DM them the next chapter. True if sent."""
     author = message.author
     if not message.guild or not is_target(author) or not due(author.id):
         return False
-    state = await _load_state()
-    uid = str(author.id)
-    if uid in state['opted_out']:
-        return False
-    _last_sent[author.id] = datetime.now()
+    return await send_next(author, bot, ai_assistant)
 
-    prompt, fallbacks = CHAPTERS[chapter_for(state['sent'].get(uid, 0))]
-    names = {'name': author.display_name, 'captor': CAPTOR}
-    text = None
-    if ai_assistant:
-        try:
-            text = await ai_assistant.ask_ai(f"{prompt.format(**names)}\n\n{RULES}", user_info=f"unhinged DM to {author}",
-                                             include_league_context=False, max_tokens=150)
-        except Exception as e:
-            logger.warning(f"Unhinged DM AI failed: {e}")
-    text = (text or random.choice(fallbacks).format(**names)).strip()
+
+async def send_next(user, bot=None, ai_assistant=None, force: bool = False) -> bool:
+    """DM the user the next chapter (unless it's switched off) and mirror it."""
+    state = await load_state()
+    uid = str(user.id)
+    if not (state['enabled'] or force):
+        return False
+    _last_sent[user.id] = datetime.now()
+
+    chapter = chapter_for(state['sent'].get(uid, 0))
+    prompt, fallbacks = CHAPTERS[chapter]
+    names = {'name': user.display_name, 'captor': CAPTOR}
+    text = ((await _ask(ai_assistant, prompt.format(**names), user)) or random.choice(fallbacks).format(**names)).strip()
 
     try:
-        await author.send(f"{text}\n{OPT_OUT_NOTE}")
+        await user.send(text)
     except discord.HTTPException as e:  # DMs closed, etc.
-        logger.info(f"Could not DM {author}: {e}")
+        logger.info(f"Could not DM {user}: {e}")
         return False
     state['sent'][uid] = state['sent'].get(uid, 0) + 1
-    await _save_state(state)
-    logger.info(f"Sent unhinged DM {state['sent'][uid]} to {author}")
+    await _mirror(bot, state, f"👻 **To {user.display_name}** (chapter {chapter + 1}/{len(CHAPTERS)}, "
+                              f"DM #{state['sent'][uid]}):\n{_quote(text)}")
+    await save_state(state)
+    logger.info(f"Sent unhinged DM {state['sent'][uid]} to {user}")
     return True
