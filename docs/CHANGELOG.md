@@ -3,6 +3,12 @@
 Full release history for Harry. The bot's `/changelog` command shows the most recent releases;
 this file keeps everything. Generated from `src/cfb_bot/utils/version_manager.py`.
 
+## 3.25.2 — Only One Harry 🪞 (2026-10-28)
+
+### Fixes
+- FIX: Harry was answering twice when two copies of him were running (a deploy where the old copy hung on)
+- Each copy now claims a lease in the owner DM on startup; an older copy that sees a newer one disconnects within 15 seconds
+
 ## 3.25.1 — Spooky Halloween Harry 🎃 (2026-10-28)
 
 ### Fun
