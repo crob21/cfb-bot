@@ -34,6 +34,12 @@ def get_current_cfb_season() -> int:
         return now.year - 1
     return now.year
 
+
+def recent_cfb_seasons(count: int) -> List[int]:
+    """The current season and the ones before it, newest first."""
+    current = get_current_cfb_season()
+    return [current - i for i in range(count)]
+
 logger = logging.getLogger(__name__)
 
 # Try to import cfbd library
@@ -197,7 +203,7 @@ class CFBDataLookup:
                 results = await asyncio.to_thread(
                     self._players_api.search_players,
                     search_term=last_name,
-                    year=2025
+                    year=get_current_cfb_season()
                 )
                 for p in (results or [])[:5]:
                     pid = getattr(p, 'id', None)
@@ -216,7 +222,7 @@ class CFBDataLookup:
                 results = await asyncio.to_thread(
                     self._players_api.search_players,
                     search_term=first_name,
-                    year=2025
+                    year=get_current_cfb_season()
                 )
                 for p in (results or [])[:5]:
                     pid = getattr(p, 'id', None)
@@ -263,8 +269,7 @@ class CFBDataLookup:
                 del self._search_cache[cache_key]
                 del self._cache_expiry[cache_key]
 
-        # Try current and recent years - 2025 data may not be available yet
-        years_to_try = [year] if year else [2024, 2023, 2025, 2022]
+        years_to_try = [year] if year else recent_cfb_seasons(4)
         retry_delay = 2  # Start with 2 second delay, increase on consecutive 429s
         consecutive_429s = 0
 
@@ -354,7 +359,7 @@ class CFBDataLookup:
         if not self.is_available:
             return []
 
-        years_to_try = [year] if year else [2025, 2024, 2023]
+        years_to_try = [year] if year else recent_cfb_seasons(3)
 
         for try_year in years_to_try:
             try:
@@ -396,7 +401,7 @@ class CFBDataLookup:
             'homeCountry': getattr(player, 'home_country', None),
         }
 
-    async def get_player_stats(self, player_name: str, team: str, year: int = 2024) -> Optional[Dict[str, Any]]:
+    async def get_player_stats(self, player_name: str, team: str, year: Optional[int] = None) -> Optional[Dict[str, Any]]:
         """
         Get season stats for a specific player
 
@@ -411,6 +416,7 @@ class CFBDataLookup:
         if not self.is_available:
             return None
 
+        year = year or get_current_cfb_season()
         logger.info(f"Fetching stats for {player_name} on {team} ({year})")
 
         try:
@@ -460,7 +466,7 @@ class CFBDataLookup:
             return None
 
         # Try multiple recruiting classes
-        years_to_try = [year] if year else [2025, 2024, 2023, 2022]
+        years_to_try = [year] if year else recent_cfb_seasons(4)
 
         for try_year in years_to_try:
             try:
@@ -504,7 +510,7 @@ class CFBDataLookup:
 
         return None
 
-    async def get_transfer_portal(self, year: int = 2024) -> List[Dict[str, Any]]:
+    async def get_transfer_portal(self, year: Optional[int] = None) -> List[Dict[str, Any]]:
         """
         Get transfer portal data for a year
 
@@ -517,6 +523,9 @@ class CFBDataLookup:
         if not self.is_available:
             return []
 
+        # A portal year is the season players transfer for: the window opening in
+        # December feeds next season.
+        year = year or get_current_cfb_season() + 1
         try:
             logger.info(f"Fetching transfer portal data ({year})")
 
@@ -548,7 +557,7 @@ class CFBDataLookup:
 
         return []
 
-    async def search_transfer(self, player_name: str, year: int = 2024) -> Optional[Dict[str, Any]]:
+    async def search_transfer(self, player_name: str, year: Optional[int] = None) -> Optional[Dict[str, Any]]:
         """
         Search for a player in the transfer portal
 
@@ -559,6 +568,7 @@ class CFBDataLookup:
         Returns:
             Transfer info or None
         """
+        year = year or get_current_cfb_season() + 1
         transfers = await self.get_transfer_portal(year)
 
         for t in transfers:
@@ -566,13 +576,11 @@ class CFBDataLookup:
                 logger.info(f"Found transfer info for {t.get('name')}")
                 return t
 
-        # Try previous year
-        if year > 2022:
-            transfers = await self.get_transfer_portal(year - 1)
-            for t in transfers:
-                if player_name.lower() in t.get('name', '').lower():
-                    logger.info(f"Found transfer info for {t.get('name')} ({year-1})")
-                    return t
+        # Try the previous portal too
+        for t in await self.get_transfer_portal(year - 1):
+            if player_name.lower() in t.get('name', '').lower():
+                logger.info(f"Found transfer info for {t.get('name')} ({year-1})")
+                return t
 
         return None
 
@@ -679,7 +687,7 @@ class CFBDataLookup:
             # Stats for ALL available years - PARALLEL FETCH
             async def get_all_stats():
                 all_stats = {}
-                years_to_check = [2025, 2024, 2023, 2022, 2021]
+                years_to_check = recent_cfb_seasons(5)
                 
                 # Create parallel tasks for all years
                 year_tasks = [
@@ -1905,7 +1913,7 @@ class CFBDataLookup:
             return "Team not ranked"
 
         team = team_ranking.get('team', 'Unknown')
-        year = team_ranking.get('year', 2025)
+        year = team_ranking.get('year', get_current_cfb_season())
         rankings = team_ranking.get('rankings', {})
 
         if not rankings:
@@ -2096,7 +2104,7 @@ class CFBDataLookup:
             return "No ratings available"
 
         team = ratings.get('team', 'Unknown')
-        year = ratings.get('year', 2025)
+        year = ratings.get('year', get_current_cfb_season())
         data = ratings.get('ratings', {})
 
         parts = [f"📈 **{team}** Advanced Ratings ({year})", ""]
@@ -2127,7 +2135,7 @@ class CFBDataLookup:
             return "No statistics available"
 
         team = stats_data.get('team', 'Unknown')
-        year = stats_data.get('year', 2025)
+        year = stats_data.get('year', get_current_cfb_season())
         offense = stats_data.get('offense', {})
         defense = stats_data.get('defense', {})
 
@@ -2532,7 +2540,7 @@ class CFBDataLookup:
                     else:
                         # Flat: {'passing': {}, 'rushing': {}}
                         stats_data = all_stats
-                        latest_year = 2025
+                        latest_year = get_current_cfb_season()
 
                     stat_line = self._format_compact_stats(stats_data, latest_year)
                     if stat_line:

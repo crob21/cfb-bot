@@ -188,7 +188,10 @@ class TestTokensCommand:
             "total_requests": 100,
             "openai_tokens": 50000,
             "anthropic_tokens": 30000,
-            "total_tokens": 80000
+            "total_tokens": 80000,
+            "openai_cost": 0.045,
+            "anthropic_cost": 0.06,
+            "total_cost": 0.105,
         })
 
         await cog.tokens.callback(cog, mock_interaction)
@@ -198,6 +201,8 @@ class TestTokensCommand:
         embed = call_kwargs.kwargs.get('embed') or call_kwargs.args[0]
 
         assert "Token Usage" in embed.title
+        costs = next(f.value for f in embed.fields if "Costs" in f.name)
+        assert "$0.0600" in costs and "$0.1050" in costs  # Anthropic counted, configured rates
 
     @pytest.mark.asyncio
     async def test_tokens_without_ai(self, mock_interaction):

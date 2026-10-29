@@ -40,7 +40,7 @@ discord.py 2.x **Cog-based architecture**. All slash commands are grouped into c
 ### Module system
 Every command group maps to a `FeatureModule` enum in `utils/server_config.py`. Modules are toggled per-guild via `/admin config`. Defaults on: `core`, `ai_chat`, `cfb_data`, `fun_games`. Opt-in: `league`, `hs_stats`, `recruiting`.
 
-Every cog command must call `check_module_enabled()` or `check_module_enabled_deferred()` from `services/checks.py` before executing.
+Every cog command is gated by `@requires_module(FeatureModule.X)` (and `@requires_admin()` where needed) from `services/checks.py`, applied below the `app_commands` decorators. A command that must defer first (`/charter propose`) calls `check_module_enabled_deferred()` itself. `docs/COMMANDS.md` must list every command (tested).
 
 ### Storage
 `DiscordDMStorage` in `utils/storage.py`: JSON stored as edited messages in a DM to the bot owner. Free, survives redeploys, one Discord message (2,000 chars) per namespace — oversize saves are refused and DM the owner. `utils/owner_dm.py` is the one place that opens that DM.
@@ -49,7 +49,7 @@ Every cog command must call `check_module_enabled()` or `check_module_enabled_de
 
 **Cog dependency injection**: Cogs declare dependencies as `None` in `__init__`, receive them in `set_dependencies()`. Never import dependencies at module load time inside cogs — use `set_dependencies` to avoid circular imports.
 
-**Deferred vs. immediate responses**: For commands making HTTP calls, always `await interaction.response.defer()` first, then `interaction.followup.send()`. Use `check_module_enabled_deferred()` (not `check_module_enabled`) in these cases.
+**Deferred vs. immediate responses**: For commands making HTTP calls, always `await interaction.response.defer()` first, then `interaction.followup.send()`. `check_module_enabled()` replies correctly either way.
 
 **Timer advancement via @everyone**: The bot listens for `@everyone` + the word "advanced" in `on_message`. This advances the dynasty week and restarts a 48-hour countdown. Hardcoded social convention for the league.
 

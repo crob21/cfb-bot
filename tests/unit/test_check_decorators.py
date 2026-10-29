@@ -14,6 +14,7 @@ from cfb_bot.utils.server_config import FeatureModule
 def make_interaction():
     interaction = MagicMock()
     interaction.response.send_message = AsyncMock()
+    interaction.response.is_done = MagicMock(return_value=False)
     interaction.guild.id = 1
     interaction.channel.id = 2
     return interaction

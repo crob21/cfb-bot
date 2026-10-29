@@ -10,7 +10,7 @@ Modules:
 
 import json
 import logging
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Set
 from enum import Enum
 
 from ..config import GAME_NAME

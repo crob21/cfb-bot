@@ -248,22 +248,6 @@ class CharterEditor:
             logger.error(f"Error backing up charter: {e}")
             return False
 
-    def write_charter(self, content: str) -> bool:
-        """Write new content to the charter (file only - sync version)"""
-        try:
-            # First, create a backup
-            self.backup_charter()
-
-            # Write the new content
-            with open(self.charter_file, 'w', encoding='utf-8') as f:
-                f.write(content)
-
-            logger.info(f"Charter updated in file: {len(content)} characters")
-            return True
-        except Exception as e:
-            logger.error(f"Error writing charter: {e}")
-            return False
-
     async def write_charter_async(self, content: str) -> bool:
         """Write new content to charter - saves to both file AND Discord for persistence"""
         try:
@@ -435,7 +419,7 @@ class CharterEditor:
                 updated_charter = current_charter + new_section
 
             # Write the updated charter
-            success = self.write_charter(updated_charter)
+            success = await self.write_charter_async(updated_charter)
 
             if success:
                 return {
@@ -514,7 +498,7 @@ class CharterEditor:
                 }
 
             updated_charter = '\n'.join(updated_lines)
-            success = self.write_charter(updated_charter)
+            success = await self.write_charter_async(updated_charter)
 
             if success:
                 return {
@@ -673,33 +657,59 @@ Current charter:
             logger.error(f"Error listing backups: {e}")
             return []
 
-    def restore_backup(self, backup_filename: str) -> bool:
-        """Restore a charter from backup"""
+    async def restore_backup(self, backup_filename: str) -> bool:
+        """Restore a charter from backup, saving it to Discord so it survives a restart."""
+        # Only real backup names: a path here would load any file into the charter
+        name = os.path.basename(backup_filename)
+        if name != backup_filename or not (name.startswith("charter_backup_") and name.endswith(".txt")):
+            logger.error(f"Not a charter backup: {backup_filename!r}")
+            return False
+        backup_path = os.path.join(self.backup_dir, name)
+        if not os.path.exists(backup_path):
+            logger.error(f"Backup file not found: {name}")
+            return False
         try:
-            backup_path = os.path.join(self.backup_dir, backup_filename)
-
-            if not os.path.exists(backup_path):
-                logger.error(f"Backup file not found: {backup_filename}")
-                return False
-
-            # Read the backup
             with open(backup_path, 'r', encoding='utf-8') as f:
                 backup_content = f.read()
-
-            # Backup the current charter before restoring
-            self.backup_charter()
-
-            # Restore the backup
-            success = self.write_charter(backup_content)
-
-            if success:
-                logger.info(f"Charter restored from backup: {backup_filename}")
-
-            return success
-
         except Exception as e:
-            logger.error(f"Error restoring backup: {e}")
+            logger.error(f"Error reading backup {name}: {e}")
             return False
+
+        success = await self.write_charter_async(backup_content)  # backs up the current one first
+        if success:
+            logger.info(f"Charter restored from backup: {name}")
+        return success
+
+    def search_charter(self, term: str, limit: int = 5) -> List[Dict]:
+        """Sections whose heading or text mentions the term, each with a short excerpt."""
+        needle = (term or "").strip().lower()
+        content = self.read_charter()
+        if not needle or not content:
+            return []
+
+        sections, title, lines = [], "Charter", []
+        for line in content.splitlines():
+            if line.lstrip().startswith('#'):
+                if lines:
+                    sections.append((title, "\n".join(lines)))
+                title = line.lstrip('#').strip().strip('*').strip() or title
+                lines = []
+            else:
+                lines.append(line)
+        if lines:
+            sections.append((title, "\n".join(lines)))
+
+        results = []
+        for title, text in sections:
+            at = text.lower().find(needle)
+            if at == -1 and needle not in title.lower():
+                continue
+            start = max(0, at - 60) if at > 0 else 0
+            excerpt = " ".join(text[start:start + 300].split())
+            results.append({'section': title, 'excerpt': ("…" if start else "") + (excerpt or "_(heading only)_")})
+            if len(results) >= limit:
+                break
+        return results
 
     # ==================== Interactive Update Methods ====================
 

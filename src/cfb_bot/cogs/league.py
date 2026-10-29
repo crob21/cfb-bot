@@ -4,9 +4,6 @@ League Cog for CFB League Bot
 
 Provides commands for league management, timers, schedules, and staff.
 Commands:
-- /league rules - Get recruiting rules
-- /league team - Team lookup
-- /league dynasty - Dynasty management rules
 - /league timer - Start advance countdown
 - /league timer_status - Check countdown status
 - /league timer_stop - Stop the advance countdown
@@ -22,14 +19,14 @@ Commands:
 - /league set_week - Set season/week (admin)
 - /league upload_schedule - Upload a full schedule JSON file (admin)
 - /league set_week_games - Set one week's games/byes by typing them (admin)
+- /league ghost - Mark or unmark a team whose coach never shows up (admin)
 - /league schedule_template - Show the schedule JSON format
 - /league timer_channel - Set notification channel (admin)
 - /league staff - View league staff
 - /league set_owner - Set league owner (admin)
 - /league set_commish - Set co-commissioner (admin)
-- /league pick_commish - AI picks co-commissioner
-- /league nag - Start nagging owner (bot owner)
-- /league stop_nag - Stop nagging (bot owner)
+- /league pick_commish - Most active members, for co-commissioner (admin)
+- /league nag - Start or stop nagging the owner (bot owner)
 """
 
 import logging
@@ -40,8 +37,8 @@ from discord import app_commands
 from discord.ext import commands
 
 from ..config import GAME_NAME, Colors
-from ..services.checks import ADMINS_ONLY, check_module_enabled, check_module_enabled_deferred, requires_admin, requires_module
-from ..utils.server_config import server_config, FeatureModule
+from ..services.checks import ADMINS_ONLY, requires_admin, requires_module
+from ..utils.server_config import server_config, FeatureModule  # noqa: F401 (requires_module reads server_config here)
 # Week schedule constants and helpers live in one canonical place: utils/timekeeper.py.
 # That module also drives advance/increment and season rollover, so reusing it here
 # guarantees the week names/phases shown by /league match the timer's internal week
@@ -49,7 +46,7 @@ from ..utils.server_config import server_config, FeatureModule
 from ..utils.timekeeper import (CFB_DYNASTY_WEEKS, FIRST_WEEK, LAST_WEEK, MAX_GAME_WEEK,
                                 get_game_week, get_week_info, get_week_name,
                                 is_valid_week)
-from ..services.oops import NOT_READY, NO_AI, oops
+from ..services.oops import NOT_READY, oops
 
 
 logger = logging.getLogger('CFBBot.League')
@@ -84,73 +81,6 @@ class LeagueCog(commands.Cog):
         name="league",
         description="🏆 League management, timers, and schedules"
     )
-
-    @league_group.command(name="rules", description="Get recruiting rules and policies")
-    @app_commands.describe(topic="Rule topic to look up")
-    @requires_module(FeatureModule.LEAGUE)
-    async def rules(self, interaction: discord.Interaction, topic: str):
-        """Get information about recruiting rules"""
-        await interaction.response.defer()
-
-        embed = discord.Embed(
-            title=f"{GAME_NAME} Recruiting: {topic.title()}",
-            color=Colors.SUCCESS
-        )
-
-        if hasattr(self.bot, 'league_data') and 'rules' in self.bot.league_data and 'recruiting' in self.bot.league_data['rules']:
-            recruiting_rules = self.bot.league_data['rules']['recruiting']
-            embed.description = recruiting_rules.get('description', 'Recruiting rules and policies')
-            if 'topics' in recruiting_rules:
-                topics = recruiting_rules['topics']
-                if topic.lower() in topics:
-                    embed.add_field(name="Information", value=topics[topic.lower()], inline=False)
-                else:
-                    available = '\n'.join([f"• {t}" for t in topics.keys()])
-                    embed.add_field(name="Available Topics", value=available, inline=False)
-        else:
-            embed.description = "Recruiting rules not found in league data."
-
-        embed.add_field(
-            name="League Charter",
-            value="[View Full Charter](https://docs.google.com/document/d/1lX28DlMmH0P77aficBA_1Vo9ykEm_bAroSTpwMhWr_8/edit)",
-            inline=False
-        )
-        await interaction.followup.send(embed=embed)
-
-    @league_group.command(name="dynasty", description="Get dynasty management rules")
-    @app_commands.describe(topic="Dynasty topic to look up")
-    @requires_module(FeatureModule.LEAGUE)
-    async def dynasty(self, interaction: discord.Interaction, topic: str):
-        """Get information about dynasty management rules"""
-        await interaction.response.defer()
-
-        embed = discord.Embed(
-            title=f"{GAME_NAME} Dynasty: {topic.title()}",
-            color=Colors.FUN
-        )
-
-        if hasattr(self.bot, 'league_data') and 'rules' in self.bot.league_data:
-            dynasty_topics = ['transfers', 'gameplay', 'scheduling', 'conduct']
-            found_topic = None
-            for dt in dynasty_topics:
-                if topic.lower() in dt.lower() and dt in self.bot.league_data['rules']:
-                    found_topic = dt
-                    break
-
-            if found_topic:
-                rules = self.bot.league_data['rules'][found_topic]
-                embed.description = rules.get('description', 'Dynasty management rules')
-            else:
-                embed.description = "Dynasty topic not found. Available: transfers, gameplay, scheduling, conduct"
-        else:
-            embed.description = "Dynasty rules not found in league data."
-
-        embed.add_field(
-            name="League Charter",
-            value="[View Full Charter](https://docs.google.com/document/d/1lX28DlMmH0P77aficBA_1Vo9ykEm_bAroSTpwMhWr_8/edit)",
-            inline=False
-        )
-        await interaction.followup.send(embed=embed)
 
     @league_group.command(name="timer", description="Start advance countdown timer (Admin only)")
     @app_commands.describe(hours="Number of hours for the countdown (default: 48)")
@@ -334,19 +264,11 @@ class LeagueCog(commands.Cog):
             end_time = status.get('end_time')
             timezone_info = ""
             if end_time:
-                from datetime import datetime
-                import pytz
-
-                # Convert to timezone-aware datetime if needed
-                if isinstance(end_time, str):
-                    end_time = datetime.fromisoformat(end_time.replace('Z', '+00:00'))
-                elif not hasattr(end_time, 'tzinfo') or end_time.tzinfo is None:
-                    end_time = pytz.utc.localize(end_time)
-
-                # Convert to different timezones
-                eastern = end_time.astimezone(pytz.timezone('US/Eastern'))
-                central = end_time.astimezone(pytz.timezone('US/Central'))
-                pacific = end_time.astimezone(pytz.timezone('US/Pacific'))
+                from zoneinfo import ZoneInfo
+                # Timer times are naive local times; astimezone() reads them as such
+                eastern = end_time.astimezone(ZoneInfo('America/New_York'))
+                central = end_time.astimezone(ZoneInfo('America/Chicago'))
+                pacific = end_time.astimezone(ZoneInfo('America/Los_Angeles'))
 
                 timezone_info = (
                     f"\n\n**Countdown Ends:**\n"
@@ -1120,7 +1042,7 @@ class LeagueCog(commands.Cog):
             return
 
         if none:
-            await self.timekeeper_manager.set_co_commissioner(None, "We don't have one")
+            await self.timekeeper_manager.set_co_commissioner(None)
             embed = discord.Embed(
                 title="👔 Co-Commissioner Cleared",
                 description="Co-commissioner has been cleared.",
@@ -1139,7 +1061,7 @@ class LeagueCog(commands.Cog):
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    @league_group.command(name="pick_commish", description="Harry analyzes the chat and picks a co-commissioner")
+    @league_group.command(name="pick_commish", description="Rank the chat's most active members for co-commissioner (Admin only)")
     @app_commands.describe(
         channel="Channel to analyze",
         hours="Hours of chat history (default: 168 = 1 week)"
@@ -1151,7 +1073,7 @@ class LeagueCog(commands.Cog):
         channel: Optional[discord.TextChannel] = None,
         hours: int = 168
     ):
-        """Have Harry analyze chat and recommend a co-commissioner"""
+        """Recommend a co-commissioner: whoever's posted the most in the channel."""
         await interaction.response.defer()
 
         if not self._is_league_admin(interaction):
@@ -1160,10 +1082,6 @@ class LeagueCog(commands.Cog):
 
         if not self.channel_summarizer:
             await interaction.followup.send(NOT_READY, ephemeral=True)
-            return
-
-        if not self.AI_AVAILABLE or not self.ai_assistant:
-            await interaction.followup.send(NO_AI, ephemeral=True)
             return
 
         if hours < 24 or hours > 720:

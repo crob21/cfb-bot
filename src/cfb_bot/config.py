@@ -60,6 +60,9 @@ ANTHROPIC_COST_PER_1K = env_float('ANTHROPIC_COST_PER_1K', 0.002)
 CHARTER_FILE = 'data/charter.md'
 CHARTER_FILE_LEGACY = 'data/charter_content.txt'
 
+# The charter's shared Google Doc, linked from /charter and /harry answers.
+CHARTER_URL = env_str('CHARTER_URL', 'https://docs.google.com/document/d/1lX28DlMmH0P77aficBA_1Vo9ykEm_bAroSTpwMhWr_8/edit')
+
 # Discord user IDs allowed to have Harry open a charter PR. Empty = nobody.
 CHARTER_EDITOR_IDS = [
     int(uid) for uid in env_str('CHARTER_EDITOR_IDS', '').replace(' ', '').split(',') if uid.isdigit()

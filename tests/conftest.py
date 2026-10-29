@@ -83,6 +83,8 @@ def mock_interaction(mock_user, mock_guild, mock_channel):
     interaction.response = MagicMock()
     interaction.response.defer = AsyncMock()
     interaction.response.send_message = AsyncMock()
+    interaction.response.is_done = MagicMock(return_value=False)
+    interaction.delete_original_response = AsyncMock()
     interaction.followup = MagicMock()
     interaction.followup.send = AsyncMock()
     return interaction

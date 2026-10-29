@@ -41,7 +41,6 @@ class StorageBackend(ABC):
         Returns:
             True if successful, False otherwise
         """
-        pass
     
     @abstractmethod
     async def load(self, namespace: str, key: str) -> Optional[Dict[str, Any]]:
@@ -55,7 +54,6 @@ class StorageBackend(ABC):
         Returns:
             Dictionary of data, or None if not found
         """
-        pass
     
     @abstractmethod
     async def load_all(self, namespace: str) -> Dict[str, Dict[str, Any]]:
@@ -68,7 +66,6 @@ class StorageBackend(ABC):
         Returns:
             Dictionary of key -> data mappings
         """
-        pass
     
     @abstractmethod
     async def delete(self, namespace: str, key: str) -> bool:
@@ -82,7 +79,6 @@ class StorageBackend(ABC):
         Returns:
             True if successful, False otherwise
         """
-        pass
 
 
 class DiscordDMStorage(StorageBackend):
@@ -125,9 +121,11 @@ class DiscordDMStorage(StorageBackend):
     
     async def save(self, namespace: str, key: str, data: Dict[str, Any]) -> bool:
         """Save data to Discord DM"""
-        # Update cache
-        if namespace not in self._cache:
-            self._cache[namespace] = {}
+        # The whole namespace is one message, so it has to be loaded before one key is
+        # written - otherwise this save replaces every other key with nothing.
+        if namespace not in self._cache and not await self._load_namespace(namespace):
+            logger.error(f"Couldn't read {namespace} from Discord, so not saving over it")
+            return False
         self._cache[namespace][key] = data
         
         # Save entire namespace to Discord

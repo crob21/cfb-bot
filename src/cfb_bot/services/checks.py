@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 import discord
 
 if TYPE_CHECKING:  # type hints only; a runtime import here would be circular
-    from ..utils.server_config import FeatureModule, ServerConfig
+    from ..utils.server_config import FeatureModule, ServerConfigManager as ServerConfig
 
 logger = logging.getLogger('CFBBot.Checks')
 
@@ -27,88 +27,37 @@ async def check_module_enabled(
     server_config: 'ServerConfig'
 ) -> bool:
     """
-    Check if a module is enabled for this server and channel.
-    
-    Sends an ephemeral message if disabled.
-    Use this for commands that respond immediately.
-    
-    Args:
-        interaction: The Discord interaction
-        module: The FeatureModule to check
-        server_config: The server config manager instance
-        
-    Returns:
-        True if module is enabled and channel is allowed, False otherwise
+    True if the module is on for this server and the channel is allowed.
+
+    Otherwise tells the user (ephemeral) and returns False. Works before or after the
+    interaction is deferred.
     """
     guild_id = interaction.guild.id if interaction.guild else 0
     channel_id = interaction.channel.id if interaction.channel else 0
-    
-    # Check if module is enabled
+
+    refusal = None
     if not server_config.is_module_enabled(guild_id, module):
         module_name = module.value.replace('_', ' ').title()
-        await interaction.response.send_message(
-            f"❌ The **{module_name}** module is switched off here, mate.\n"
-            f"Ask an admin to turn it on with `/admin config`",
-            ephemeral=True
-        )
-        return False
-    
-    # Check if channel is whitelisted (if whitelist exists)
-    enabled_channels = server_config.get_enabled_channels(guild_id)
-    if enabled_channels and channel_id not in enabled_channels:
-        await interaction.response.send_message(
-            "❌ I'm not allowed to talk in this channel, mate.\n"
-            "Ask an admin to let me in with `/admin channels`",
-            ephemeral=True
-        )
-        return False
-    
-    return True
+        refusal = (f"❌ The **{module_name}** module is switched off here, mate.\n"
+                   f"Ask an admin to turn it on with `/admin config`")
+    else:
+        # An empty whitelist means every channel is allowed
+        enabled_channels = server_config.get_enabled_channels(guild_id)
+        if enabled_channels and channel_id not in enabled_channels:
+            refusal = ("❌ I'm not allowed to talk in this channel, mate.\n"
+                       "Ask an admin to let me in with `/admin channels`")
+    if refusal is None:
+        return True
+
+    if interaction.response.is_done():
+        await interaction.followup.send(refusal, ephemeral=True)
+    else:
+        await interaction.response.send_message(refusal, ephemeral=True)
+    return False
 
 
-async def check_module_enabled_deferred(
-    interaction: discord.Interaction,
-    module: 'FeatureModule',
-    server_config: 'ServerConfig'
-) -> bool:
-    """
-    Check if a module is enabled for this server and channel.
-    
-    Sends a followup message if disabled.
-    Use this for commands that have already deferred their response.
-    
-    Args:
-        interaction: The Discord interaction (already deferred)
-        module: The FeatureModule to check
-        server_config: The server config manager instance
-        
-    Returns:
-        True if module is enabled and channel is allowed, False otherwise
-    """
-    guild_id = interaction.guild.id if interaction.guild else 0
-    channel_id = interaction.channel.id if interaction.channel else 0
-    
-    # Check if module is enabled
-    if not server_config.is_module_enabled(guild_id, module):
-        module_name = module.value.replace('_', ' ').title()
-        await interaction.followup.send(
-            f"❌ The **{module_name}** module is switched off here, mate.\n"
-            f"Ask an admin to turn it on with `/admin config`",
-            ephemeral=True
-        )
-        return False
-    
-    # Check if channel is whitelisted (if whitelist exists)
-    enabled_channels = server_config.get_enabled_channels(guild_id)
-    if enabled_channels and channel_id not in enabled_channels:
-        await interaction.followup.send(
-            "❌ I'm not allowed to talk in this channel, mate.\n"
-            "Ask an admin to let me in with `/admin channels`",
-            ephemeral=True
-        )
-        return False
-    
-    return True
+# Same check; the name is kept for commands that defer first
+check_module_enabled_deferred = check_module_enabled
 
 
 def is_bot_admin(

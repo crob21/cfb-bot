@@ -50,7 +50,7 @@ MaxPreps stats for a player, or a whole list at once with `/hs bulk`.
 - **Advance timer** — countdown with 24h / 12h / 6h / 1h warnings. Post `@everyone advanced` in the timer channel and Harry advances the week and restarts the clock.
 - **Schedule** — `/league games`, `find_game`, `byes`. Upload a season with `/league upload_schedule`, or type one week with `/league set_week_games`. Your teams are **bolded** everywhere they appear, user-vs-user games get a ⚔️, and `/league ghost` puts a 👻 next to teams whose coach never shows up.
 - **Week tracking** — the real 31-step dynasty calendar, not a guess.
-- **Staff** — owner and co-commish, including `/league pick_commish`, where Harry reads the chat and nominates someone.
+- **Staff** — owner and co-commish, including `/league pick_commish`, which ranks the chat's most active members as candidates.
 
 ### 🤖 AI (`/harry`, `/ask`, `/summarize`)
 Ask Harry anything — or just **@mention him**, no slash command needed. He answers with your charter and current week in context. `/summarize` catches you up on a channel you ignored for a week. Works with OpenAI or Anthropic; models are a config setting, not a code change.
@@ -152,7 +152,7 @@ Every command group maps to a module you toggle with `/admin config`. On by defa
 | `/recruiting` | player, top, class, commits, rankings, portal, source |
 | `/hs` | stats, bulk |
 | `/league` | timer, timer_status, timers, side_timer, games, schedule, week, weeks, find_game, byes, staff, set_week, upload_schedule, set_week_games, ghost, pick_commish, … |
-| `/charter` | lookup, search, add, update, propose, season_recap, history, backups, restore, link, scan, sync, import |
+| `/charter` | search, add, update, propose, season_recap, history, backups, restore, link, scan, sync, import |
 | `/harry`, `/ask`, `/summarize` | AI — or just @mention him |
 | `/fun` | target, untarget, target_all, untarget_all, roast, status, timeout, toggle_engage |
 | `/admin` | config, channels, set_channel, block/unblock, add/remove admins, ai, zyte, cache, budget, digest, sync |

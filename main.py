@@ -5,9 +5,7 @@ CFB Bot (Harry) - Main Entry Point
 Comprehensive Discord bot for College Football dynasty leagues
 """
 
-import os
 import sys
-import logging
 from pathlib import Path
 
 # Add src to path

@@ -270,13 +270,11 @@ class AICharterAssistant:
 
         return "\n".join(context_parts)
 
-    def _get_cache_key(self, question: str, include_league_context: bool) -> str:
-        """Generate cache key from question"""
+    def _get_cache_key(self, question: str, include_league_context: bool,
+                       personality_prompt: Optional[str] = None) -> str:
+        """Cache key: the question, whether league context is on, and the persona answering."""
         import hashlib
-        # Normalize question (lowercase, strip whitespace)
-        normalized = question.lower().strip()
-        # Add context flag to key
-        cache_str = f"{normalized}:{include_league_context}"
+        cache_str = f"{question.lower().strip()}:{include_league_context}:{personality_prompt or ''}"
         return hashlib.md5(cache_str.encode()).hexdigest()
 
     def _get_cached_response(self, cache_key: str) -> Optional[str]:
@@ -353,7 +351,7 @@ class AICharterAssistant:
 
     async def ask_openai(self, question: str, context: str, max_tokens: int = 500, personality_prompt: str = None, include_league_context: bool = True) -> Optional[str]:
         """Ask OpenAI. max_tokens caps the answer - raise it for long output like a charter rewrite."""
-        cache_key = self._get_cache_key(question, include_league_context)
+        cache_key = self._get_cache_key(question, include_league_context, personality_prompt)
         cached = self._get_cached_response(cache_key)
         if cached:
             return sanitize_ai_response(cached)
@@ -397,7 +395,7 @@ class AICharterAssistant:
 
     async def ask_anthropic(self, question: str, context: str, max_tokens: int = 500, personality_prompt: str = None, include_league_context: bool = True) -> Optional[str]:
         """Ask Anthropic. Same contract as ask_openai."""
-        cache_key = self._get_cache_key(question, include_league_context)
+        cache_key = self._get_cache_key(question, include_league_context, personality_prompt)
         cached = self._get_cached_response(cache_key)
         if cached:
             return sanitize_ai_response(cached)

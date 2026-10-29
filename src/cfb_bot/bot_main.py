@@ -2,18 +2,19 @@
 """
 CFB League Bot - Cog-Based Architecture
 
-This is the new modular entry point that loads Discord.py Cogs.
-Each cog handles a specific domain of commands.
+Entry point: loads the cogs, wires their dependencies, and handles on_message
+(the @everyone advance, the season history thread, team banter).
 
 Cogs loaded:
 - CoreCog: /help, /version, /changelog, /whats_new, /tokens
 - AIChatCog: /harry, /ask, /summarize
-- RecruitingCog: /recruiting group (7 commands)
-- CFBDataCog: /cfb group (9 commands)
-- HSStatsCog: /hs group (2 commands)
-- LeagueCog: /league group (19 commands)
-- CharterCog: /charter group (10 commands)
-- AdminCog: /admin group (10 commands)
+- RecruitingCog: /recruiting group
+- CFBDataCog: /cfb group
+- HSStatsCog: /hs group
+- LeagueCog: /league group
+- CharterCog: /charter group
+- AdminCog: /admin group
+- FunCog: /fun group
 """
 
 import asyncio
@@ -85,6 +86,9 @@ charter_editor = None
 _startup_complete = False
 version_manager = None
 schedule_manager = None
+_background_tasks = set()
+# guild id -> commands synced at startup, for the dev-channel status embed
+_sync_results = {}
 
 
 async def setup_dependencies():
@@ -245,6 +249,7 @@ async def on_ready():
         for guild in bot.guilds:
             bot.tree.copy_global_to(guild=guild)
             synced = await bot.tree.sync(guild=guild)
+            _sync_results[guild.id] = len(synced)
             logger.info(f"Synced {len(synced)} command(s) to {guild.name}")
 
         # Global sync (takes up to 1 hour for other servers)
@@ -341,7 +346,8 @@ async def send_startup_notification():
     # ⚙️ Command Sync Status
     sync_status = []
     for guild in bot.guilds:
-        sync_status.append(f"• **{guild.name}**: Synced ✅")
+        count = _sync_results.get(guild.id)
+        sync_status.append(f"• **{guild.name}**: " + (f"{count} commands ✅" if count is not None else "not synced ❌"))
 
     embed.add_field(
         name="⚙️ Command Sync Status",
@@ -431,10 +437,12 @@ async def on_app_command_error(interaction: discord.Interaction, error):
     original = getattr(error, 'original', error)
     command_name = interaction.command.qualified_name if interaction.command else "unknown command"
 
-    # Expected, user-facing conditions — no need to wake the owner
-    if isinstance(error, (app_commands.CommandOnCooldown, app_commands.MissingPermissions,
-                          app_commands.CheckFailure)):
-        message = f"❌ {error}"
+    # Expected, user-facing conditions — no need to wake the owner. Harry's words,
+    # not discord.py's ("The check functions for command ... failed").
+    if isinstance(error, app_commands.CommandOnCooldown):
+        message = f"❌ Slow down, mate. Try again in {error.retry_after:.0f}s."
+    elif isinstance(error, (app_commands.MissingPermissions, app_commands.CheckFailure)):
+        message = "❌ You can't use that one here, mate."
     else:
         logger.error(f"Error in /{command_name}: {original}", exc_info=original)
         from .utils.error_reporter import get_error_reporter
@@ -568,7 +576,9 @@ async def _handle_advance(message):
             charter_cog = bot.get_cog('CharterCog')
             if (season_info.get('week') == SEASON_RECAP_WEEK and charter_cog
                     and server_config.is_module_enabled(message.guild.id, FeatureModule.LEAGUE)):
-                asyncio.create_task(charter_cog.announce_season_history(message.channel, season_info['season']))
+                task = asyncio.create_task(charter_cog.announce_season_history(message.channel, season_info['season']))
+                _background_tasks.add(task)  # asyncio keeps only a weak reference to running tasks
+                task.add_done_callback(_background_tasks.discard)
                 logger.info(f"Season {season_info['season']} over - Harry's writing the history")
         else:
             from .config import Colors
@@ -625,52 +635,15 @@ async def on_message(message):
         if charter_cog and await charter_cog.handle_history_reply(message):
             return
 
-    # RIVALRY RESPONSES - Team banter (Fuck Oregon!, etc.)
-    # Only if message is in a guild and FUN_GAMES module is enabled
+    # Team banter (Fuck Oregon!, etc.) wherever Fun & Games is on
     if message.guild:
-        guild_id = message.guild.id
-
-        # Import FeatureModule here to avoid circular imports
+        from .cogs.fun import rivalry_response
         from .utils.server_config import FeatureModule
-
-        # Check if Fun & Games module is enabled
-        fun_games_enabled = server_config.is_module_enabled(guild_id, FeatureModule.FUN_GAMES)
-
-        if fun_games_enabled:
-            message_lower = message.content.lower()
-
-            # Team banter keywords
-            team_keywords = {
-                'oregon': 'Fuck Oregon! 🦆💩',
-                'ducks': 'Ducks are assholes! 🦆💩',
-                'oregon ducks': 'Fuck Oregon! 🦆💩',
-                'oregon state': 'BEAVS!',
-                'detroit lions': 'Go Lions! 🦁',
-                'lions': 'Go Lions! 🦁',
-                'tampa bay buccaneers': 'Go Bucs! 🏴‍☠️',
-                'buccaneers': 'Go Bucs! 🏴‍☠️',
-                'bucs': 'Go Bucs! 🏴‍☠️',
-                'chicago bears': 'Da Bears! 🧸',
-                'bears': 'Da Bears! 🧸',
-                'washington': 'Go Huskies! 🐕',
-                'huskies': 'Go Huskies! 🐕',
-                'uw': 'Go Huskies! 🐕',
-                'alabama': 'Roll Tide! 🐘',
-                'crimson tide': 'Roll Tide! 🐘',
-                'georgia': 'Wrong Dawgs...',
-                'bulldogs': 'Wrong Dawgs...',
-                'ohio state': 'Ohio sucks! 🌰',
-                'buckeyes': 'Ohio sucks! 🌰',
-                'michigan': 'Go Blue! 💙',
-                'wolverines': 'Go Blue! 💙',
-            }
-
-            # Check for keyword matches
-            for keyword, response in team_keywords.items():
-                if keyword in message_lower:
-                    await message.channel.send(response)
-                    logger.info(f"Rivalry response triggered: '{keyword}' → {response}")
-                    break  # Only respond once per message
+        if server_config.is_module_enabled(message.guild.id, FeatureModule.FUN_GAMES):
+            response = rivalry_response(message.content)
+            if response:
+                await message.channel.send(response)
+                logger.info(f"Rivalry response triggered: {response}")
 
     # Let cogs handle their own message processing (FunCog targeting, command parsing, etc.)
     await bot.process_commands(message)
@@ -685,10 +658,14 @@ async def main():
         logger.error("DISCORD_BOT_TOKEN environment variable not set!")
         sys.exit(1)
 
-    # Load cogs
     async with bot:
         await load_cogs()
-        await bot.start(token)
+        try:
+            await bot.start(token)
+        finally:
+            # Playwright's headless Chromium outlives the bot otherwise
+            from .utils.on3_scraper import on3_scraper
+            await on3_scraper.cleanup()
 
     # Exiting would get a stood-down copy restarted by the host, and it would take the
     # lease back from the live one. Idle until the host stops it instead.

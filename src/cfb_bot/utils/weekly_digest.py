@@ -119,7 +119,7 @@ class WeeklyDigest:
             # Get admin IDs from environment variable or bot owner
             import os
             admin_ids_str = os.getenv('BOT_ADMIN_IDS', '')
-            admin_ids = [int(id.strip()) for id in admin_ids_str.split(',') if id.strip()]
+            admin_ids = [int(i) for i in admin_ids_str.replace(' ', '').split(',') if i.isdigit()]
 
             # If no admin IDs configured, send to bot owner
             if not admin_ids:
