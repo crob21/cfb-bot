@@ -12,7 +12,7 @@ from typing import Optional
 import aiohttp
 from dotenv import load_dotenv
 
-from ..utils.holidays import festive, holiday_personality, reply_holiday
+from ..utils.holidays import current_holiday, emoji_this_reply, festive, holiday_personality
 from ..utils.server_config import HARRY_PERSONALITY
 from ..utils.storage import get_storage
 from ..security import HTTP_TIMEOUT, sanitize_ai_response
@@ -437,10 +437,11 @@ class AICharterAssistant:
         # Load usage stats on first use
         await self._load_usage_stats()
 
-        # Holidays dress up Harry's own voice now and then; persona overrides (charter work) stay plain
-        holiday = reply_holiday() if personality_prompt is None else None
+        # Holidays dress up Harry's own voice every reply (emoji now and then); persona overrides (charter work) stay plain
+        holiday = current_holiday() if personality_prompt is None else None
+        with_emoji = bool(holiday) and emoji_this_reply()
         if holiday:
-            personality_prompt = holiday_personality(HARRY_PERSONALITY, holiday)
+            personality_prompt = holiday_personality(HARRY_PERSONALITY, holiday, with_emoji)
 
         if user_info:
             logger.info(f"AI asked by {user_info}: {question[:100]}...")
@@ -462,7 +463,7 @@ class AICharterAssistant:
                                          include_league_context=include_league_context)
         if response:
             logger.info("OpenAI response received")
-            return festive(response, holiday) if holiday else response
+            return festive(response, holiday) if with_emoji else response
 
         # Fallback to Anthropic
         logger.info("Trying Anthropic...")
@@ -470,7 +471,7 @@ class AICharterAssistant:
                                             include_league_context=include_league_context)
         if response:
             logger.info("Anthropic response received")
-            return festive(response, holiday) if holiday else response
+            return festive(response, holiday) if with_emoji else response
         logger.warning("No AI response from either provider")
         return response
 

@@ -3,6 +3,12 @@
 Full release history for Harry. The bot's `/changelog` command shows the most recent releases;
 this file keeps everything. Generated from `src/cfb_bot/utils/version_manager.py`.
 
+## 3.26.1 — Spooky All the Way 👻 (2026-10-28)
+
+### Fixes
+- FIX: Halloween Harry dropped out of character on most replies; he's spooky on every reply now
+- Only the holiday emoji are now and then (about 1 in 4 replies, HOLIDAY_EMOJI_CHANCE)
+
 ## 3.26.0 — The Big Tidy 🧹 (2026-10-28)
 
 ### Fixes

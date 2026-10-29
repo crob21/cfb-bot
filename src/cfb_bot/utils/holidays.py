@@ -8,8 +8,8 @@ Harry dresses up for the holidays (league time):
 - Thanksgiving week, Monday to Sunday around the 4th Thursday of November: Thanksgiving Harry 🦃
 - Christmas, Dec 18-26: Christmas Harry 🎄
 
-Only some replies are dressed up (HOLIDAY_REPLY_CHANCE), so the joke doesn't wear thin;
-the reactions happen on every post. Outside those dates he's plain Harry. Nothing to switch on or off; it comes back every year.
+He stays in character for every reply; only some get the holiday emoji
+(HOLIDAY_EMOJI_CHANCE), so they don't wear thin. The reactions happen on every post. Outside those dates he's plain Harry. Nothing to switch on or off; it comes back every year.
 """
 
 import random
@@ -22,8 +22,8 @@ from ..config import env_float, env_str
 
 LEAGUE_TIMEZONE = ZoneInfo('America/New_York')
 
-# Share of Harry's replies that get the holiday treatment while a holiday is on
-HOLIDAY_REPLY_CHANCE = env_float('HOLIDAY_REPLY_CHANCE', 0.25)
+# Share of Harry's holiday replies that get the holiday emoji (he's in character for all of them)
+HOLIDAY_EMOJI_CHANCE = env_float('HOLIDAY_EMOJI_CHANCE', 0.25)
 
 PUMPKIN = '🎃'
 GHOST = '👻'
@@ -37,24 +37,24 @@ SANTA = '🎅'
 @dataclass(frozen=True)
 class Holiday:
     name: str
-    emoji: tuple  # the first two get added to a reply that has none of them
-    persona: str
+    emoji: tuple  # the first two get added to an emoji reply that has none of them
+    persona: str  # the voice, every reply; emoji are asked for separately
 
 
 HALLOWEEN = Holiday('Halloween', (GHOST, PUMPKIN), f"""
-It's Halloween week, so you are Spooky Halloween Harry. Every reply is haunted: sprinkle in
-ghost {GHOST} and pumpkin {PUMPKIN} emojis, ghoulish puns and graveyard humour, while still
-answering the question properly. The Ducks are, naturally, cursed.""")
+It's Halloween week, so you are Spooky Halloween Harry. Every reply is haunted: ghoulish puns,
+graveyard humour and things that go bump in the night, while still answering the question
+properly. The Ducks are, naturally, cursed.""")
 
 THANKSGIVING = Holiday('Thanksgiving', (TURKEY, PIE), f"""
-It's Thanksgiving week, so you are Thanksgiving Harry. Every reply gets turkey {TURKEY} and
-pie {PIE} emojis, stuffing-and-gravy puns and a food coma, and you're sarcastically thankful
-for things (mostly every Ducks loss), while still answering the question properly.""")
+It's Thanksgiving week, so you are Thanksgiving Harry. Every reply gets stuffing-and-gravy puns
+and a food coma, and you're sarcastically thankful for things (mostly every Ducks loss), while
+still answering the question properly.""")
 
 CHRISTMAS = Holiday('Christmas', (TREE, SANTA), f"""
-It's Christmas, so you are Christmas Harry. Every reply is festive: sprinkle in Christmas tree
-{TREE} and Santa {SANTA} emojis, carol puns and a bit too much eggnog, while still answering
-the question properly. The Ducks are top of the naughty list and get coal.""")
+It's Christmas, so you are Christmas Harry. Every reply is festive: carol puns and a bit too
+much eggnog, while still answering the question properly. The Ducks are top of the naughty
+list and get coal.""")
 
 
 def thanksgiving_day(year: int) -> date:
@@ -77,18 +77,18 @@ def current_holiday(today: Optional[date] = None) -> Optional[Holiday]:
     return None
 
 
-def reply_holiday(today: Optional[date] = None, roll: Optional[float] = None) -> Optional[Holiday]:
-    """The holiday to dress this one reply up for: now and then, not every time."""
-    holiday = current_holiday(today)
-    if holiday is None:
-        return None
-    roll = random.random() if roll is None else roll
-    return holiday if roll < HOLIDAY_REPLY_CHANCE else None
+def emoji_this_reply(roll: Optional[float] = None) -> bool:
+    """Whether this holiday reply gets the holiday emoji: now and then, not every time."""
+    return (random.random() if roll is None else roll) < HOLIDAY_EMOJI_CHANCE
 
 
-def holiday_personality(personality: str, holiday: Holiday) -> str:
-    """Harry's persona, dressed up for the holiday."""
-    return personality + '\n' + holiday.persona
+def holiday_personality(personality: str, holiday: Holiday, with_emoji: bool) -> str:
+    """Harry's persona, in character for the holiday, with or without its emoji this time."""
+    if with_emoji:
+        emoji = f"Drop in a {holiday.emoji[0]} or {holiday.emoji[1]} emoji."
+    else:
+        emoji = "No emoji in this reply: the holiday shows in your words."
+    return f"{personality}\n{holiday.persona}\n{emoji}"
 
 
 def festive(text: str, holiday: Holiday) -> str:

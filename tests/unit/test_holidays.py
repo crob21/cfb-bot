@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from cfb_bot.utils.holidays import (CHRISTMAS, GHOST, GRAVESTONE, HALLOWEEN, PUMPKIN, THANKSGIVING,
-                                    current_holiday, festive, reply_holiday, holiday_reaction, parse_reactions,
+                                    current_holiday, emoji_this_reply, festive, holiday_reaction, parse_reactions,
                                     thanksgiving_day)
 
 
@@ -42,15 +42,12 @@ class TestCalendar:
         assert current_holiday(day) is holiday
 
 
-class TestOnlyNowAndThen:
-    def test_some_replies_are_dressed_up(self):
-        assert reply_holiday(date(2026, 10, 31), roll=0.1) is HALLOWEEN
+class TestEmojiNowAndThen:
+    def test_some_replies_get_emoji(self):
+        assert emoji_this_reply(roll=0.1)
 
-    def test_most_replies_are_plain_harry(self):
-        assert reply_holiday(date(2026, 10, 31), roll=0.9) is None
-
-    def test_never_outside_a_holiday(self):
-        assert reply_holiday(date(2026, 3, 1), roll=0.0) is None
+    def test_most_replies_dont(self):
+        assert not emoji_this_reply(roll=0.9)
 
 
 class TestFestive:
@@ -99,19 +96,34 @@ class TestHolidayAI:
         a.ask_anthropic = AsyncMock(return_value=None)
         return a
 
+    def persona(self, assistant):
+        return assistant.ask_openai.call_args.kwargs['personality_prompt']
+
     @pytest.mark.parametrize("holiday, emoji", [(HALLOWEEN, "👻🎃"), (THANKSGIVING, "🦃🥧"), (CHRISTMAS, "🎄🎅")])
-    async def test_holiday_dresses_up_harry(self, assistant, holiday, emoji):
-        with patch('cfb_bot.ai.ai_integration.reply_holiday', return_value=holiday):
+    async def test_emoji_reply(self, assistant, holiday, emoji):
+        with patch('cfb_bot.ai.ai_integration.current_holiday', return_value=holiday), \
+             patch('cfb_bot.ai.ai_integration.emoji_this_reply', return_value=True):
             reply = await assistant.ask_ai("who's winning?")
         assert reply == f"Bloody Ducks {emoji}"
-        assert holiday.persona in assistant.ask_openai.call_args.kwargs['personality_prompt']
+        assert holiday.persona in self.persona(assistant)
+
+    @pytest.mark.parametrize("holiday", [HALLOWEEN, THANKSGIVING, CHRISTMAS])
+    async def test_stays_in_character_without_emoji(self, assistant, holiday):
+        with patch('cfb_bot.ai.ai_integration.current_holiday', return_value=holiday), \
+             patch('cfb_bot.ai.ai_integration.emoji_this_reply', return_value=False):
+            reply = await assistant.ask_ai("who's winning?")
+        assert reply == "Bloody Ducks"
+        assert holiday.persona in self.persona(assistant)
+        assert "No emoji" in self.persona(assistant)
 
     async def test_charter_persona_stays_plain(self, assistant):
-        with patch('cfb_bot.ai.ai_integration.reply_holiday', return_value=CHRISTMAS):
+        with patch('cfb_bot.ai.ai_integration.current_holiday', return_value=CHRISTMAS), \
+             patch('cfb_bot.ai.ai_integration.emoji_this_reply', return_value=True):
             reply = await assistant.ask_ai("write a rule", personality_prompt="plain")
         assert reply == "Bloody Ducks"
-        assert assistant.ask_openai.call_args.kwargs['personality_prompt'] == "plain"
+        assert self.persona(assistant) == "plain"
 
     async def test_plain_harry_the_rest_of_the_year(self, assistant):
-        with patch('cfb_bot.ai.ai_integration.reply_holiday', return_value=None):
+        with patch('cfb_bot.ai.ai_integration.current_holiday', return_value=None):
             assert await assistant.ask_ai("who's winning?") == "Bloody Ducks"
+        assert self.persona(assistant) is None
