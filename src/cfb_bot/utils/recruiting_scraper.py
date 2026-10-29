@@ -22,7 +22,7 @@ from urllib.parse import quote_plus
 import httpx
 from bs4 import BeautifulSoup
 
-from .cache import get_cache
+from .recruiting_base import RecruitingScraperBase
 
 logger = logging.getLogger('CFBBot.Recruiting')
 
@@ -30,8 +30,10 @@ logger = logging.getLogger('CFBBot.Recruiting')
 CACHE_NAMESPACE = '247sports'
 
 
-class RecruitingScraper:
+class RecruitingScraper(RecruitingScraperBase):
     """Scraper for 247Sports recruiting data"""
+
+    CACHE_NAMESPACE = CACHE_NAMESPACE
 
     BASE_URL = "https://247sports.com"
     SEASON_SEARCH_URL = "https://247sports.com/Season/{year}-Football/Recruits/?&Player.Fullname={name}"
@@ -81,14 +83,6 @@ class RecruitingScraper:
             'Upgrade-Insecure-Requests': '1',
         }
 
-    def _get_current_recruiting_year(self) -> int:
-        """Get the current recruiting class year"""
-        now = datetime.now()
-        # Recruiting classes are for the following year until February
-        if now.month >= 2:
-            return now.year + 1
-        return now.year
-
     async def _rate_limit(self):
         """Enforce rate limiting between requests"""
         now = datetime.now()
@@ -96,14 +90,6 @@ class RecruitingScraper:
         if elapsed < self._rate_limit_delay:
             await asyncio.sleep(self._rate_limit_delay - elapsed)
         self._last_request = datetime.now()
-
-    def _get_cached(self, key: str) -> Optional[Any]:
-        """Get cached data if still valid (shared cache, so /admin cache clear clears it)"""
-        return get_cache().get(key, namespace=CACHE_NAMESPACE)
-
-    def _set_cached(self, key: str, data: Any):
-        """Cache data with the scraper's TTL"""
-        get_cache().set(key, data, ttl_seconds=self._cache_ttl_seconds, namespace=CACHE_NAMESPACE)
 
     async def _fetch_page(self, url: str) -> Optional[str]:
         """Fetch a page with rate limiting and error handling"""
@@ -1119,68 +1105,10 @@ class RecruitingScraper:
         if not recruit:
             return "❌ Can't find that recruit, mate. Check the spelling, or add a position."
 
-        lines = []
-
-        # Name and basic info
-        name = recruit.get('name', 'Unknown')
-        stars = recruit.get('stars')
-        star_display = '⭐' * stars if stars else ''
-        position = recruit.get('position', '')
-        year = recruit.get('year', '')
-
-        lines.append(f"**{name}** {star_display}")
-        if position:
-            lines.append(f"📍 **{position}** | Class of **{year}**")
-        lines.append("")
-
-        # Ratings section
-        lines.append("**📊 Ratings**")
-        if recruit.get('rating_247'):
-            lines.append(f"• 247Sports: **{recruit['rating_247']}**")
-        if recruit.get('rating_composite'):
-            lines.append(f"• Composite: **{recruit['rating_composite']:.4f}**")
-        lines.append("")
-
-        # Rankings section
-        lines.append("**🏆 Rankings**")
-        rank_lines = []
-
-        # National
-        natl = recruit.get('national_rank') or recruit.get('national_rank_247')
-        if natl:
-            rank_lines.append(f"• National: **#{natl}**")
-
-        # Position
-        pos_rank = recruit.get('position_rank') or recruit.get('position_rank_247')
-        if pos_rank:
-            rank_lines.append(f"• {position}: **#{pos_rank}**")
-
-        # State
-        state = recruit.get('state', '')
-        state_rank = recruit.get('state_rank') or recruit.get('state_rank_247')
-        if state_rank:
-            rank_lines.append(f"• {state}: **#{state_rank}**")
-
-        if rank_lines:
-            lines.extend(rank_lines)
-        else:
-            lines.append("• _Rankings not available_")
-        lines.append("")
-
-        # Physical & Location
-        lines.append("**📏 Profile**")
-        physical = []
-        if recruit.get('height'):
-            physical.append(f"**{recruit['height']}**")
-        if recruit.get('weight'):
-            physical.append(f"**{recruit['weight']} lbs**")
-        if physical:
-            lines.append(f"• Size: {' / '.join(physical)}")
-
-        if recruit.get('city') and recruit.get('state'):
-            lines.append(f"• Hometown: {recruit['city']}, {recruit['state']}")
-        if recruit.get('high_school'):
-            lines.append(f"• High School: {recruit['high_school']}")
+        lines = self._recruit_summary_lines(recruit, [
+            *([f"• 247Sports: **{recruit['rating_247']}**"] if recruit.get('rating_247') else []),
+            *([f"• Composite: **{recruit['rating_composite']:.4f}**"] if recruit.get('rating_composite') else []),
+        ])
 
         if recruit.get('offers_count'):
             lines.append(f"• Offers: **{recruit['offers_count']}**")
@@ -1229,66 +1157,4 @@ class RecruitingScraper:
 
         return '\n'.join(lines)
 
-    def format_team_class(self, team_data: Dict[str, Any]) -> str:
-        """Format team recruiting class for display"""
-        if not team_data:
-            return "❌ Never heard of that team, mate. Check the spelling."
-
-        lines = []
-
-        team = team_data.get('team', 'Unknown')
-        rank = team_data.get('rank', '?')
-        year = team_data.get('year', '')
-
-        lines.append(f"**{team}** - #{rank} Nationally ({year})")
-        lines.append("")
-
-        # Stats
-        if team_data.get('total_commits'):
-            lines.append(f"👥 **{team_data['total_commits']}** Commits")
-
-        if team_data.get('avg_rating'):
-            lines.append(f"📊 Avg Rating: **{team_data['avg_rating']:.4f}**")
-
-        if team_data.get('points'):
-            lines.append(f"🏆 Points: **{team_data['points']:.2f}**")
-
-        # Star breakdown
-        stars = []
-        if team_data.get('5_stars'):
-            stars.append(f"⭐⭐⭐⭐⭐ {team_data['5_stars']}")
-        if team_data.get('4_stars'):
-            stars.append(f"⭐⭐⭐⭐ {team_data['4_stars']}")
-        if team_data.get('3_stars'):
-            stars.append(f"⭐⭐⭐ {team_data['3_stars']}")
-
-        if stars:
-            lines.append("")
-            lines.append("**Star Breakdown:**")
-            lines.extend(stars)
-
-        return '\n'.join(lines)
-
-    def format_top_recruits(self, recruits: List[Dict[str, Any]], title: str = "Top Recruits") -> str:
-        """Format list of top recruits"""
-        if not recruits:
-            return "❌ No recruits there, mate. Try different filters."
-
-        lines = [f"**{title}**", ""]
-
-        for i, r in enumerate(recruits, 1):
-            stars = '⭐' * r.get('stars', 0) if r.get('stars') else ''
-            name = r.get('name', 'Unknown')
-            pos = r.get('position', '')
-            commit = r.get('committed_to', '')
-
-            if commit:
-                lines.append(f"`{i:2d}.` {stars} **{name}** ({pos}) → {commit}")
-            else:
-                lines.append(f"`{i:2d}.` {stars} **{name}** ({pos})")
-
-        return '\n'.join(lines)
-
-
-# Global instance
 recruiting_scraper = RecruitingScraper()

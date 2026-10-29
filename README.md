@@ -41,7 +41,7 @@ Harry 🤖 — 1:58 PM
 Real data from [CollegeFootballData.com](https://collegefootballdata.com/) — player lookups (single or bulk), AP/Coaches/CFP rankings, rivalry matchup history, team schedules and results, transfer portal, offense/defense team stats, SP+/SRS/Elo ratings, and NFL draft picks by school.
 
 ### ⭐ Recruiting (`/recruiting`)
-On3/Rivals **or** 247Sports Composite, switchable per server. Recruit lookups with position filters for duplicate names, team recruiting classes, commit lists, team rankings, and transfer portal cross-reference. On3 pages that Cloudflare blocks fall back through Playwright → cloudscraper → Zyte (if configured) → plain HTTP.
+On3/Rivals **or** 247Sports Composite, switchable per server. Recruit lookups with position filters for duplicate names, team recruiting classes, commit lists, team rankings, and transfer players' college stats pulled in automatically. On3 pages that Cloudflare blocks fall back through Playwright → cloudscraper → Zyte (if configured) → plain HTTP.
 
 ### 🏫 High School Stats (`/hs`)
 MaxPreps stats for a player, or a whole list at once with `/hs bulk`.
@@ -149,7 +149,7 @@ Every command group maps to a module you toggle with `/admin config`. On by defa
 | Group | What's in it |
 |---|---|
 | `/cfb` | player, players, rankings, matchup, schedule, transfers, teamstats, ratings, betting, draft |
-| `/recruiting` | player, top, class, commits, rankings, portal, source |
+| `/recruiting` | player, top, class, commits, rankings, source |
 | `/hs` | stats, bulk |
 | `/league` | timer, timer_status, timers, side_timer, games, schedule, week, weeks, find_game, byes, staff, set_week, upload_schedule, set_week_games, ghost, pick_commish, … |
 | `/charter` | search, add, update, propose, season_recap, history, backups, restore, link, scan, sync, import |

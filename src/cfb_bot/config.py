@@ -50,7 +50,7 @@ GAME_NAME = env_str('GAME_NAME', 'CFB 27')
 OPENAI_MODEL = env_str('OPENAI_MODEL', 'gpt-5-mini')
 ANTHROPIC_MODEL = env_str('ANTHROPIC_MODEL', 'claude-haiku-4-5')
 
-# Rough blended $/1k tokens for each model, used by /admin ai and /admin budget.
+# Rough blended $/1k tokens for each model, used by /tokens and /admin budget.
 # Update alongside the model, or override on the host if pricing changes.
 OPENAI_COST_PER_1K = env_float('OPENAI_COST_PER_1K', 0.0009)
 ANTHROPIC_COST_PER_1K = env_float('ANTHROPIC_COST_PER_1K', 0.002)

@@ -100,3 +100,56 @@ async def test_co_commissioner_can_be_set_and_cleared():
     assert await m.set_co_commissioner(None)
     assert not m.get_league_staff()['has_co_commish']
     assert m._save_league_staff_state.await_count == 2
+
+
+class TestRanOutWhileOffline:
+    """A timer that ended during a deploy still gets its TIME'S UP (once), unless it's stale."""
+
+    def saved_timer(self, m, dm, hours_ago):
+        from datetime import datetime, timedelta
+        channel = MagicMock(id=5, name="advance")
+        channel.send = AsyncMock()
+        m.bot.get_channel = MagicMock(return_value=channel)
+        end = datetime.now() - timedelta(hours=hours_ago)
+        state = {'channel_id': 5, 'is_active': True, 'start_time': (end - timedelta(hours=48)).isoformat(),
+                 'end_time': end.isoformat()}
+        for name in ('_load_season_week_state', '_load_league_staff_state', '_load_settings_state',
+                     'restore_side_timers'):
+            setattr(m, name, AsyncMock())
+        return channel, state
+
+    @pytest.mark.asyncio
+    async def test_recent_one_gets_times_up_then_clears(self, manager):
+        m, dm = manager
+        channel, state = self.saved_timer(m, dm, hours_ago=1)
+        m.get_notification_channel = MagicMock(return_value=channel)
+        await m._save_state_to_discord(state)
+        await m.load_saved_state()
+        channel.send.assert_awaited_once()
+        assert "TIME'S UP" in channel.send.await_args.kwargs['embed'].title
+        assert await m._load_state_from_discord() is None  # cleared: won't fire again
+        assert not m.timers
+
+    @pytest.mark.asyncio
+    async def test_stale_one_just_clears(self, manager):
+        m, dm = manager
+        channel, state = self.saved_timer(m, dm, hours_ago=30)
+        await m._save_state_to_discord(state)
+        await m.load_saved_state()
+        channel.send.assert_not_awaited()
+        assert await m._load_state_from_discord() is None
+
+    @pytest.mark.asyncio
+    async def test_side_timer_gets_times_up_and_is_dropped(self, manager):
+        from datetime import datetime, timedelta
+        m, dm = manager
+        channel = MagicMock(id=7)
+        channel.send = AsyncMock()
+        m.bot.get_channel = MagicMock(return_value=channel)
+        ended = (datetime.now() - timedelta(hours=1)).isoformat()
+        await m._save_typed_state('side_timers', {'timers': [
+            {'label': 'Side League', 'channel_id': 7, 'end_time': ended, 'duration_hours': 24}]})
+        assert await m.restore_side_timers() == 0
+        channel.send.assert_awaited_once()
+        assert "Side League" in channel.send.await_args.kwargs['embed'].title
+        assert (await m._load_typed_state('side_timers'))['timers'] == []

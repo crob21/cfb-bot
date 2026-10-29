@@ -27,7 +27,7 @@ from discord.ext import commands
 from ..config import Colors, Footers
 from ..utils.server_config import server_config, FeatureModule
 from ..services.checks import ADMINS_ONLY, requires_admin
-from ..services.oops import NOT_READY, SERVERS_ONLY, oops
+from ..services.oops import NOT_READY, oops
 
 logger = logging.getLogger('CFBBot.Admin')
 
@@ -56,7 +56,8 @@ class AdminCog(commands.Cog):
     # Command group
     admin_group = app_commands.Group(
         name="admin",
-        description="🔧 Admin commands for managing Harry"
+        description="🔧 Admin commands for managing Harry",
+        guild_only=True,  # servers only; Discord hides it in DMs
     )
 
     @admin_group.command(name="set_channel", description="Set the channel for admin outputs")
@@ -73,10 +74,6 @@ class AdminCog(commands.Cog):
     ):
         """Set the admin notification channel"""
         await interaction.response.defer(ephemeral=True)
-
-        if not interaction.guild:
-            await interaction.followup.send(SERVERS_ONLY, ephemeral=True)
-            return
 
         if channel:
             target_channel_id = channel.id
@@ -302,13 +299,6 @@ class AdminCog(commands.Cog):
         # Defer IMMEDIATELY to prevent timeout (building the embed is slow)
         if action == "view":
             await interaction.response.defer(ephemeral=True)
-
-        if not interaction.guild:
-            if action == "view":
-                await interaction.followup.send(SERVERS_ONLY, ephemeral=True)
-            else:
-                await interaction.response.send_message(SERVERS_ONLY, ephemeral=True)
-            return
 
         guild_id = interaction.guild.id
 
@@ -562,10 +552,6 @@ class AdminCog(commands.Cog):
         channel: Optional[discord.TextChannel] = None
     ):
         """Manage channel whitelist"""
-        if not interaction.guild:
-            await interaction.response.send_message(SERVERS_ONLY, ephemeral=True)
-            return
-
         guild_id = interaction.guild.id
         target_channel = channel or interaction.channel
 
@@ -642,453 +628,49 @@ class AdminCog(commands.Cog):
 
             await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    @admin_group.command(name="zyte", description="Check Zyte API usage and estimated costs")
-    @app_commands.describe(
-        view="Choose which stats to view"
-    )
-    @app_commands.choices(view=[
-        app_commands.Choice(name="📊 Bot Tracked (This Session)", value="local"),
-        app_commands.Choice(name="🌐 Zyte API (Official - Last 30 Days)", value="api"),
-        app_commands.Choice(name="📋 Both (Side by Side)", value="both")
-    ])
+    @admin_group.command(name="zyte", description="Zyte API usage and cost (the paid On3 Cloudflare bypass)")
     @requires_admin()
-    async def zyte_usage(self, interaction: discord.Interaction, view: str = "local"):
-        """Check Zyte API usage statistics"""
-        if not interaction.guild:
-            await interaction.response.send_message(SERVERS_ONLY, ephemeral=True)
-            return
-
+    async def zyte_usage(self, interaction: discord.Interaction):
+        """This session's Zyte requests, plus Zyte's own 30-day stats when the dashboard key is set."""
         await interaction.response.defer(ephemeral=True)
 
-        # Get On3 scraper usage
         from .recruiting import get_recruiting_scraper
-        guild_id = interaction.guild.id
-        scraper, source_name = get_recruiting_scraper(guild_id)
+        scraper, source_name = get_recruiting_scraper(interaction.guild.id)
+        if not hasattr(scraper, 'get_zyte_usage'):
+            await interaction.followup.send(
+                f"This server uses **{source_name}**, which doesn't need Zyte. "
+                f"`/recruiting source on3` switches to On3.", ephemeral=True)
+            return
 
-        # Check if it's On3 scraper (has Zyte)
-        if source_name == "On3/Rivals" and hasattr(scraper, 'get_zyte_usage'):
-            local_usage = scraper.get_zyte_usage()
-
-            if view == "local":
-                # Show only bot-tracked stats
-                embed = discord.Embed(
-                    title="💰 Zyte Usage Report (Bot Tracked)",
-                    description=f"Stats tracked this session for **{interaction.guild.name}**",
-                    color=Colors.PRIMARY
-                )
-
-                # Availability
-                status = "✅ Available" if local_usage['is_available'] else "❌ Not configured"
-                embed.add_field(
-                    name="📡 Status",
-                    value=status,
-                    inline=False
-                )
-
-                if local_usage['is_available']:
-                    # Usage stats
-                    embed.add_field(
-                        name="📊 Requests This Session",
-                        value=f"**{local_usage['request_count']}** requests",
-                        inline=True
-                    )
-
-                    # Cost
-                    embed.add_field(
-                        name="💵 Estimated Cost",
-                        value=f"**${local_usage['estimated_cost']:.4f}**",
-                        inline=True
-                    )
-
-                    # Rate
-                    embed.add_field(
-                        name="💳 Rate",
-                        value=f"${local_usage['cost_per_1k']:.3f} per 1K requests",
-                        inline=True
-                    )
-
-                    # Info
-                    embed.add_field(
-                        name="ℹ️ How It Works",
-                        value="Zyte only triggers when free methods (Playwright, Cloudscraper) are blocked by Cloudflare. "
-                              "This keeps costs minimal while ensuring reliability.",
-                        inline=False
-                    )
-                else:
-                    embed.add_field(
-                        name="⚠️ Setup Required",
-                        value="Add `ZYTE_API_KEY` to environment variables to enable premium bypass.",
-                        inline=False
-                    )
-
-                embed.set_footer(text="💡 Session stats | Resets on bot restart")
-
-            elif view == "api":
-                # Query Zyte Stats API
-                if not local_usage['is_available']:
-                    embed = discord.Embed(
-                        title="⚠️ Zyte Not Configured",
-                        description="Zyte API is not currently configured.",
-                        color=Colors.WARNING
-                    )
-                    embed.add_field(
-                        name="⚠️ Setup Required",
-                        value="Add `ZYTE_API_KEY` to environment variables first.",
-                        inline=False
-                    )
-                else:
-                    api_data = await scraper.get_zyte_usage_from_api(days=30)
-
-                    if not api_data:
-                        embed = discord.Embed(
-                            title="⚠️ Zyte Stats API Unavailable",
-                            description="Could not retrieve data from Zyte Stats API.",
-                            color=Colors.WARNING
-                        )
-                        embed.add_field(
-                            name="📝 Setup Required",
-                            value="To enable official Zyte stats:\n"
-                                  "1. Get your **Dashboard API Key** (different from regular API key!)\n"
-                                  "   Go to: https://app.zyte.com/o/YOUR_ORG_ID/settings/apikeys\n"
-                                  "2. Add `ZYTE_DASHBOARD_API_KEY` to environment variables\n"
-                                  "3. Add `ZYTE_ORG_ID` from your dashboard URL\n"
-                                  "   (e.g., if URL is `app.zyte.com/o/123456`, use `123456`)",
-                            inline=False
-                        )
-                        embed.add_field(
-                            name="💡 Alternative",
-                            value="Use 'Bot Tracked' view or check your [Zyte Dashboard](https://app.zyte.com)",
-                            inline=False
-                        )
-                    else:
-                        # Display API data
-                        embed = discord.Embed(
-                            title="🌐 Zyte API Usage (Official)",
-                            description="Last 30 days from Zyte Stats API\n*(Includes ALL usage on this API key)*",
-                            color=Colors.PRIMARY
-                        )
-
-                        # Parse Zyte Stats API response
-                        results = api_data.get('results', [])
-                        if results:
-                            result = results[0]
-
-                            # Convert microUSD to USD
-                            total_cost_usd = float(result.get('cost_microusd_total', 0)) / 1000000
-                            avg_cost_usd = float(result.get('cost_microusd_avg', 0)) / 1000000
-                            request_count = result.get('request_count', 0)
-                            avg_response_time = float(result.get('response_time_sec_avg', 0))
-
-                            embed.add_field(
-                                name="📊 Request Count",
-                                value=f"**{request_count:,}** requests",
-                                inline=True
-                            )
-
-                            embed.add_field(
-                                name="💰 Total Cost",
-                                value=f"**${total_cost_usd:.6f}**",
-                                inline=True
-                            )
-
-                            embed.add_field(
-                                name="💵 Avg Cost",
-                                value=f"${avg_cost_usd:.6f}/request",
-                                inline=True
-                            )
-
-                            embed.add_field(
-                                name="⏱️ Avg Response Time",
-                                value=f"{avg_response_time:.2f} seconds",
-                                inline=True
-                            )
-
-                            # Status codes
-                            status_codes = result.get('status_codes', [])
-                            if status_codes:
-                                status_summary = "\n".join([f"**{sc.get('code', 'N/A')}**: {sc.get('count', 0)}" for sc in status_codes])
-                                embed.add_field(
-                                    name="📈 Status Codes",
-                                    value=status_summary,
-                                    inline=True
-                                )
-                        else:
-                            embed.add_field(
-                                name="ℹ️ No Data",
-                                value="No usage data available for the last 30 days.",
-                                inline=False
-                            )
-
-                        embed.set_footer(text="💡 From Zyte Stats API | Last 30 days")
-
-            else:  # view == "both"
-                # Show both side by side
-                embed = discord.Embed(
-                    title="💰 Zyte Usage Report (Comprehensive)",
-                    description="Comparison of bot-tracked vs official API stats",
-                    color=Colors.PRIMARY
-                )
-
-                if local_usage['is_available']:
-                    # Bot tracked section
-                    embed.add_field(
-                        name="📊 Bot Tracked (This Session)",
-                        value=f"**Requests:** {local_usage['request_count']}\n"
-                              f"**Cost:** ${local_usage['estimated_cost']:.4f}",
-                        inline=True
-                    )
-
-                    # Try to get API data
-                    api_data = await scraper.get_zyte_usage_from_api(days=30)
-                    if api_data:
-                        embed.add_field(
-                            name="🌐 Zyte API (Last 30 Days)",
-                            value="*Official data from Zyte*\n"
-                                  "Check details with `/admin zyte view:api`",
-                            inline=True
-                        )
-                    else:
-                        embed.add_field(
-                            name="🌐 Zyte Stats API",
-                            value="*Not configured*\nNeeds ZYTE_DASHBOARD_API_KEY + ZYTE_ORG_ID",
-                            inline=True
-                        )
-
-                    embed.set_footer(text="💡 Use view:api or view:local for detailed breakdowns")
-                else:
-                    embed.add_field(
-                        name="⚠️ Setup Required",
-                        value="Add `ZYTE_API_KEY` to environment variables to enable Zyte.",
-                        inline=False
-                    )
-
+        usage = scraper.get_zyte_usage()
+        embed = discord.Embed(title="💰 Zyte Usage", color=Colors.PRIMARY,
+                              description="Zyte only runs when the free ways past Cloudflare are blocked.")
+        if not usage['is_available']:
+            embed.add_field(name="⚠️ Not configured", value="Set `ZYTE_API_KEY` on the host to enable it.")
             await interaction.followup.send(embed=embed, ephemeral=True)
+            return
+
+        embed.add_field(
+            name="📊 This session",
+            value=(f"**{usage['request_count']}** requests\n"
+                   f"~${usage['estimated_cost']:.4f} (${usage['cost_per_1k']:.3f} per 1K)"),
+            inline=True)
+
+        result = ((await scraper.get_zyte_usage_from_api(days=30)) or {}).get('results') or [None]
+        if result[0]:
+            r = result[0]
+            embed.add_field(
+                name="🌐 Zyte, last 30 days",
+                value=(f"**{r.get('request_count', 0):,}** requests\n"
+                       f"${float(r.get('cost_microusd_total', 0)) / 1_000_000:.4f} total\n"
+                       f"{float(r.get('response_time_sec_avg', 0)):.2f}s avg response"),
+                inline=True)
         else:
-            embed = discord.Embed(
-                title="ℹ️ Zyte Not Used",
-                description=f"Currently using **{source_name}** which doesn't require Zyte API.",
-                color=Colors.WARNING
-            )
             embed.add_field(
-                name="💡 Tip",
-                value="Switch to On3/Rivals with `/recruiting source on3` to enable Zyte bypass.",
-                inline=False
-            )
-            await interaction.followup.send(embed=embed, ephemeral=True)
-
-    @admin_group.command(name="ai", description="Check AI API usage, token consumption, and estimated costs")
-    @app_commands.describe(
-        view="Choose which stats to view"
-    )
-    @app_commands.choices(view=[
-        app_commands.Choice(name="📊 Bot Tracked (All Time)", value="local"),
-        app_commands.Choice(name="🌐 OpenAI API (Official - Today Only)", value="api"),
-        app_commands.Choice(name="📋 Both (Side by Side)", value="both")
-    ])
-    @requires_admin()
-    async def ai_usage(self, interaction: discord.Interaction, view: str = "local"):
-        """Check AI token usage and cost statistics"""
-        if not interaction.guild:
-            await interaction.response.send_message(SERVERS_ONLY, ephemeral=True)
-            return
-
-        await interaction.response.defer(ephemeral=True)
-
-        # Get AI integration from bot
-        if not hasattr(self.bot, 'ai_assistant') or not self.bot.ai_assistant:
-            embed = discord.Embed(
-                title="ℹ️ AI Not Available",
-                description="AI integration is not currently configured.",
-                color=Colors.WARNING
-            )
-            embed.add_field(
-                name="⚠️ Setup Required",
-                value="Add `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` to environment variables to enable AI features.",
-                inline=False
-            )
-            await interaction.followup.send(embed=embed, ephemeral=True)
-            return
-
-        # Get local usage stats
-        local_usage = self.bot.ai_assistant.get_token_usage()
-
-        # Decide what to show based on view parameter
-        if view == "local":
-            # Show only bot-tracked stats
-            embed = discord.Embed(
-                title="🤖 AI Usage Report (Bot Tracked)",
-                description="Stats tracked by this bot (all time)",
-                color=Colors.PRIMARY
-            )
-
-            embed.add_field(
-                name="📊 Total Requests",
-                value=f"**{local_usage['total_requests']:,}** queries",
-                inline=True
-            )
-
-            embed.add_field(
-                name="🎯 Total Tokens",
-                value=f"**{local_usage['total_tokens']:,}** tokens",
-                inline=True
-            )
-
-            embed.add_field(
-                name="💰 Total Cost",
-                value=f"**${local_usage['total_cost']:.4f}**",
-                inline=True
-            )
-
-            # OpenAI breakdown
-            if local_usage['openai_tokens'] > 0:
-                embed.add_field(
-                    name="🟢 OpenAI (GPT-3.5-turbo)",
-                    value=f"**{local_usage['openai_tokens']:,}** tokens\n${local_usage['openai_cost']:.4f}",
-                    inline=True
-                )
-
-            # Anthropic breakdown
-            if local_usage['anthropic_tokens'] > 0:
-                embed.add_field(
-                    name="🔵 Anthropic (Claude Haiku 4.5)",
-                    value=f"**{local_usage['anthropic_tokens']:,}** tokens\n${local_usage['anthropic_cost']:.4f}",
-                    inline=True
-                )
-
-            embed.set_footer(text="💡 Bot-tracked stats | Persists across restarts")
-
-        elif view == "api":
-            # Query OpenAI Usage API
-            api_data = await self.bot.ai_assistant.get_openai_usage_from_api()
-
-            if not api_data:
-                embed = discord.Embed(
-                    title="⚠️ API Data Unavailable",
-                    description="Could not retrieve data from OpenAI Usage API. This may be due to:\n"
-                               "- API endpoint not available yet\n"
-                               "- Account permissions\n"
-                               "- Network issues\n"
-                               "- No usage data for today",
-                    color=Colors.WARNING
-                )
-                embed.add_field(
-                    name="💡 Alternative",
-                    value="Try the 'Bot Tracked' view or check your [OpenAI Dashboard](https://platform.openai.com/usage) for historical data",
-                    inline=False
-                )
-            else:
-                # Parse API response and display
-                embed = discord.Embed(
-                    title="🌐 OpenAI API Usage (Official)",
-                    description="Today's usage from OpenAI Usage API\n*(Includes ALL usage on this API key)*",
-                    color=Colors.PRIMARY
-                )
-
-                # Parse OpenAI Usage API response
-                data = api_data.get('data', [])
-
-                if data:
-                    # Aggregate usage across all entries
-                    total_tokens = 0
-                    total_requests = 0
-
-                    for entry in data:
-                        # OpenAI API returns usage in different formats
-                        # Try to extract token counts
-                        if 'n_context_tokens_total' in entry:
-                            total_tokens += entry.get('n_context_tokens_total', 0)
-                        if 'n_generated_tokens_total' in entry:
-                            total_tokens += entry.get('n_generated_tokens_total', 0)
-                        if 'num_requests' in entry:
-                            total_requests += entry.get('num_requests', 0)
-
-                    if total_requests > 0:
-                        embed.add_field(
-                            name="📊 Requests (Today)",
-                            value=f"**{total_requests:,}** requests",
-                            inline=True
-                        )
-
-                    if total_tokens > 0:
-                        embed.add_field(
-                            name="🎯 Tokens (Today)",
-                            value=f"**{total_tokens:,}** tokens",
-                            inline=True
-                        )
-
-                        # Estimate cost (rough estimate for GPT-3.5-turbo)
-                        estimated_cost = (total_tokens / 1000) * 0.001
-                        embed.add_field(
-                            name="💰 Est. Cost (Today)",
-                            value=f"~${estimated_cost:.6f}",
-                            inline=True
-                        )
-                    else:
-                        embed.add_field(
-                            name="ℹ️ No Usage Today",
-                            value="No OpenAI API usage recorded for today yet.",
-                            inline=False
-                        )
-                else:
-                    embed.add_field(
-                        name="ℹ️ No Data Available",
-                        value="No usage data available for today. This is normal if you haven't made any OpenAI API calls today.",
-                        inline=False
-                    )
-
-                embed.set_footer(text="💡 From OpenAI Usage API | Resets daily at midnight UTC")
-
-        else:  # view == "both"
-            # Show both side by side
-            embed = discord.Embed(
-                title="🤖 AI Usage Report (Comprehensive)",
-                description="Comparison of bot-tracked vs official API stats",
-                color=Colors.PRIMARY
-            )
-
-            # Bot tracked section
-            embed.add_field(
-                name="📊 Bot Tracked (This Bot Only)",
-                value=f"**Requests:** {local_usage['total_requests']:,}\n"
-                      f"**Tokens:** {local_usage['total_tokens']:,}\n"
-                      f"**Cost:** ${local_usage['total_cost']:.4f}",
-                inline=True
-            )
-
-            # Try to get API data
-            api_data = await self.bot.ai_assistant.get_openai_usage_from_api()
-            if api_data:
-                embed.add_field(
-                    name="🌐 OpenAI API (Today)",
-                    value="*Official data from OpenAI*\n"
-                          "Check details with `/admin ai view:api`",
-                    inline=True
-                )
-            else:
-                embed.add_field(
-                    name="🌐 OpenAI API",
-                    value="*Not available for today*\nCheck [Dashboard](https://platform.openai.com/usage)",
-                    inline=True
-                )
-
-            embed.set_footer(text="💡 Use view:api or view:local for detailed breakdowns")
-
-        # Add common info
-        if local_usage['total_requests'] > 0 and view == "local":
-            avg_tokens_per_request = local_usage['total_tokens'] / local_usage['total_requests']
-            avg_cost_per_request = local_usage['total_cost'] / local_usage['total_requests']
-
-            # Estimate based on 100 requests/month (conservative)
-            monthly_requests = 100
-            monthly_tokens = int(monthly_requests * avg_tokens_per_request)
-            monthly_cost = monthly_requests * avg_cost_per_request
-
-            embed.add_field(
-                name="📈 Monthly Projection (est. 100 queries)",
-                value=f"~{monthly_tokens:,} tokens\n~${monthly_cost:.2f}/month",
-                inline=False
-            )
-
+                name="🌐 Zyte's own stats",
+                value="Set `ZYTE_DASHBOARD_API_KEY` and `ZYTE_ORG_ID` (from your dashboard URL, "
+                      "`app.zyte.com/o/<org id>`) to see them here.",
+                inline=True)
         await interaction.followup.send(embed=embed, ephemeral=True)
 
     @admin_group.command(name="cache", description="View or manage bot cache")
@@ -1103,10 +685,6 @@ class AdminCog(commands.Cog):
     @requires_admin()
     async def cache_management(self, interaction: discord.Interaction, action: str = "stats"):
         """Manage bot cache"""
-        if not interaction.guild:
-            await interaction.response.send_message(SERVERS_ONLY, ephemeral=True)
-            return
-
         await interaction.response.defer(ephemeral=True)
 
         from ..utils.cache import get_cache
@@ -1194,18 +772,14 @@ class AdminCog(commands.Cog):
             await interaction.followup.send(embed=embed, ephemeral=True)
 
     @admin_group.command(name="budget", description="View monthly API cost budget and spending")
-    @app_commands.describe(action="View current status or reconcile from Zyte/OpenAI APIs")
+    @app_commands.describe(action="View current status, or replace the Zyte estimate with Zyte's own figure")
     @app_commands.choices(action=[
         app_commands.Choice(name="View (current)", value="view"),
-        app_commands.Choice(name="Reconcile from Zyte & OpenAI", value="reconcile"),
+        app_commands.Choice(name="Reconcile Zyte from Zyte's stats", value="reconcile"),
     ])
     @requires_admin()
     async def budget_status(self, interaction: discord.Interaction, action: str = "view"):
         """View monthly budget status, or reconcile from provider APIs."""
-        if not interaction.guild:
-            await interaction.response.send_message(SERVERS_ONLY, ephemeral=True)
-            return
-
         await interaction.response.defer(ephemeral=True)
 
         from ..utils.cost_tracker import get_cost_tracker
@@ -1213,56 +787,34 @@ class AdminCog(commands.Cog):
 
         tracker = get_cost_tracker()
 
+        reconciled = False
         if action == "reconcile":
-            # Fetch current month costs from Zyte and OpenAI, then overwrite stored values
-            ai_cost = None
-            zyte_cost = None
-            first_day = date.today().replace(day=1)
-            start_dt = dt.combine(first_day, time.min)
-            end_dt = dt.now()
-
-            # Zyte: official cost from Stats API (current month to date)
+            # Zyte's Stats API has the real month-to-date cost; replace the bot's estimate with it.
+            # (AI spend stays the bot's own count: neither provider has an endpoint a normal API key can read.)
+            start = dt.combine(date.today().replace(day=1), time.min)
             try:
                 from .recruiting import get_recruiting_scraper
-                scraper, source_name = get_recruiting_scraper(interaction.guild.id)
-                if source_name == "On3/Rivals" and hasattr(scraper, 'get_zyte_usage_from_api'):
-                    api_data = await scraper.get_zyte_usage_from_api(start_time=start_dt, end_time=end_dt)
-                    if api_data and api_data.get('results'):
-                        result = api_data['results'][0]
-                        zyte_cost = float(result.get('cost_microusd_total', 0)) / 1_000_000
+                scraper, _ = get_recruiting_scraper(interaction.guild.id)
+                if hasattr(scraper, 'get_zyte_usage_from_api'):
+                    results = ((await scraper.get_zyte_usage_from_api(start_time=start, end_time=dt.now())) or {}).get('results')
+                    if results:
+                        zyte_cost = float(results[0].get('cost_microusd_total', 0)) / 1_000_000
+                        await tracker.set_monthly_costs(zyte_cost=zyte_cost)
+                        logger.info(f"Budget reconciled: Zyte ${zyte_cost:.4f}")
+                        reconciled = True
             except Exception as e:
                 logger.warning(f"Zyte reconcile failed: {e}")
-
-            # OpenAI: official usage API (sum tokens for each day this month, then estimate cost)
-            try:
-                if getattr(self.bot, 'ai_assistant', None) and hasattr(self.bot.ai_assistant, 'get_openai_cost_for_current_month'):
-                    ai_cost = await self.bot.ai_assistant.get_openai_cost_for_current_month()
-            except Exception as e:
-                logger.warning(f"OpenAI reconcile failed: {e}")
-
-            if ai_cost is not None or zyte_cost is not None:
-                await tracker.set_monthly_costs(ai_cost=ai_cost, zyte_cost=zyte_cost)
-                # Brief note for user (embed will show updated numbers)
-                reconciled_note = []
-                if ai_cost is not None:
-                    reconciled_note.append(f"OpenAI: ${ai_cost:.4f}")
-                if zyte_cost is not None:
-                    reconciled_note.append(f"Zyte: ${zyte_cost:.4f}")
-                logger.info(f"Budget reconciled: {', '.join(reconciled_note)}")
-            else:
+            if not reconciled:
                 await interaction.followup.send(
-                    "⚠️ Could not reconcile: Zyte needs On3 source + ZYTE_DASHBOARD_API_KEY + ZYTE_ORG_ID; "
-                    "OpenAI needs OPENAI_API_KEY. Showing stored values.",
-                    ephemeral=True
-                )
+                    "⚠️ Couldn't reconcile: needs the On3 source plus `ZYTE_DASHBOARD_API_KEY` and `ZYTE_ORG_ID`. "
+                    "Showing stored values.", ephemeral=True)
 
         status = await tracker.get_budget_status()
-        reconciled_this_turn = (action == "reconcile")
 
         embed = discord.Embed(
             title="💰 Monthly Budget Status",
             description=f"API costs for {datetime.now().strftime('%B %Y')}"
-                        + ("\n*Reconciled from Zyte & OpenAI APIs just now.*" if reconciled_this_turn else ""),
+                        + ("\n*Zyte reconciled from Zyte's own stats just now.*" if reconciled else ""),
             color=Colors.PRIMARY
         )
 
@@ -1342,10 +894,6 @@ class AdminCog(commands.Cog):
     @requires_admin()
     async def weekly_digest(self, interaction: discord.Interaction, action: str = "view"):
         """View or send the weekly digest"""
-        if not interaction.guild:
-            await interaction.response.send_message(SERVERS_ONLY, ephemeral=True)
-            return
-
         await interaction.response.defer(ephemeral=True)
 
         from ..utils.weekly_digest import get_weekly_digest

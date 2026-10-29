@@ -27,7 +27,7 @@ Module: `core / ai_chat`
 | `/version` | Show current bot version | - |
 | `/changelog` | View version changelog | `version`? |
 | `/whats_new` | See what's new with Harry! | - |
-| `/tokens` | Show AI token usage statistics | - |
+| `/tokens` | Show AI token usage and estimated cost | - |
 | `/harry` | Ask Harry about college football | `question` |
 | `/ask` | Ask Harry general questions (not league-specific) | `question` |
 | `/summarize` | Summarize channel activity for a time period | `hours`?, `focus`? |
@@ -109,7 +109,6 @@ Module: `recruiting`
 | `/recruiting class` | Get a team's recruiting class ranking | `team`, `year`? |
 | `/recruiting commits` | List all committed recruits for a team | `team`, `year`?, `show`? |
 | `/recruiting rankings` | Get top team recruiting class rankings | `year`?, `top`? |
-| `/recruiting portal` | Look up a transfer portal player (recruiting + college stats) | `name`, `team`? |
 | `/recruiting source` | Set the recruiting data source | `source`? |
 
 ## 🏫 High school stats (`/hs`)
@@ -137,8 +136,7 @@ Module: `-`
 | `/admin config` | Configure Harry's features for this server | `action`?, `module`? |
 | `/admin sync` | Force sync slash commands | - |
 | `/admin channels` | View/manage which channels Harry can respond in | `action`?, `channel`? |
-| `/admin zyte` | Check Zyte API usage and estimated costs | `view`? |
-| `/admin ai` | Check AI API usage, token consumption, and estimated costs | `view`? |
+| `/admin zyte` | Zyte API usage and cost (the paid On3 Cloudflare bypass) | - |
 | `/admin cache` | View or manage bot cache | `action`? |
 | `/admin budget` | View monthly API cost budget and spending | `action`? |
 | `/admin digest` | View or send weekly summary digest | `action`? |

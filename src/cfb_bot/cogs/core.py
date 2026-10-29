@@ -18,7 +18,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from ..config import Colors
+from ..config import ANTHROPIC_MODEL, OPENAI_MODEL, Colors
 from ..utils.server_config import server_config
 from ..utils.version_manager import VersionManager
 from ..services.oops import NO_AI
@@ -265,44 +265,27 @@ class CoreCog(commands.Cog):
         embed.set_footer(text="Harry's CFB Bot 🏈")
         await interaction.response.send_message(embed=embed)
 
-    @app_commands.command(name="tokens", description="Show AI token usage statistics")
+    @app_commands.command(name="tokens", description="Show AI token usage and estimated cost")
     async def tokens(self, interaction: discord.Interaction):
-        """Show AI token usage"""
-        if self.AI_AVAILABLE and self.ai_assistant:
-            stats = self.ai_assistant.get_token_usage()
-            embed = discord.Embed(
-                title="🔢 AI Token Usage Statistics",
-                color=Colors.SUCCESS
-            )
-
-            embed.add_field(
-                name="📊 Usage Summary",
-                value=(
-                    f"**Total Requests:** {stats['total_requests']}\n"
-                    f"**OpenAI Tokens:** {stats['openai_tokens']:,}\n"
-                    f"**Anthropic Tokens:** {stats['anthropic_tokens']:,}\n"
-                    f"**Total Tokens:** {stats['total_tokens']:,}"
-                ),
-                inline=False
-            )
-
-            if stats['total_requests'] > 0:
-                avg_tokens = stats['total_tokens'] / stats['total_requests']
-                embed.add_field(name="📈 Averages", value=f"**Avg per Request:** {avg_tokens:.1f}", inline=False)
-
-            embed.add_field(
-                name="💰 Estimated Costs",
-                value=(f"**OpenAI:** ~${stats['openai_cost']:.4f}\n"
-                       f"**Anthropic:** ~${stats['anthropic_cost']:.4f}\n"
-                       f"**Total:** ~${stats['total_cost']:.4f}"),
-                inline=False
-            )
-
-            embed.set_footer(text="Token usage since bot startup")
-            await interaction.response.send_message(embed=embed)
-        else:
+        """AI usage since Harry started counting (it's saved, so it survives restarts)."""
+        if not (self.AI_AVAILABLE and self.ai_assistant):
             await interaction.response.send_message(NO_AI)
+            return
+        await self.ai_assistant.load_usage_stats()
+        stats = self.ai_assistant.get_token_usage()
+        embed = discord.Embed(title="🔢 AI Usage", color=Colors.SUCCESS)
 
+        summary = f"**Requests:** {stats['total_requests']:,}\n**Tokens:** {stats['total_tokens']:,}"
+        if stats['total_requests']:
+            summary += f"\n**Avg per request:** {stats['total_tokens'] / stats['total_requests']:,.0f}"
+        embed.add_field(name="📊 Total", value=summary, inline=False)
+        embed.add_field(name=f"🟢 OpenAI ({OPENAI_MODEL})",
+                        value=f"{stats['openai_tokens']:,} tokens\n~${stats['openai_cost']:.4f}", inline=True)
+        embed.add_field(name=f"🔵 Anthropic ({ANTHROPIC_MODEL})",
+                        value=f"{stats['anthropic_tokens']:,} tokens\n~${stats['anthropic_cost']:.4f}", inline=True)
+        embed.add_field(name="💰 Estimated total", value=f"~${stats['total_cost']:.4f}", inline=False)
+        embed.set_footer(text="All time | Estimates from OPENAI_COST_PER_1K / ANTHROPIC_COST_PER_1K | /admin budget for this month")
+        await interaction.response.send_message(embed=embed)
 
 async def setup(bot: commands.Bot):
     """Required setup function for loading cog"""

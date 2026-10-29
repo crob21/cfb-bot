@@ -224,6 +224,9 @@ def get_week_info(week: int) -> Dict:
 # The league runs on Eastern time (America/New_York handles DST)
 EST_TIMEZONE = ZoneInfo('America/New_York')
 
+# A timer that ran out while Harry was offline still gets its TIME'S UP if it's this recent
+MISSED_TIMES_UP_GRACE = timedelta(hours=12)
+
 
 def to_est(dt: datetime) -> datetime:
     """Convert a datetime to Eastern. Naive datetimes are local time (datetime.now())."""
@@ -654,26 +657,12 @@ class TimekeeperManager:
 
     async def load_saved_state(self):
         """Restore the timer, week, staff, settings and side timers from the owner DM."""
-        logger.info("Attempting to load saved timer state...")
-        state = None
-
-        # Try loading from Discord first (most reliable for ephemeral file systems)
-        logger.info("Checking Discord for timer state...")
         state = await self._load_state_from_discord()
-        if state:
-            logger.info("Loaded timer state from Discord")
-        else:
-            logger.info("No timer state found in Discord")
-
-        if not state:
-            logger.info("No saved timer state found")
+        logger.info("Loaded timer state from Discord" if state else "No saved timer state")
 
         await self._load_season_week_state()
-
         await self._load_league_staff_state()
-
-        # Load bot settings (notification channel, etc.)
-        await self._load_settings_state()
+        await self._load_settings_state()  # notification channel, etc.
 
         # Restart any side-league timers that were running
         await self.restore_side_timers()
@@ -682,7 +671,6 @@ class TimekeeperManager:
             return
 
         try:
-
             channel_id = state.get('channel_id')
             if not channel_id:
                 logger.warning("Invalid timer state: no channel_id")
@@ -701,9 +689,14 @@ class TimekeeperManager:
                 logger.warning("Invalid timer state: missing timestamps")
                 return
 
-            # Check if timer already expired
+            # Ran out while Harry was down (a deploy, a crash): the league never got TIME'S UP.
+            # Still marked active means it wasn't sent, so send it now unless it's stale.
             if end_time < datetime.now():
-                logger.info("Saved timer already expired, clearing state")
+                if datetime.now() - end_time <= MISSED_TIMES_UP_GRACE:
+                    logger.info("Saved timer ran out while offline, sending TIME'S UP now")
+                    await AdvanceTimer(channel, self.bot, manager=self)._send_times_up()
+                else:
+                    logger.info("Saved timer expired long ago, clearing state")
                 await self._save_state_to_discord({
                     'channel_id': channel_id,
                     'is_active': False
@@ -811,18 +804,21 @@ class TimekeeperManager:
         return await self._save_typed_state('side_timers', {'timers': payload})
 
     async def restore_side_timers(self) -> int:
-        """Restart side timers saved before a restart, skipping any that already expired."""
+        """Restart side timers saved before a restart; one that ran out meanwhile gets its TIME'S UP."""
         state = await self._load_typed_state('side_timers')
-        restored = 0
+        restored = missed = 0
         for entry in (state or {}).get('timers', []):
             try:
                 end_time = datetime.fromisoformat(entry['end_time'])
             except (KeyError, TypeError, ValueError):
                 continue
-            if end_time <= datetime.now():
-                continue
             channel = self.bot.get_channel(entry.get('channel_id'))
             if not channel:
+                continue
+            if end_time <= datetime.now():
+                if datetime.now() - end_time <= MISSED_TIMES_UP_GRACE:
+                    await AdvanceTimer(channel, self.bot, label=entry.get('label'))._send_times_up()
+                missed += 1
                 continue
 
             timer = AdvanceTimer(channel, self.bot, manager=self, label=entry.get('label'))
@@ -837,6 +833,8 @@ class TimekeeperManager:
 
         if restored:
             logger.info(f"Restored {restored} side-league timer(s)")
+        if missed:
+            await self.save_side_timers()  # drop the finished ones so they don't fire again
         return restored
 
     def is_duplicate_advance(self, window_minutes: int = 3) -> bool:

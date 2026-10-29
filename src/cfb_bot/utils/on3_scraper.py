@@ -57,16 +57,23 @@ try:
 except ImportError:
     FUZZY_AVAILABLE = False
 
-from .cache import get_cache
+from .recruiting_base import RecruitingScraperBase
 
 logger = logging.getLogger('CFBBot.On3Recruiting')
+
+# A fetch result meaning the page doesn't exist (404): no point trying another method
+PAGE_MISSING = object()
 
 # Namespace in the shared cache (utils/cache.py), so /admin cache clear clears it too
 CACHE_NAMESPACE = 'on3'
 
 
-class On3Scraper:
+class On3Scraper(RecruitingScraperBase):
     """Scraper for On3/Rivals recruiting data"""
+
+    CACHE_NAMESPACE = CACHE_NAMESPACE
+    AVG_RATING_FORMAT = '.2f'
+    POINTS_LABEL = 'Score'
 
     BASE_URL = "https://www.on3.com"
 
@@ -177,14 +184,6 @@ class On3Scraper:
         else:
             logger.warning("Using httpx only - may encounter Cloudflare blocks")
 
-    def _get_current_recruiting_year(self) -> int:
-        """Get the current recruiting class year"""
-        now = datetime.now()
-        # Recruiting classes are for the following year until February
-        if now.month >= 2:
-            return now.year + 1
-        return now.year
-
     def _rating_to_stars(self, rating: float) -> int:
         """Convert On3/Rivals rating to star value
         
@@ -268,176 +267,108 @@ class On3Scraper:
             await asyncio.sleep(delay - elapsed)
         self._last_request = datetime.now()
 
-    def _get_cached(self, key: str) -> Optional[Any]:
-        """Get cached data if still valid (shared cache, so /admin cache clear clears it)"""
-        return get_cache().get(key, namespace=CACHE_NAMESPACE)
-
-    def _set_cached(self, key: str, data: Any):
-        """Cache data with the scraper's TTL"""
-        get_cache().set(key, data, ttl_seconds=self._cache_ttl_seconds, namespace=CACHE_NAMESPACE)
-
     async def _fetch_page(self, url: str) -> Optional[str]:
-        """Fetch a page with rate limiting and Cloudflare bypass (Playwright > Cloudscraper > httpx)"""
+        """
+        Fetch a page, trying each way past Cloudflare in turn:
+        Playwright > cloudscraper > Zyte (paid, under its spend limit) > plain httpx.
+
+        A block or error moves on to the next one; a 404 stops, since the page isn't there.
+        """
         await self._rate_limit()
 
         # Rotate user agent to reduce detection
         self._user_agent_index = (self._user_agent_index + 1) % len(self._user_agents)
         self._headers['User-Agent'] = self._user_agents[self._user_agent_index]
 
-        try:
-            logger.info(f"Fetching: {url}")
+        logger.info(f"Fetching: {url}")
+        for name, fetch in (('Playwright', self._fetch_playwright), ('cloudscraper', self._fetch_cloudscraper),
+                            ('Zyte', self._fetch_zyte), ('httpx', self._fetch_httpx)):
+            try:
+                result = await fetch(url)
+            except Exception as e:
+                logger.warning(f"{name} error fetching {url}: {e}")
+                continue
+            if result is PAGE_MISSING:
+                logger.warning(f"Page not found: {url}")
+                return None
+            if result:
+                self._is_blocked = False
+                logger.debug(f"{name} fetch successful")
+                return result
+        logger.error(f"Every fetch method failed for {url}")
+        return None
 
-            # PRIORITY 1: Use Playwright (best for Cloudflare)
-            if PLAYWRIGHT_AVAILABLE:
-                # Initialize browser if needed
-                if not self._browser:
-                    await self._init_browser()
-
-                if self._browser_context:
-                    try:
-                        page = await self._browser_context.new_page()
-
-                        # Navigate to URL with timeout
-                        response = await page.goto(url, timeout=15000, wait_until='domcontentloaded')
-
-                        if response and response.status == 200:
-                            # Wait a bit for any JS to execute
-                            await page.wait_for_timeout(1000)
-
-                            html = await page.content()
-                            await page.close()
-
-                            # Check for blocking
-                            if self._check_if_blocked(html):
-                                logger.error("BLOCKED by On3 even with Playwright!")
-                                return None
-
-                            logger.debug("Playwright fetch successful")
-                            return html
-                        elif response and response.status == 404:
-                            await page.close()
-                            logger.warning(f"Page not found: {url}")
-                            return None
-                        else:
-                            await page.close()
-                            status = response.status if response else "unknown"
-                            logger.warning(f"Playwright returned status {status}, trying fallback...")
-                            # Fall through to cloudscraper
-                    except Exception as e:
-                        logger.warning(f"Playwright error: {e}, trying fallback...")
-                        # Fall through to cloudscraper
-
-            # PRIORITY 2: Use cloudscraper if Playwright failed/unavailable
-            if self._scraper and CLOUDSCRAPER_AVAILABLE:
-                # Run sync cloudscraper in thread pool to keep async
-                response = await asyncio.to_thread(self._scraper.get, url, timeout=15)
-
-                if response.status_code == 200:
-                    html = response.text
-                    # Check for blocking indicators
-                    if self._check_if_blocked(html):
-                        logger.warning("BLOCKED by On3 with cloudscraper, trying Zyte...")
-                        # Don't return None yet - fall through to Zyte
-                    else:
-                        logger.debug("Cloudscraper fetch successful")
-                        return html
-                elif response.status_code == 403:
-                    logger.warning("BLOCKED (403 Forbidden) with cloudscraper, trying Zyte...")
-                    self._is_blocked = True
-                    # Fall through to Zyte
-                elif response.status_code == 429:
-                    logger.warning("RATE LIMITED (429) with cloudscraper, trying Zyte...")
-                    self._is_blocked = True
-                    # Fall through to Zyte
-                elif response.status_code == 404:
-                    logger.warning(f"Page not found: {url}")
-                    return None
-                else:
-                    logger.warning(f"HTTP {response.status_code} with cloudscraper, trying Zyte...")
-                    # Fall through to Zyte
-
-            # PRIORITY 3: Use Zyte API (premium, guaranteed bypass)
-            # Skip Zyte if spend limit is set and we've hit it (pay-as-you-go cap)
-            use_zyte = bool(self._zyte_client)
-            if use_zyte:
-                try:
-                    from .cost_tracker import get_cost_tracker
-                    if await get_cost_tracker().is_zyte_over_limit():
-                        use_zyte = False
-                        logger.warning("Zyte API disabled for this billing period (spend limit reached)")
-                except Exception as e:
-                    logger.debug(f"Cost tracker check failed: {e}")
-
-            if use_zyte:
-                try:
-                    # Increment usage counter
-                    self._zyte_request_count += 1
-                    cost_per_request = self._zyte_cost_per_1k / 1000
-                    estimated_cost = (self._zyte_request_count * self._zyte_cost_per_1k) / 1000
-
-                    logger.info(f"Using Zyte API for: {url}")
-                    logger.info(f"Zyte usage: {self._zyte_request_count} requests | Est. cost: ${estimated_cost:.4f}")
-
-                    # Make async request to Zyte
-                    response = await self._zyte_client.get({
-                        "url": url,
-                        "httpResponseBody": True,
-                        "httpResponseHeaders": True
-                    })
-
-                    # Decode the response
-                    import base64
-                    html = base64.b64decode(response["httpResponseBody"]).decode('utf-8')
-
-                    if html and '<html' in html.lower():
-                        logger.info("Zyte API fetch successful (bypassed Cloudflare)")
-                        self._is_blocked = False  # Clear blocked status
-                        # Record cost for spend limit and alerts
-                        try:
-                            from .cost_tracker import get_cost_tracker
-                            await get_cost_tracker().record_cost('zyte', cost_per_request)
-                            logger.info(f"Recorded ${cost_per_request:.4f} Zyte cost for /admin budget")
-                        except Exception as e:
-                            logger.warning(f"Failed to record Zyte cost (/admin budget will not update): {e}")
-                        return html
-                    else:
-                        logger.error("Zyte returned invalid HTML")
-                        # Fall through to httpx as last resort
-
-                except Exception as e:
-                    logger.error(f"Zyte API error: {e}")
-                    # Fall through to httpx as last resort
-
-            # PRIORITY 4: Fallback to httpx (will likely be blocked; runs when Zyte skipped or unavailable)
-            else:
-                async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
-                    response = await client.get(url, headers=self._headers)
-
-                    if response.status_code == 200:
-                        html = response.text
-                        if self._check_if_blocked(html):
-                            logger.error("BLOCKED by On3! Install Playwright: pip install playwright && playwright install chromium")
-                            return None
-                        logger.debug("httpx fetch successful")
-                        return html
-                    elif response.status_code == 403:
-                        logger.error("BLOCKED (403 Forbidden)")
-                        self._is_blocked = True
-                        return None
-                    elif response.status_code == 429:
-                        logger.error("RATE LIMITED (429)")
-                        self._is_blocked = True
-                        return None
-                    elif response.status_code == 404:
-                        logger.warning(f"Page not found: {url}")
-                        return None
-                    else:
-                        logger.error(f"HTTP {response.status_code}")
-                        return None
-
-        except Exception as e:
-            logger.error(f"Error fetching {url}: {e}")
+    def _page_result(self, method: str, status: Optional[int], html: str, check_blocked: bool = True):
+        """HTML if the fetch worked, PAGE_MISSING on a 404, None to try the next method."""
+        if status == 404:
+            return PAGE_MISSING
+        if status in (403, 429):
+            self._is_blocked = True
+            logger.warning(f"{method}: HTTP {status} (blocked or rate limited)")
             return None
+        if status != 200:
+            logger.warning(f"{method}: HTTP {status}")
+            return None
+        if check_blocked and self._check_if_blocked(html):
+            logger.warning(f"{method}: blocked by On3")
+            return None
+        return html
+
+    async def _fetch_playwright(self, url: str):
+        if not PLAYWRIGHT_AVAILABLE:
+            return None
+        if not self._browser:
+            await self._init_browser()
+        if not self._browser_context:
+            return None
+        page = await self._browser_context.new_page()
+        try:
+            response = await page.goto(url, timeout=15000, wait_until='domcontentloaded')
+            status = response.status if response else None
+            if status == 200:
+                await page.wait_for_timeout(1000)  # let the page's JS run
+            return self._page_result('Playwright', status, await page.content() if status == 200 else '')
+        finally:
+            await page.close()
+
+    async def _fetch_cloudscraper(self, url: str):
+        if not self._scraper:
+            return None
+        # cloudscraper is sync; keep it off the event loop
+        response = await asyncio.to_thread(self._scraper.get, url, timeout=15)
+        return self._page_result('cloudscraper', response.status_code, response.text)
+
+    async def _fetch_zyte(self, url: str):
+        if not self._zyte_client:
+            return None
+        from .cost_tracker import get_cost_tracker
+        tracker = get_cost_tracker()
+        if await tracker.is_zyte_over_limit():
+            logger.warning("Zyte API disabled for this billing period (spend limit reached)")
+            return None
+
+        self._zyte_request_count += 1
+        cost_per_request = self._zyte_cost_per_1k / 1000
+        logger.info(f"Using Zyte API ({self._zyte_request_count} requests, "
+                    f"est. ${self._zyte_request_count * cost_per_request:.4f}) for: {url}")
+        response = await self._zyte_client.get({"url": url, "httpResponseBody": True})
+        try:
+            await tracker.record_cost('zyte', cost_per_request)  # Zyte bills the request either way
+        except Exception as e:
+            logger.warning(f"Failed to record Zyte cost (/admin budget will not update): {e}")
+
+        import base64
+        html = base64.b64decode(response["httpResponseBody"]).decode('utf-8')
+        if '<html' not in html.lower():
+            logger.error("Zyte returned invalid HTML")
+            return None
+        # Zyte gets past Cloudflare itself; its pages can still mention Cloudflare's scripts
+        return self._page_result('Zyte', 200, html, check_blocked=False)
+
+    async def _fetch_httpx(self, url: str):
+        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
+            response = await client.get(url, headers=self._headers)
+        return self._page_result('httpx', response.status_code, response.text)
 
     def _check_if_blocked(self, html: str) -> bool:
         """Check if the response indicates we've been blocked"""
@@ -463,8 +394,6 @@ class On3Scraper:
         if '<html' in html_lower and 'on3' in html_lower:
             self._is_blocked = False
         return False
-
-
 
     def get_zyte_usage(self) -> Dict[str, Any]:
         """Get Zyte API usage statistics (current session)"""
@@ -1774,63 +1703,7 @@ class On3Scraper:
         if not recruit:
             return "❌ Can't find that recruit, mate. Check the spelling, or add a position."
 
-        lines = []
-
-        # Name and basic info
-        name = recruit.get('name', 'Unknown')
-        stars = recruit.get('stars')
-        star_display = '⭐' * stars if stars else ''
-        position = recruit.get('position', '')
-        year = recruit.get('year', '')
-
-        lines.append(f"**{name}** {star_display}")
-        if position:
-            lines.append(f"📍 **{position}** | Class of **{year}**")
-        lines.append("")
-
-        # Ratings section
-        lines.append("**📊 Ratings**")
-        if recruit.get('rating'):
-            lines.append(f"• On3/Rivals: **{recruit['rating']}**")
-        lines.append("")
-
-        # Rankings section
-        lines.append("**🏆 Rankings**")
-        rank_lines = []
-
-        natl = recruit.get('national_rank')
-        if natl:
-            rank_lines.append(f"• National: **#{natl}**")
-
-        pos_rank = recruit.get('position_rank')
-        if pos_rank:
-            rank_lines.append(f"• {position}: **#{pos_rank}**")
-
-        state = recruit.get('state', '')
-        state_rank = recruit.get('state_rank')
-        if state_rank:
-            rank_lines.append(f"• {state}: **#{state_rank}**")
-
-        if rank_lines:
-            lines.extend(rank_lines)
-        else:
-            lines.append("• _Rankings not available_")
-        lines.append("")
-
-        # Physical & Location
-        lines.append("**📏 Profile**")
-        physical = []
-        if recruit.get('height'):
-            physical.append(f"**{recruit['height']}**")
-        if recruit.get('weight'):
-            physical.append(f"**{recruit['weight']} lbs**")
-        if physical:
-            lines.append(f"• Size: {' / '.join(physical)}")
-
-        if recruit.get('city') and recruit.get('state'):
-            lines.append(f"• Hometown: {recruit['city']}, {recruit['state']}")
-        if recruit.get('high_school'):
-            lines.append(f"• High School: {recruit['high_school']}")
+        lines = self._recruit_summary_lines(recruit, [f"• On3/Rivals: **{recruit['rating']}**"] if recruit.get('rating') else [])
 
         # NIL value if available
         if recruit.get('nil_value'):
@@ -1898,47 +1771,6 @@ class On3Scraper:
                 lines.append(f"• {type_emoji} {school} - {date} ({vtype})")
 
         # Note: Profile URL is added separately in bot.py to appear after college stats
-
-        return '\n'.join(lines)
-
-    def format_team_class(self, team_data: Dict[str, Any]) -> str:
-        """Format team recruiting class for display"""
-        if not team_data:
-            return "❌ Never heard of that team, mate. Check the spelling."
-
-        lines = []
-
-        team = team_data.get('team', 'Unknown')
-        rank = team_data.get('rank', '?')
-        year = team_data.get('year', '')
-
-        lines.append(f"**{team}** - #{rank} Nationally ({year})")
-        lines.append("")
-
-        if team_data.get('total_commits'):
-            lines.append(f"👥 **{team_data['total_commits']}** Commits")
-
-        if team_data.get('avg_rating'):
-            lines.append(f"📊 Avg Rating: **{team_data['avg_rating']:.2f}**")
-
-        if team_data.get('avg_nil'):
-            lines.append(f"💰 Avg NIL: **{team_data['avg_nil']}**")
-
-        if team_data.get('points'):
-            lines.append(f"🏆 Score: **{team_data['points']:.2f}**")
-
-        stars = []
-        if team_data.get('5_stars'):
-            stars.append(f"⭐⭐⭐⭐⭐ {team_data['5_stars']}")
-        if team_data.get('4_stars'):
-            stars.append(f"⭐⭐⭐⭐ {team_data['4_stars']}")
-        if team_data.get('3_stars'):
-            stars.append(f"⭐⭐⭐ {team_data['3_stars']}")
-
-        if stars:
-            lines.append("")
-            lines.append("**Star Breakdown:**")
-            lines.extend(stars)
 
         return '\n'.join(lines)
 
@@ -2010,26 +1842,6 @@ class On3Scraper:
         # Link to full page
         if data.get('commits_url'):
             lines.append(f"[View Full Class on On3/Rivals]({data['commits_url']})")
-
-        return '\n'.join(lines)
-
-    def format_top_recruits(self, recruits: List[Dict[str, Any]], title: str = "Top Recruits") -> str:
-        """Format list of top recruits"""
-        if not recruits:
-            return "❌ No recruits there, mate. Try different filters."
-
-        lines = [f"**{title}**", ""]
-
-        for i, r in enumerate(recruits, 1):
-            stars = '⭐' * r.get('stars', 0) if r.get('stars') else ''
-            name = r.get('name', 'Unknown')
-            pos = r.get('position', '')
-            commit = r.get('committed_to', '')
-
-            if commit:
-                lines.append(f"`{i:2d}.` {stars} **{name}** ({pos}) → {commit}")
-            else:
-                lines.append(f"`{i:2d}.` {stars} **{name}** ({pos})")
 
         return '\n'.join(lines)
 
