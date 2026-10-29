@@ -6,8 +6,8 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from cfb_bot.utils.holidays import (CHRISTMAS, GHOST, GRAVESTONE, HALLOWEEN, PUMPKIN, THANKSGIVING,
-                                    current_holiday, festive, reply_holiday, holiday_reaction, parse_reactions,
+from cfb_bot.utils.holidays import (CHRISTMAS, GHOST, GRAVESTONE, HALLOWEEN, PUMPKIN, SKULL, THANKSGIVING,
+                                    current_holiday, festive, react_this_time, holiday_reaction, parse_reactions,
                                     thanksgiving_day)
 
 
@@ -26,31 +26,26 @@ class TestCalendar:
         (date(2026, 10, 25), HALLOWEEN),
         (date(2026, 10, 31), HALLOWEEN),
         (date(2026, 11, 1), None),
-        (date(2026, 11, 22), None),           # Sunday before Thanksgiving week
-        (date(2026, 11, 23), THANKSGIVING),   # Monday
+        (date(2026, 11, 19), None),           # eight days before Thanksgiving
+        (date(2026, 11, 20), THANKSGIVING),   # the week up to it
         (date(2026, 11, 26), THANKSGIVING),   # Thanksgiving
-        (date(2026, 11, 29), THANKSGIVING),   # Sunday after
-        (date(2026, 11, 30), None),
-        (date(2026, 12, 17), None),
-        (date(2026, 12, 18), CHRISTMAS),
+        (date(2026, 11, 27), CHRISTMAS),      # Black Friday onward
         (date(2026, 12, 25), CHRISTMAS),
         (date(2026, 12, 26), CHRISTMAS),
         (date(2026, 12, 27), None),
+        (date(2027, 1, 1), None),
         (date(2027, 3, 31), None),
     ])
     def test_holiday_on(self, day, holiday):
         assert current_holiday(day) is holiday
 
 
-class TestOnlyNowAndThen:
-    def test_some_replies_are_dressed_up(self):
-        assert reply_holiday(date(2026, 10, 31), roll=0.1) is HALLOWEEN
+class TestReactionsNowAndThen:
+    def test_some_posts_get_one(self):
+        assert react_this_time(roll=0.1)
 
-    def test_most_replies_are_plain_harry(self):
-        assert reply_holiday(date(2026, 10, 31), roll=0.9) is None
-
-    def test_never_outside_a_holiday(self):
-        assert reply_holiday(date(2026, 3, 1), roll=0.0) is None
+    def test_most_posts_dont(self):
+        assert not react_this_time(roll=0.9)
 
 
 class TestFestive:
@@ -68,6 +63,11 @@ class TestReactions:
         assert holiday_reaction(member("Mundie"), HALLOWEEN) == PUMPKIN
         assert holiday_reaction(member("wustman"), HALLOWEEN) == GHOST
         assert holiday_reaction(member("jaywill9"), HALLOWEEN) == GRAVESTONE
+        assert holiday_reaction(member("x", display_name="DaAldrich22 (MSU)"), HALLOWEEN) == SKULL
+
+    @pytest.mark.parametrize("name", ["Wusty Man", "wustyman", "wusty_man", "wustman", "WustMan (OSU)"])
+    def test_wusty_man_however_he_spells_it(self, name):
+        assert holiday_reaction(member("x", display_name=name), HALLOWEEN) == GHOST
 
     def test_matches_nickname_and_partial_names(self):
         assert holiday_reaction(member("someone", nick="Big Mundie"), HALLOWEEN) == PUMPKIN
@@ -80,6 +80,11 @@ class TestReactions:
         assert holiday_reaction(member("Mundie"), THANKSGIVING) is None
         assert holiday_reaction(member("Mundie"), CHRISTMAS) is None
         assert holiday_reaction(member("Mundie"), None) is None
+
+    @pytest.mark.parametrize("uid, emoji", [(665975155406929942, PUMPKIN), (732443639782965268, GRAVESTONE),
+                                            (1524783409963073676, SKULL)])
+    def test_league_members_by_id(self, uid, emoji):
+        assert holiday_reaction(member("renamed", id=uid), HALLOWEEN) == emoji
 
     def test_matches_user_id(self):
         assert holiday_reaction(member("anon", id=42), HALLOWEEN, {"42": "🦇"}) == "🦇"
@@ -99,19 +104,23 @@ class TestHolidayAI:
         a.ask_anthropic = AsyncMock(return_value=None)
         return a
 
+    def persona(self, assistant):
+        return assistant.ask_openai.call_args.kwargs['personality_prompt']
+
     @pytest.mark.parametrize("holiday, emoji", [(HALLOWEEN, "👻🎃"), (THANKSGIVING, "🦃🥧"), (CHRISTMAS, "🎄🎅")])
-    async def test_holiday_dresses_up_harry(self, assistant, holiday, emoji):
-        with patch('cfb_bot.ai.ai_integration.reply_holiday', return_value=holiday):
-            reply = await assistant.ask_ai("who's winning?")
-        assert reply == f"Bloody Ducks {emoji}"
-        assert holiday.persona in assistant.ask_openai.call_args.kwargs['personality_prompt']
+    async def test_every_reply_is_dressed_up(self, assistant, holiday, emoji):
+        with patch('cfb_bot.ai.ai_integration.current_holiday', return_value=holiday):
+            for _ in range(5):
+                assert await assistant.ask_ai("who's winning?") == f"Bloody Ducks {emoji}"
+                assert holiday.persona in self.persona(assistant)
 
     async def test_charter_persona_stays_plain(self, assistant):
-        with patch('cfb_bot.ai.ai_integration.reply_holiday', return_value=CHRISTMAS):
+        with patch('cfb_bot.ai.ai_integration.current_holiday', return_value=CHRISTMAS):
             reply = await assistant.ask_ai("write a rule", personality_prompt="plain")
         assert reply == "Bloody Ducks"
-        assert assistant.ask_openai.call_args.kwargs['personality_prompt'] == "plain"
+        assert self.persona(assistant) == "plain"
 
     async def test_plain_harry_the_rest_of_the_year(self, assistant):
-        with patch('cfb_bot.ai.ai_integration.reply_holiday', return_value=None):
+        with patch('cfb_bot.ai.ai_integration.current_holiday', return_value=None):
             assert await assistant.ask_ai("who's winning?") == "Bloody Ducks"
+        assert self.persona(assistant) is None

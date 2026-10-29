@@ -12,7 +12,7 @@ from typing import Optional
 import aiohttp
 from dotenv import load_dotenv
 
-from ..utils.holidays import festive, holiday_personality, reply_holiday
+from ..utils.holidays import current_holiday, festive, holiday_personality
 from ..utils.server_config import HARRY_PERSONALITY
 from ..utils.storage import get_storage
 from ..security import HTTP_TIMEOUT, sanitize_ai_response
@@ -437,8 +437,8 @@ class AICharterAssistant:
         # Load usage stats on first use
         await self.load_usage_stats()
 
-        # Holidays dress up Harry's own voice now and then; persona overrides (charter work) stay plain
-        holiday = reply_holiday() if personality_prompt is None else None
+        # Holidays dress up Harry's own voice; persona overrides (charter work) stay plain
+        holiday = current_holiday() if personality_prompt is None else None
         if holiday:
             personality_prompt = holiday_personality(HARRY_PERSONALITY, holiday)
 
