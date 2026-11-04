@@ -3,6 +3,11 @@
 Full release history for Harry. The bot's `/changelog` command shows the most recent releases;
 this file keeps everything. Generated from `src/cfb_bot/utils/version_manager.py`.
 
+## 3.28.2 — Back to Normal 🧹 (2026-11-04)
+
+### Simpler
+- Removed /admin dms
+
 ## 3.28.1 — Fresher Thoughts 💭 (2026-10-29)
 
 ### Fixes
