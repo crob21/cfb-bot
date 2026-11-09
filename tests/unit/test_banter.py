@@ -27,6 +27,7 @@ def test_rivals_get_their_line(text, expected):
     "made millions on that trade",          # not the Lions
     "both of us",                           # not 'uw'... or anything
     "Georgia Tech at home",
+    "Georgia and the Bulldogs",             # no more Wrong Dawgs
     "",
     None,
 ])
