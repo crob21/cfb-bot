@@ -3,6 +3,11 @@
 Full release history for Harry. The bot's `/changelog` command shows the most recent releases;
 this file keeps everything. Generated from `src/cfb_bot/utils/version_manager.py`.
 
+## 3.29.1 — Which Week Is It? 📅 (2026-11-11)
+
+### Improvements
+- /league timer_status shows the current season and week
+
 ## 3.29.0 — Schedule Pull & Clear 📅 (2026-11-11)
 
 ### New

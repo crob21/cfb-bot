@@ -15,11 +15,25 @@ def version_key(version: str) -> tuple:
     return tuple(int(part) for part in version.split('.'))
 
 # Current version
-CURRENT_VERSION = "3.29.0"
+CURRENT_VERSION = "3.29.1"
 
 # Recent releases, newest first. /changelog reads these; the full history is in
 # docs/CHANGELOG.md. Add new releases at the top.
 CHANGELOG: Dict[str, Dict] = {
+    "3.29.1": {
+        "date": "2026-11-11",
+        "title": "Which Week Is It? 📅",
+        "emoji": "📅",
+        "features": [
+            {
+                "category": "Improvements",
+                "emoji": "⚡",
+                "changes": [
+                    "/league timer_status shows the current season and week"
+                ]
+            }
+        ]
+    },
     "3.29.0": {
         "date": "2026-11-11",
         "title": "Schedule Pull & Clear 📅",
