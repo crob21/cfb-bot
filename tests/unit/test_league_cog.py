@@ -600,3 +600,32 @@ async def test_upload_clears_harrys_cached_answers(mock_interaction, mock_server
         await cog.upload_schedule.callback(cog, mock_interaction, upload)
 
     cog.ai_assistant.clear_response_cache.assert_called_once()
+
+
+class TestTimerStatusShowsTheWeek:
+    """/league timer_status says which season and week the countdown is for."""
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("active", [True, False])
+    async def test_season_and_week_shown(self, mock_interaction, mock_server_config, mock_timekeeper, active):
+        from cfb_bot.cogs.league import LeagueCog
+        mock_timekeeper.get_season_week.return_value = {'season': 6, 'week': 5}  # step 5 = Week 3
+        mock_timekeeper.get_status.return_value = {'active': active, 'hours': 30, 'minutes': 5}
+        with patch('cfb_bot.cogs.league.server_config', mock_server_config):
+            cog = LeagueCog(MagicMock())
+            cog.timekeeper_manager = mock_timekeeper
+            await cog.timer_status.callback(cog, mock_interaction)
+        embed = mock_interaction.followup.send.await_args.kwargs['embed']
+        field = next(f for f in embed.fields if f.name == "📅 Season & Week")
+        assert "Season **6**" in field.value and "Week 3" in field.value
+
+    @pytest.mark.asyncio
+    async def test_not_set_yet(self, mock_interaction, mock_server_config, mock_timekeeper):
+        from cfb_bot.cogs.league import LeagueCog
+        mock_timekeeper.get_season_week.return_value = {'season': None, 'week': None}
+        with patch('cfb_bot.cogs.league.server_config', mock_server_config):
+            cog = LeagueCog(MagicMock())
+            cog.timekeeper_manager = mock_timekeeper
+            await cog.timer_status.callback(cog, mock_interaction)
+        embed = mock_interaction.followup.send.await_args.kwargs['embed']
+        assert any("set_week" in f.value for f in embed.fields)

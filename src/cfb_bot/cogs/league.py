@@ -315,6 +315,14 @@ class LeagueCog(commands.Cog):
                 color=color
             )
 
+        season_info = self.timekeeper_manager.get_season_week()
+        if season_info.get('season') and season_info.get('week') is not None:
+            week_name = get_week_info(season_info['week'])['name']
+            embed.add_field(name="📅 Season & Week", value=f"Season **{season_info['season']}** · **{week_name}**",
+                            inline=False)
+        else:
+            embed.add_field(name="📅 Season & Week", value="Not set yet (`/league set_week`)", inline=False)
+
         side_timers = self.timekeeper_manager.get_side_timers()
         if side_timers:
             embed.add_field(
