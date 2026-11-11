@@ -19,6 +19,8 @@ Commands:
 - /league set_week - Set season/week (admin)
 - /league upload_schedule - Upload a full schedule JSON file (admin)
 - /league set_week_games - Set one week's games/byes by typing them (admin)
+- /league clear_schedule - Wipe the schedule so Harry announces no matchups (admin)
+- /league pull_schedule - Read the latest schedule posts in #schedule (admin)
 - /league ghost - Mark or unmark a team whose coach never shows up (admin)
 - /league schedule_template - Show the schedule JSON format
 - /league timer_channel - Set notification channel (admin)
@@ -51,6 +53,36 @@ from ..services.oops import NOT_READY, oops
 
 logger = logging.getLogger('CFBBot.League')
 
+
+
+def confirm_view(invoker_id: int, confirm_label: str, on_confirm, style=discord.ButtonStyle.danger) -> discord.ui.View:
+    """Confirm/Cancel buttons only the invoker can press. on_confirm(interaction) returns the result text."""
+    view = discord.ui.View(timeout=300)
+    confirm = discord.ui.Button(label=confirm_label, style=style)
+    cancel = discord.ui.Button(label="Cancel", style=discord.ButtonStyle.secondary)
+
+    async def finish(interaction: discord.Interaction, text: str):
+        view.stop()
+        await interaction.response.edit_message(content=text, embed=None, attachments=[], view=None)
+
+    async def guard(interaction: discord.Interaction) -> bool:
+        if interaction.user.id == invoker_id:
+            return True
+        await interaction.response.send_message("❌ Hands off, mate. Only whoever ran this can press it.", ephemeral=True)
+        return False
+
+    async def confirm_cb(interaction: discord.Interaction):
+        if await guard(interaction):
+            await finish(interaction, await on_confirm(interaction))
+
+    async def cancel_cb(interaction: discord.Interaction):
+        if await guard(interaction):
+            await finish(interaction, "👍 Left it alone.")
+
+    confirm.callback, cancel.callback = confirm_cb, cancel_cb
+    view.add_item(confirm)
+    view.add_item(cancel)
+    return view
 
 class LeagueCog(commands.Cog):
     """League management commands"""
@@ -816,6 +848,112 @@ class LeagueCog(commands.Cog):
         )
         embed.set_footer(text="Harry's Schedule Tracker 🏈")
         await interaction.followup.send(embed=embed, ephemeral=True)
+
+    async def _save_schedule(self) -> str:
+        """Back up the schedule and drop Harry's cached answers; the line to show for it."""
+        saved = await self.schedule_manager.save_to_discord()
+        if self.ai_assistant:
+            self.ai_assistant.clear_response_cache()  # old answers quote the old schedule
+        return "✅ Saved & backed up." if saved else "⚠️ Saved, but the Discord backup failed, so it may not survive a redeploy."
+
+    @league_group.command(name="clear_schedule", description="Wipe the schedule so Harry announces no matchups (Admin only)")
+    @requires_module(FeatureModule.LEAGUE)
+    @requires_admin()
+    async def clear_schedule(self, interaction: discord.Interaction):
+        """Empty every week (teams and ghosts stay), after a confirm. Sends a copy of the old one first."""
+        await interaction.response.defer(ephemeral=True)
+        if not self.schedule_manager:
+            await interaction.followup.send(NOT_READY, ephemeral=True)
+            return
+        weeks = len(self.schedule_manager.schedule_data.get('schedule', {}))
+        if not weeks:
+            await interaction.followup.send("📭 There's no schedule loaded, mate. Nothing to clear.", ephemeral=True)
+            return
+
+        import io
+        import json as _json
+        backup = discord.File(io.BytesIO(_json.dumps(self.schedule_manager.schedule_data, indent=2).encode()),
+                              filename=f"schedule-season-{self.schedule_manager.season}.json")
+
+        async def do_clear(_interaction):
+            self.schedule_manager.clear_schedule()
+            note = await self._save_schedule()
+            logger.info(f"Schedule cleared by {interaction.user}")
+            return (f"🧹 Schedule cleared. Harry won't announce matchups until a new one's loaded "
+                    f"(`/league upload_schedule` or `/league pull_schedule`). League teams and ghosts are kept.\n{note}")
+
+        await interaction.followup.send(
+            f"🧹 Clear all **{weeks}** weeks of the Season {self.schedule_manager.season} schedule? "
+            f"Here's a copy in case you want it back (`/league upload_schedule`).",
+            file=backup, view=confirm_view(interaction.user.id, "Clear schedule", do_clear), ephemeral=True)
+
+    @league_group.command(name="pull_schedule", description="Read the latest schedule posts in #schedule (Admin only)")
+    @app_commands.describe(
+        channel="Where the schedule is posted (default: #schedule)",
+        messages="How many of the latest posts to read (default 20)",
+        week=f"Put every game read from screenshots/text in this week (0-{MAX_GAME_WEEK})",
+    )
+    @requires_module(FeatureModule.LEAGUE)
+    @requires_admin()
+    async def pull_schedule(self, interaction: discord.Interaction, channel: Optional[discord.TextChannel] = None,
+                            messages: app_commands.Range[int, 1, 50] = 20,
+                            week: Optional[app_commands.Range[int, 0, MAX_GAME_WEEK]] = None):
+        """JSON files, screenshots and typed matchups from #schedule, previewed before anything changes."""
+        from ..utils.schedule_import import apply_pulled, find_schedule_channel, read_schedule_posts
+        await interaction.response.defer(ephemeral=True)
+        if not self.schedule_manager:
+            await interaction.followup.send(NOT_READY, ephemeral=True)
+            return
+        channel = channel or find_schedule_channel(interaction.guild)
+        if not channel:
+            await interaction.followup.send(
+                "❌ Can't find a #schedule channel, mate. Pick one with the `channel` option.", ephemeral=True)
+            return
+
+        try:
+            pulled = await read_schedule_posts(channel, self.bot.user, self.ai_assistant, limit=messages,
+                                               week=week, teams=self.schedule_manager.teams)
+        except discord.Forbidden:
+            await interaction.followup.send(
+                f"❌ I can't read {channel.mention}, mate. I need View Channel and Read Message History there.",
+                ephemeral=True)
+            return
+
+        notes = "\n".join(f"• {n}" for n in pulled.notes)
+        if pulled.empty:
+            await interaction.followup.send(
+                f"🤷 Found no schedule in the last {messages} posts in {channel.mention}." + (f"\n{notes}" if notes else ""),
+                ephemeral=True)
+            return
+
+        lines = []
+        if pulled.full:
+            lines.append(f"📄 A JSON file: replaces the whole schedule (Season {pulled.full.get('season', '?')}, "
+                         f"{len(pulled.full['schedule'])} weeks).")
+        if pulled.weeks:
+            lines.append(f"🖼️ From screenshots/text: replaces week{'s' if len(pulled.weeks) > 1 else ''} "
+                         f"{', '.join(sorted(pulled.weeks, key=int))}.")
+        embed = discord.Embed(title=f"📅 Schedule from #{channel.name}", description="\n".join(lines),
+                              color=Colors.SUCCESS)
+        for wk in sorted(pulled.weeks, key=int)[:20]:
+            data = pulled.weeks[wk]
+            value = "\n".join(self.schedule_manager.format_game(g) for g in data['games']) or "_No games_"
+            if data['bye_teams']:
+                value += f"\n🛋️ Bye: {self.schedule_manager.format_bye_teams(data['bye_teams'])}"
+            embed.add_field(name=f"Week {wk}", value=value[:1024], inline=False)
+        if notes:
+            embed.add_field(name="Notes", value=notes[:1024], inline=False)
+        embed.set_footer(text="Check it over: screenshots are read by AI. Nothing changes until you press Apply.")
+
+        async def do_apply(_interaction):
+            apply_pulled(self.schedule_manager, pulled)
+            note = await self._save_schedule()
+            logger.info(f"Schedule pulled from #{channel.name} by {interaction.user}")
+            return f"✅ Schedule updated from {channel.mention}.\n{note}"
+
+        await interaction.followup.send(
+            embed=embed, view=confirm_view(interaction.user.id, "Apply", do_apply, discord.ButtonStyle.success),
+            ephemeral=True)
 
     @league_group.command(name="set_week_games", description="Set one week's games/byes by typing them (Admin only)")
     @app_commands.describe(

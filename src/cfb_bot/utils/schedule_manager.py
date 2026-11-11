@@ -85,7 +85,7 @@ class ScheduleManager:
                         and message.attachments):
                     raw = await message.attachments[0].read()
                     data = json.loads(raw.decode('utf-8'))
-                    ok, err = self.validate_schedule(data)
+                    ok, err = self.validate_schedule(data, allow_empty=True)  # empty = cleared on purpose
                     if not ok:
                         logger.warning(f"Ignoring invalid schedule backup: {err}")
                         return False
@@ -143,12 +143,15 @@ class ScheduleManager:
             return False
 
     @staticmethod
-    def validate_schedule(data) -> Tuple[bool, str]:
-        """Validate an uploaded schedule dict. Returns (ok, error_message)."""
+    def validate_schedule(data, allow_empty: bool = False) -> Tuple[bool, str]:
+        """Validate an uploaded schedule dict. Returns (ok, error_message).
+
+        allow_empty accepts a schedule with no weeks: what /league clear_schedule saves.
+        """
         if not isinstance(data, dict):
             return False, "Top level must be a JSON object."
         schedule = data.get('schedule')
-        if not isinstance(schedule, dict) or not schedule:
+        if not isinstance(schedule, dict) or (not schedule and not allow_empty):
             return False, "Missing or empty 'schedule' object."
         if 'teams' in data and not isinstance(data['teams'], list):
             return False, "'teams' must be a list."
@@ -175,6 +178,14 @@ class ScheduleManager:
         self.schedule_data = data
         self.season = data.get('season', self.season)
         self.teams = data.get('teams', self.teams)
+
+    def clear_schedule(self) -> None:
+        """Drop every week's games, keeping the season, league teams and ghosts.
+
+        Saved (save_to_discord) as an empty schedule, so a restart doesn't bring back the
+        bundled schedule.json and Harry announces no matchups until a new one is loaded.
+        """
+        self.schedule_data = {**self.schedule_data, 'schedule': {}}
 
     def set_week_games(self, week: int, games: List[Dict], bye_teams: List[str]) -> None:
         """Set (or replace) a single week's games and byes in memory."""
@@ -402,6 +413,8 @@ class ScheduleManager:
         ]
 
         schedule = self.schedule_data.get('schedule', {})
+        if not schedule:
+            context_lines.append("No schedule is loaded right now. Don't make up any matchups.")
         for week_num in sorted(schedule.keys(), key=int):
             week_data = schedule[week_num]
             bye_teams = week_data.get('bye_teams', [])
