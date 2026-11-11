@@ -5,7 +5,9 @@ This module handles AI-powered responses about the league charter
 """
 
 import asyncio
+import json
 import logging
+import re
 import os
 from typing import Optional
 
@@ -57,6 +59,19 @@ def openai_request_body(model: str, system: str, prompt: str, max_tokens: int) -
         body['max_tokens'] = max_tokens
         body['temperature'] = 0.7
     return body
+
+
+def parse_json_object(text: str) -> Optional[dict]:
+    """The JSON object in a model's reply, tolerating code fences or a stray sentence around it."""
+    text = re.sub(r"^```(?:json)?|```$", "", (text or "").strip(), flags=re.MULTILINE).strip()
+    start, end = text.find('{'), text.rfind('}')
+    if start == -1 or end < start:
+        return None
+    try:
+        data = json.loads(text[start:end + 1])
+    except ValueError:
+        return None
+    return data if isinstance(data, dict) else None
 
 
 def user_team_names() -> list:
@@ -473,6 +488,58 @@ class AICharterAssistant:
             return festive(response, holiday) if holiday else response
         logger.warning("No AI response from either provider")
         return response
+
+    async def extract_json(self, instructions: str, text: str = "", image_urls: Optional[list] = None,
+                           max_tokens: int = 4000) -> Optional[dict]:
+        """
+        Pull structured data out of text and images (e.g. schedule screenshots) as a JSON object.
+
+        Not Harry's voice and never cached: the answer is data. OpenAI first, then Anthropic.
+        Returns None if neither replies with a JSON object.
+        """
+        await self.load_usage_stats()
+        image_urls = image_urls or []
+        prompt = f"{instructions}\n\n{text}".strip()
+        system = "You extract data and reply with a single JSON object only: no prose, no code fences."
+
+        if self.openai_api_key:
+            body = openai_request_body(OPENAI_MODEL, system, prompt, max_tokens)
+            body['messages'][1]['content'] = [{'type': 'text', 'text': prompt}] + [
+                {'type': 'image_url', 'image_url': {'url': url}} for url in image_urls]
+            result = await self._post('OpenAI', 'https://api.openai.com/v1/chat/completions',
+                                      {'Authorization': f'Bearer {self.openai_api_key}',
+                                       'Content-Type': 'application/json'}, body)
+            if result:
+                tokens = result.get('usage', {}).get('total_tokens', 0)
+                self.total_openai_tokens += tokens
+                await self._record_usage('OpenAI', tokens, self.openai_cost_per_1k)
+                data = parse_json_object(result['choices'][0]['message'].get('content') or '')
+                if data is not None:
+                    return data
+                logger.warning("OpenAI didn't return a JSON object for extraction")
+
+        if self.anthropic_api_key:
+            body = {
+                'model': ANTHROPIC_MODEL,
+                'max_tokens': max_tokens,
+                'system': system,
+                'messages': [{'role': 'user', 'content': [
+                    *({'type': 'image', 'source': {'type': 'url', 'url': url}} for url in image_urls),
+                    {'type': 'text', 'text': prompt}]}],
+            }
+            result = await self._post('Anthropic', 'https://api.anthropic.com/v1/messages',
+                                      {'x-api-key': self.anthropic_api_key, 'Content-Type': 'application/json',
+                                       'anthropic-version': '2023-06-01'}, body)
+            if result:
+                usage = result.get('usage', {})
+                tokens = usage.get('input_tokens', 0) + usage.get('output_tokens', 0)
+                self.total_anthropic_tokens += tokens
+                await self._record_usage('Anthropic', tokens, self.anthropic_cost_per_1k)
+                data = parse_json_object(''.join(b.get('text', '') for b in result.get('content', [])))
+                if data is not None:
+                    return data
+                logger.warning("Anthropic didn't return a JSON object for extraction")
+        return None
 
     def get_token_usage(self) -> dict:
         """Get current token usage statistics with cost estimates"""

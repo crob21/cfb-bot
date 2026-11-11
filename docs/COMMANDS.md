@@ -53,6 +53,8 @@ Module: `league`
 | `/league set_week` | Set the current season and week (Admin only) | `season`, `week` |
 | `/league upload_schedule` | Upload a full schedule JSON file (Admin only) | `file` |
 | `/league set_week_games` | Set one week's games/byes by typing them (Admin only) | `week`, `games`, `byes`? |
+| `/league clear_schedule` | Wipe the schedule so Harry announces no matchups (Admin only) | - |
+| `/league pull_schedule` | Read the latest schedule posts in #schedule (Admin only) | `channel`?, `messages`?, `week`? |
 | `/league ghost` | Mark or unmark a team whose coach never shows up 👻 (Admin only) | `team` |
 | `/league schedule_template` | Show the schedule JSON format for uploads | - |
 | `/league timer_channel` | Set the channel for timer notifications (Admin only) | `channel` |

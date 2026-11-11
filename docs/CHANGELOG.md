@@ -3,6 +3,12 @@
 Full release history for Harry. The bot's `/changelog` command shows the most recent releases;
 this file keeps everything. Generated from `src/cfb_bot/utils/version_manager.py`.
 
+## 3.29.0 — Schedule Pull & Clear 📅 (2026-11-11)
+
+### New
+- NEW: /league pull_schedule reads the latest posts in #schedule (JSON files, screenshots or typed matchups) and shows a preview to apply
+- NEW: /league clear_schedule wipes the schedule (teams and ghosts stay), so Harry announces no matchups until a new one is loaded
+
 ## 3.28.3 — Right Dawgs 🐶 (2026-11-09)
 
 ### Simpler

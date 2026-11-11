@@ -109,7 +109,7 @@ class CoreCog(commands.Cog):
                 name="🏆 `/league`",
                 value=(
                     "**Season:** `week`, `weeks`, `games`, `schedule`, `byes`, `set_week`\n"
-                    "**Schedule (admin):** `upload_schedule`, `set_week_games`, `ghost`, `schedule_template`\n"
+                    "**Schedule (admin):** `upload_schedule`, `pull_schedule`, `set_week_games`, `clear_schedule`, `ghost`, `schedule_template`\n"
                     "**Timer:** `timer`, `timer_status`, `timer_stop`, `timers`\n"
                     "**Staff:** `staff`, `set_owner`, `set_commish`"
                 ),
