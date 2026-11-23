@@ -164,8 +164,9 @@ Module: `fun_games`
 - **`@everyone advanced`**: posted in the advance channel, it moves the dynasty week on, restarts the 48-hour
   countdown and posts the new week's matchups. On the advance into End of Season Recap, Harry also opens the
   season's history thread.
-- **"done" in a 📜 Season N History thread**: from a charter editor, it makes Harry open the charter PR.
-- **@Harry**: ask a question without a slash command, in channels enabled with `/admin channels`. One reply per
+- **Replies in a 📜 Season N History thread**: Harry answers once the thread goes quiet for a moment, confirming
+  what he's got and asking what's still open. "done" from a charter editor makes him open the charter PR instead.
+- **@Harry**: ask a question without a slash command, in channels enabled with `/admin channels` (and threads in them). One reply per
   person every 10 seconds. `@everyone`/`@here` never counts.
 - **Team banter**: name a rival (Oregon, Ohio State, Michigan…) and Harry has something to say. Whole words only.
 
