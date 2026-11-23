@@ -25,15 +25,8 @@ class FeatureModule(Enum):
     CFB_DATA = "cfb_data"   # Player lookup, rankings, matchups, etc.
     LEAGUE = "league"       # Timer, charter, rules, league staff
     HS_STATS = "hs_stats"   # High school stats scraping (MaxPreps)
-    RECRUITING = "recruiting"  # 247Sports recruiting data (web scraping)
+    RECRUITING = "recruiting"  # On3/Rivals recruiting data (web scraping)
     FUN_GAMES = "fun_games" # Rivalry responses (Fuck Oregon!), team banter
-
-
-# Recruiting data sources
-class RecruitingSource:
-    """Available recruiting data sources"""
-    ON3 = "on3"          # On3/Rivals (default) - server-side rendered, reliable
-    SPORTS247 = "247"    # 247Sports Composite - legacy, more complex scraping
 
 
 # Default settings for new servers
@@ -51,7 +44,6 @@ DEFAULT_CONFIG = {
         "timer_channel_id": None,
         "admin_channel_id": None,
         "auto_responses": True,   # Enable automatic jump-in responses (team banter, "Fuck Oregon!", etc.)
-        "recruiting_source": RecruitingSource.ON3,  # Default to On3/Rivals
         "schedule_announcement": True,  # Week matchups message when timer starts/advances (optional module)
     },
     # Channel controls - empty means ALL channels allowed
@@ -172,21 +164,6 @@ class ServerConfigManager:
         logger.info(f"Set admin channel to {channel_id} for guild {guild_id}")
 
 
-    # ==================== RECRUITING SOURCE ====================
-
-    def get_recruiting_source(self, guild_id: int) -> str:
-        """Get the recruiting data source for a guild (on3 or 247)"""
-        return self.get_setting(guild_id, "recruiting_source", RecruitingSource.ON3)
-
-    def set_recruiting_source(self, guild_id: int, source: str) -> bool:
-        """Set the recruiting data source for a guild"""
-        if source not in [RecruitingSource.ON3, RecruitingSource.SPORTS247]:
-            logger.warning(f"Invalid recruiting source: {source}")
-            return False
-        self.set_setting(guild_id, "recruiting_source", source)
-        logger.info(f"Set recruiting source to {source} for guild {guild_id}")
-        return True
-
     # ==================== STORAGE ====================
 
     # Each server's settings are their own saved message: one shared message hit Discord's
@@ -253,7 +230,7 @@ class ServerConfigManager:
             FeatureModule.CFB_DATA: "🏈 **CFB Data** - `/cfb` group: player, rankings, matchups, schedules, transfers",
             FeatureModule.LEAGUE: "🏆 **League** - `/league` (staff, season, timer) & `/charter` groups",
             FeatureModule.HS_STATS: "🏫 **HS Stats** - `/hs` group: high school stats from MaxPreps",
-            FeatureModule.RECRUITING: "⭐ **Recruiting** - `/recruiting` group: On3/Rivals or 247Sports data",
+            FeatureModule.RECRUITING: "⭐ **Recruiting** - `/recruiting` group: On3/Rivals data",
             FeatureModule.FUN_GAMES: "🎮 **Fun & Games** - Rivalry responses (Fuck Oregon!), team banter",
         }
         return descriptions.get(module, str(module))

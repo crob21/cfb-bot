@@ -293,7 +293,7 @@ class AdminCog(commands.Cog):
         app_commands.Choice(name="cfb_data - Player lookup, rankings", value="cfb_data"),
         app_commands.Choice(name="league - Timer, charter, rules", value="league"),
         app_commands.Choice(name="hs_stats - High school stats", value="hs_stats"),
-        app_commands.Choice(name="recruiting - On3/247 rankings", value="recruiting"),
+        app_commands.Choice(name="recruiting - On3/Rivals rankings", value="recruiting"),
         app_commands.Choice(name="fun_games - Rivalry responses (Fuck Oregon!)", value="fun_games"),
         app_commands.Choice(name="schedule_announcement - Week matchups when timer starts", value="schedule_announcement"),
     ])
@@ -340,15 +340,6 @@ class AdminCog(commands.Cog):
 
             # Server settings section
             embed.add_field(name="━━━━━━━━━━━━━━━", value="", inline=False)  # Divider
-
-            # Recruiting source
-            rec_source = server_config.get_recruiting_source(guild_id)
-            rec_name = "On3/Rivals" if rec_source == "on3" else "247Sports"
-            embed.add_field(
-                name="⭐ Recruiting Data Source",
-                value=f"**Source:** {rec_name}",
-                inline=True
-            )
 
             # Schedule announcement (week matchups when timer starts/advances)
             sched_on = server_config.get_setting(guild_id, "schedule_announcement", True)

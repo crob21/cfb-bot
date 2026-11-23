@@ -2,14 +2,15 @@
 """
 Recruiting Cog for CFB League Bot
 
-Provides commands to look up recruiting data from On3/Rivals or 247Sports.
+Provides commands to look up recruiting data from On3/Rivals.
+(247Sports was archived in v3.34.0: it refused every request. Its scraper is at the
+git tag archive/247-scraper.)
 Commands:
 - /recruiting player - Look up a recruit
 - /recruiting top - Top recruits by position/state
 - /recruiting class - Team recruiting class
 - /recruiting commits - Team's committed recruits
 - /recruiting rankings - Top team rankings
-- /recruiting source - Change data source
 """
 
 import logging
@@ -19,30 +20,24 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from ..config import Colors, Footers
-from ..services.checks import ADMINS_ONLY, requires_module
+from ..config import Colors
+from ..services.checks import requires_module
 from ..utils.cache import get_cache
 from ..utils.cfb_data import cfb_data
 from ..utils.on3_scraper import on3_scraper
-from ..utils.recruiting_scraper import recruiting_scraper
-from ..utils.server_config import (FeatureModule, RecruitingSource,
-                                   server_config)
-from ..services.oops import SERVERS_ONLY, oops
+from ..utils.server_config import FeatureModule, server_config  # noqa: F401 (requires_module reads it)
+from ..services.oops import oops
 
 logger = logging.getLogger('CFBBot.Recruiting')
 
 
-def get_recruiting_scraper(guild_id: int):
-    """Get the appropriate recruiting scraper based on server config"""
-    source = server_config.get_recruiting_source(guild_id)
-    if source == RecruitingSource.SPORTS247:
-        return recruiting_scraper, "247Sports Composite"
-    else:
-        return on3_scraper, "On3/Rivals"
+def get_recruiting_scraper(guild_id: int = 0):
+    """The recruiting scraper and its name. On3/Rivals is the only source since 247 was archived."""
+    return on3_scraper, "On3/Rivals"
 
 
 class RecruitingCog(commands.Cog):
-    """Recruiting data from On3/Rivals and 247Sports"""
+    """Recruiting data from On3/Rivals"""
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
@@ -55,19 +50,18 @@ class RecruitingCog(commands.Cog):
         description="⭐ Recruiting rankings, commits, and player lookups"
     )
 
-    async def _lookup_recruit(self, scraper, source_name: str, name: str, year, position, deep_search: bool):
+    async def _lookup_recruit(self, scraper, source_name: str, name: str, year, position):
         """Fetch a recruit, using the 24h cache before hitting the scraper."""
         # Check cache first (24 hour TTL) - include position in cache key
         cache = get_cache()
-        cache_key = f"{name.lower()}:{year or 'current'}:{source_name}:{deep_search}:{position or 'any'}"
+        cache_key = f"{name.lower()}:{year or 'current'}:{source_name}:{position or 'any'}"
         recruit = cache.get(cache_key, namespace='recruiting')
 
         if recruit:
             logger.info(f"Cache HIT for {name} - saved API call!")
         else:
             # Cache miss - scrape the data
-            max_pages = 65 if deep_search else 20
-            recruit = await scraper.search_recruit(name, year, max_pages=max_pages, position=position)
+            recruit = await scraper.search_recruit(name, year, max_pages=20, position=position)
 
             if recruit:
                 # Cache successful lookups for 24 hours (86400 seconds)
@@ -190,7 +184,7 @@ class RecruitingCog(commands.Cog):
 
         return False, recruit
 
-    async def _send_recruit(self, interaction, scraper, recruit, name: str, source_name: str, deep_search: bool):
+    async def _send_recruit(self, interaction, scraper, recruit, name: str, source_name: str):
         """Post the recruit's profile embed."""
         embed = discord.Embed(
             title=f"⭐ Recruit: {recruit.get('name', name)}",
@@ -285,12 +279,10 @@ class RecruitingCog(commands.Cog):
         footer = f"Harry's Recruiting 🏈 | Data from {source_name}"
         if recruit.get('is_transfer'):
             footer = f"Harry's Portal Tracker 🔄 | Data from {source_name}"
-        elif deep_search and source_name == "247Sports Composite":
-            footer += " | Deep Search"
         embed.set_footer(text=footer)
         await interaction.followup.send(embed=embed)
 
-    async def _send_not_found(self, interaction, name: str, source_name: str, position, deep_search: bool):
+    async def _send_not_found(self, interaction, name: str, source_name: str, position):
         """Post the 'no such recruit' embed with search tips."""
         tips = [
             "• Check the spelling",
@@ -299,14 +291,6 @@ class RecruitingCog(commands.Cog):
         ]
         if not position:
             tips.append("• Add `position:WR` (or QB, RB, etc.) if multiple players share this name")
-        if not deep_search and source_name == "247Sports Composite":
-            tips.append("• Try `deep_search:True` to search all ~3000 ranked recruits")
-
-        # Suggest alternative source
-        if source_name == "On3/Rivals":
-            tips.append("• Try `/recruiting source 247sports` if On3 is blocked")
-        else:
-            tips.append("• Try `/recruiting source on3` for transfer portal data")
 
         embed = discord.Embed(
             title="❓ Recruit Not Found",
@@ -324,7 +308,6 @@ class RecruitingCog(commands.Cog):
         name="Recruit name (e.g., 'Arch Manning')",
         year="Recruiting class year (default: current)",
         position="Position filter (for duplicate names like 'Elijah Brown')",
-        deep_search="(247Sports only) Search ALL ranked recruits (~3000+) instead of top 1000"
     )
     @app_commands.choices(position=[
         app_commands.Choice(name="QB - Quarterback", value="QB"),
@@ -348,7 +331,6 @@ class RecruitingCog(commands.Cog):
         name: str,
         year: Optional[int] = None,
         position: Optional[str] = None,
-        deep_search: bool = False
     ):
         """Look up a recruit from configured recruiting source"""
 
@@ -364,11 +346,10 @@ class RecruitingCog(commands.Cog):
             guild_id = interaction.guild.id if interaction.guild else 0
             scraper, source_name = get_recruiting_scraper(guild_id)
 
-            search_depth = "deep (all ~3000)" if deep_search else "standard"
             pos_filter = f" (position: {position})" if position else ""
-            logger.info(f"/recruiting player: {name} ({year or 'current'}){pos_filter} via {source_name} - {search_depth}")
+            logger.info(f"/recruiting player: {name} ({year or 'current'}){pos_filter} via {source_name}")
 
-            recruit = await self._lookup_recruit(scraper, source_name, name, year, position, deep_search)
+            recruit = await self._lookup_recruit(scraper, source_name, name, year, position)
 
             if recruit and recruit.get('multiple'):
                 handled, recruit = await self._send_candidate_picker(
@@ -378,9 +359,9 @@ class RecruitingCog(commands.Cog):
                     return
 
             if recruit:
-                await self._send_recruit(interaction, scraper, recruit, name, source_name, deep_search)
+                await self._send_recruit(interaction, scraper, recruit, name, source_name)
             else:
-                await self._send_not_found(interaction, name, source_name, position, deep_search)
+                await self._send_not_found(interaction, name, source_name, position)
         except Exception as e:
             logger.error(f"Error in /recruiting player: {e}", exc_info=True)
             await oops(interaction, e)
@@ -643,89 +624,6 @@ class RecruitingCog(commands.Cog):
         except Exception as e:
             logger.error(f"Error in /recruiting rankings: {e}", exc_info=True)
             await oops(interaction, e)
-
-    @recruiting_group.command(name="source", description="Set the recruiting data source")
-    @app_commands.describe(source="Which recruiting data source to use")
-    @app_commands.choices(source=[
-        app_commands.Choice(name="On3/Rivals (default) - Server-side rendered, reliable", value="on3"),
-        app_commands.Choice(name="247Sports Composite - Legacy, more data but slower", value="247"),
-    ])
-    @requires_module(FeatureModule.RECRUITING)
-    async def source(
-        self,
-        interaction: discord.Interaction,
-        source: Optional[str] = None
-    ):
-        """Set or view the recruiting data source"""
-        await interaction.response.defer(ephemeral=True)
-
-        if not interaction.guild:
-            await interaction.followup.send(SERVERS_ONLY, ephemeral=True)
-            return
-
-        guild_id = interaction.guild.id
-
-        # View current source
-        if source is None:
-            current_source = server_config.get_recruiting_source(guild_id)
-            source_name = "On3/Rivals" if current_source == RecruitingSource.ON3 else "247Sports Composite"
-
-            embed = discord.Embed(
-                title="⭐ Recruiting Data Source",
-                description=f"Current source: **{source_name}**",
-                color=Colors.PRIMARY
-            )
-            embed.add_field(
-                name="Available Sources",
-                value=(
-                    "• **On3/Rivals** (`on3`) - Default, server-side rendered, fast\n"
-                    "• **247Sports** (`247`) - Composite rankings, more data, slower"
-                ),
-                inline=False
-            )
-            embed.add_field(
-                name="Change Source",
-                value="`/recruiting source on3` or `/recruiting source 247`",
-                inline=False
-            )
-            embed.set_footer(text=Footers.CONFIG)
-            await interaction.followup.send(embed=embed, ephemeral=True)
-            return
-
-        # Check admin permission
-        is_admin = interaction.user.guild_permissions.administrator
-        if self.admin_manager:
-            is_admin = is_admin or self.admin_manager.is_admin(interaction.user, interaction)
-
-        if not is_admin:
-            await interaction.followup.send(
-                ADMINS_ONLY,
-                ephemeral=True
-            )
-            return
-
-        # Set the source
-        if source not in [RecruitingSource.ON3, RecruitingSource.SPORTS247]:
-            await interaction.followup.send(f"❌ No source called `{source}`, mate.", ephemeral=True)
-            return
-
-        server_config.set_recruiting_source(guild_id, source)
-        await server_config.save_to_discord()
-
-        source_name = "On3/Rivals" if source == RecruitingSource.ON3 else "247Sports Composite"
-
-        embed = discord.Embed(
-            title="✅ Recruiting Source Updated!",
-            description=f"Now using **{source_name}** for recruiting data.",
-            color=Colors.SUCCESS
-        )
-        embed.add_field(
-            name="What Changed",
-            value=f"Commands like `/recruiting player`, `/recruiting top`, etc. will now pull data from {source_name}.",
-            inline=False
-        )
-        embed.set_footer(text=Footers.CONFIG)
-        await interaction.followup.send(embed=embed, ephemeral=True)
 
 
 async def setup(bot: commands.Bot):

@@ -41,7 +41,7 @@ Harry 🤖 — 1:58 PM
 Real data from [CollegeFootballData.com](https://collegefootballdata.com/) — player lookups (single or bulk), AP/Coaches/CFP rankings, rivalry matchup history, team schedules and results, transfer portal, offense/defense team stats, SP+/SRS/Elo ratings, and NFL draft picks by school.
 
 ### ⭐ Recruiting (`/recruiting`)
-On3/Rivals **or** 247Sports Composite, switchable per server. Recruit lookups with position filters for duplicate names, team recruiting classes, commit lists, team rankings, and transfer players' college stats pulled in automatically. On3 pages that Cloudflare blocks fall back through Playwright → cloudscraper → Zyte (if configured) → plain HTTP.
+On3/Rivals. Recruit lookups with position filters for duplicate names, team recruiting classes, commit lists, team rankings, and transfer players' college stats pulled in automatically. On3 pages that Cloudflare blocks fall back through Playwright → cloudscraper → Zyte (if configured) → plain HTTP.
 
 ### 🏫 High School Stats (`/hs`)
 MaxPreps stats for a player, or a whole list at once with `/hs bulk`.

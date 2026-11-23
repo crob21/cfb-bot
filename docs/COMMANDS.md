@@ -107,12 +107,11 @@ Module: `recruiting`
 
 | Command | What it does | Options |
 |---------|--------------|---------|
-| `/recruiting player` | Look up a recruit's ranking | `name`, `year`?, `position`?, `deep_search`? |
+| `/recruiting player` | Look up a recruit's ranking | `name`, `year`?, `position`? |
 | `/recruiting top` | Get top recruits by position or state | `position`?, `state`?, `year`?, `top`? |
 | `/recruiting class` | Get a team's recruiting class ranking | `team`, `year`? |
 | `/recruiting commits` | List all committed recruits for a team | `team`, `year`?, `show`? |
 | `/recruiting rankings` | Get top team recruiting class rankings | `year`?, `top`? |
-| `/recruiting source` | Set the recruiting data source | `source`? |
 
 ## 🏫 High school stats (`/hs`)
 

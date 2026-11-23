@@ -231,41 +231,15 @@ class TestRecruitingRankings:
             await cog.rankings.callback(cog, mock_interaction)
 
 
-class TestRecruitingSource:
-    """Tests for /recruiting source command"""
-
-    @pytest.mark.asyncio
-    async def test_view_current_source(self, mock_interaction, mock_server_config):
-        """Test viewing current recruiting source"""
-        from cfb_bot.cogs.recruiting import RecruitingCog
-
-        mock_server_config.get_recruiting_source.return_value = "on3"
-
-        with patch('cfb_bot.cogs.recruiting.server_config', mock_server_config):
-            cog = RecruitingCog(MagicMock())
-            await cog.source.callback(cog, mock_interaction, source=None)
-
-            # acknowledged first (storage writes can outlast Discord's 3s window),
-            # so the reply arrives as a followup
-            mock_interaction.response.defer.assert_awaited_once()
-            mock_interaction.followup.send.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_change_source_requires_admin(self, mock_interaction, mock_server_config):
-        """Test changing source requires admin"""
-        from cfb_bot.cogs.recruiting import RecruitingCog
-
-        # User is not admin
-        mock_interaction.user.guild_permissions.administrator = False
-
-        with patch('cfb_bot.cogs.recruiting.server_config', mock_server_config):
-            cog = RecruitingCog(MagicMock())
-            cog.admin_manager = None
-            await cog.source.callback(cog, mock_interaction, source="247")
-
-            # Should send error
-            call_kwargs = mock_interaction.followup.send.call_args
-            assert call_kwargs.kwargs.get('ephemeral') == True
+def test_247_is_archived():
+    """247Sports refused every request, so On3/Rivals is the only source and there's no picker."""
+    from cfb_bot.cogs.recruiting import RecruitingCog, get_recruiting_scraper
+    from cfb_bot.utils.on3_scraper import on3_scraper
+    assert get_recruiting_scraper(123) == (on3_scraper, "On3/Rivals")
+    group = next(c for c in RecruitingCog.__cog_app_commands__ if c.name == "recruiting")
+    assert "source" not in [c.name for c in group.commands]
+    player = next(c for c in group.commands if c.name == "player")
+    assert "deep_search" not in [p.name for p in player.parameters]
 
 
 class TestTransferPortalDetection:
