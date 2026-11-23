@@ -21,7 +21,6 @@ import asyncio
 import logging
 import math
 import re
-import time
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Tuple
 
@@ -144,22 +143,19 @@ def season_chunks(chat: List[str], teams: List[str] = (),
                   size: int = HISTORY_CHUNK_CHARS, most: int = HISTORY_MAX_CHUNKS) -> List[str]:
     """Split the season's chat into at most `most` chunks of about `size` characters.
 
-    When it's too long, one-liners ("lol", "gg") go first, then lines are thinned evenly,
-    keeping anything with a score or a league team in it.
+    One-liners ("lol", "gg") are dropped. A season still too long is thinned evenly, always
+    keeping lines with a score or a league team, and if that's not enough the end of the season
+    (the postseason) wins over its start.
     """
-    budget = size * most * 0.9  # chunks never pack perfectly; the margin keeps the season's end
-    lines = list(chat)
-    if sum(len(l) + 1 for l in lines) > budget:
-        lines = [l for l in lines if len(l.split("]: ", 1)[-1]) >= 25 or SCORE.search(l)]
-    if sum(len(l) + 1 for l in lines) > budget:
-        names = [t.lower() for t in teams]
-        key = [bool(SCORE.search(l)) or any(n in l.lower() for n in names) for l in lines]
-        rest = [i for i, k in enumerate(key) if not k]
-        room = budget - sum(len(l) + 1 for l, k in zip(lines, key) if k)
-        avg = sum(len(lines[i]) + 1 for i in rest) / len(rest) if rest else 1
-        fits = int(room // avg) if room > 0 else 0
-        take = set(rest[::math.ceil(len(rest) / fits)]) if fits else set()
-        lines = [l for i, l in enumerate(lines) if key[i] or i in take]
+    names = [t.lower() for t in teams]
+
+    def matters(line: str) -> bool:
+        return bool(SCORE.search(line)) or any(n in line.lower() for n in names)
+
+    lines = [l for l in chat if len(l.split("]: ", 1)[-1]) >= 25 or matters(l)]
+    step = math.ceil(sum(len(l) + 1 for l in lines) / (size * most))
+    if step > 1:
+        lines = [l for i, l in enumerate(lines) if i % step == 0 or matters(l)]
 
     chunks, current = [], ""
     for line in lines:
@@ -169,7 +165,7 @@ def season_chunks(chat: List[str], teams: List[str] = (),
         current += line[:size] + "\n"
     if current:
         chunks.append(current)
-    return chunks[:most]
+    return chunks[-most:]
 
 
 def split_for_discord(text: str, limit: int = 1900) -> List[str]:
@@ -201,9 +197,8 @@ class CharterCog(commands.Cog):
         self.channel_summarizer = None
         self.ai_assistant = None
         self.admin_manager = None
-        # History threads: when each last got a reply, so Harry answers once per pause
-        self._last_reply: Dict[int, float] = {}
-        self._reply_tasks: set = set()
+        # History threads: Harry's pending answer in each, restarted by every new reply
+        self._reply_tasks: Dict[int, asyncio.Task] = {}
         logger.info("CharterCog initialized")
 
     def set_dependencies(self, charter_editor, channel_summarizer=None, ai_assistant=None, admin_manager=None):
@@ -738,7 +733,7 @@ class CharterCog(commands.Cog):
         if not (DONE_WORD.search(message.content or "") and may_propose_charter_change(message.author.id)):
             self._queue_thread_answer(message.channel, season)
             return True
-        self._last_reply.pop(message.channel.id, None)  # nothing left to answer
+        self._cancel_thread_answer(message.channel)  # "done" covers it
         try:
             await self.finish_season_history(
                 message.channel, season, f"{message.author.display_name} ({message.author.id})")
@@ -748,17 +743,17 @@ class CharterCog(commands.Cog):
         return True
 
     def _queue_thread_answer(self, thread, season) -> None:
-        """Answer the thread after REPLY_WAIT seconds, unless another reply comes first."""
-        stamp = time.monotonic()
-        self._last_reply[thread.id] = stamp
-        task = asyncio.create_task(self._answer_after_pause(thread, season, stamp))
-        self._reply_tasks.add(task)  # asyncio keeps only a weak reference to running tasks
-        task.add_done_callback(self._reply_tasks.discard)
+        """Answer the thread after REPLY_WAIT seconds of quiet: each new reply restarts the wait."""
+        self._cancel_thread_answer(thread)
+        self._reply_tasks[thread.id] = asyncio.create_task(self._answer_after_pause(thread, season))
 
-    async def _answer_after_pause(self, thread, season, stamp: float) -> None:
+    def _cancel_thread_answer(self, thread) -> None:
+        task = self._reply_tasks.pop(thread.id, None)
+        if task:
+            task.cancel()
+
+    async def _answer_after_pause(self, thread, season) -> None:
         await asyncio.sleep(REPLY_WAIT)
-        if self._last_reply.get(thread.id) != stamp:
-            return  # a newer reply (or "done") took over
         if not self.ai_assistant:
             return
         try:
@@ -767,11 +762,13 @@ class CharterCog(commands.Cog):
                 reply = await self.ai_assistant.ask_ai(
                     thread_reply_prompt(season, "\n".join(discussion)[-8000:]), "League Historian",
                     include_league_context=False, max_tokens=600)
-            if reply and self._last_reply.get(thread.id) == stamp:
-                for part in split_for_discord(reply):
-                    await thread.send(part)
+            for part in split_for_discord(reply or ""):
+                await thread.send(part)
         except Exception as e:
             logger.error(f"Season {season} history thread reply failed: {e}")
+        finally:
+            if self._reply_tasks.get(thread.id) is asyncio.current_task():
+                del self._reply_tasks[thread.id]
 
     @staticmethod
     async def _thread_discussion(thread) -> List[str]:
@@ -826,22 +823,21 @@ class CharterCog(commands.Cog):
         return "\n\n".join(n.strip() for n in notes if n and n.strip().lower() != "nothing")
 
     @staticmethod
-    def _league_names() -> List[str]:
+    def _schedule():
+        """The league schedule, or None when it isn't loaded."""
         try:
             from ..utils.schedule_manager import get_schedule_manager
-            schedule_mgr = get_schedule_manager()
-            return list(schedule_mgr.teams) if schedule_mgr else []
+            return get_schedule_manager()
         except Exception:
-            return []
+            return None
 
-    @staticmethod
-    def _head_to_head() -> str:
+    def _league_names(self) -> List[str]:
+        schedule_mgr = self._schedule()
+        return list(schedule_mgr.teams) if schedule_mgr else []
+
+    def _head_to_head(self) -> str:
         """Every game between league members this season, by week."""
-        try:
-            from ..utils.schedule_manager import get_schedule_manager
-            schedule_mgr = get_schedule_manager()
-        except Exception:
-            return ""
+        schedule_mgr = self._schedule()
         if not schedule_mgr:
             return ""
         schedule = schedule_mgr.schedule_data.get('schedule', {}) or {}

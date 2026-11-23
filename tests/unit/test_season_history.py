@@ -135,7 +135,7 @@ async def test_done_from_a_non_editor_is_just_a_reply():
     with patch.object(charter_module, 'REPLY_WAIT', 0.01), \
          patch('cfb_bot.utils.charter_git.may_propose_charter_change', return_value=False):
         assert await cog.handle_history_reply(message)
-        await asyncio.gather(*cog._reply_tasks)
+        await asyncio.gather(*cog._reply_tasks.values(), return_exceptions=True)
     cog.charter_editor.revise_charter.assert_not_called()
 
 
@@ -148,7 +148,7 @@ async def test_harry_answers_replies_once_the_thread_goes_quiet():
          patch('cfb_bot.utils.charter_git.may_propose_charter_change', return_value=False):
         for text in ("it was Duke mate", "beat Cal 31-17"):
             assert await cog.handle_history_reply(MagicMock(channel=thread, content=text, author=MagicMock(id=7)))
-        await asyncio.gather(*cog._reply_tasks)
+        await asyncio.gather(*cog._reply_tasks.values(), return_exceptions=True)
     # Two replies in a row get one answer, and it has read both
     thread.send.assert_awaited_once_with("Got it: Duke won. 1. Who was runner-up?")
     prompt = cog.ai_assistant.ask_ai.call_args.args[0]
@@ -166,7 +166,7 @@ async def test_done_cancels_the_pending_answer():
         pr.return_value.open = AsyncMock(return_value=(True, "https://github.com/o/r/pull/9"))
         await cog.handle_history_reply(MagicMock(channel=thread, content="Cal was runner-up", author=MagicMock(id=7)))
         await cog.handle_history_reply(MagicMock(channel=thread, content="done", author=MagicMock(id=7, display_name="Rob")))
-        await asyncio.gather(*cog._reply_tasks)
+        await asyncio.gather(*cog._reply_tasks.values(), return_exceptions=True)
     cog.ai_assistant.ask_ai.assert_not_called()
     pr.return_value.open.assert_awaited_once()
 
