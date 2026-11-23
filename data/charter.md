@@ -105,20 +105,4 @@ Discord Owner: BOOZEROB
 * SpartyMO - Michigan State  
 * BALK3 - USC 🙁
 
-## **5. League History**
-
-### 2025 Season
-
-**National Champion:** **South Carolina**
-
-**Playoff Participants:**
-
-* havron24 - Nebraska Cornhuskers  
-* BoozeRob - Washington  
-* Sedelhammer - Pittsburgh  
-* wustyman - Ole Miss
-
-### Job Changes
-
-* wustyman - USF -> Ole Miss  
-* robinsonn1 - Boise State -> Texas
+League history (champions, playoff fields, job changes) lives in `data/history.md`.

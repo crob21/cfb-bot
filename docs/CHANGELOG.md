@@ -3,6 +3,13 @@
 Full release history for Harry. The bot's `/changelog` command shows the most recent releases;
 this file keeps everything. Generated from `src/cfb_bot/utils/version_manager.py`.
 
+## 3.33.0 — The Record Book 📜 (2026-11-23)
+
+### New
+- NEW: /history shows the league's record book (champions, playoff fields, results, job changes), or one season
+- League history moved out of the charter into its own record book, data/history.md, which Harry reads to answer history questions
+- The season write-up adds one entry to the record book through a PR, instead of rewriting the whole charter
+
 ## 3.32.0 — Tapped Out 💸 (2026-11-23)
 
 ### New

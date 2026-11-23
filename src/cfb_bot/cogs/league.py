@@ -25,6 +25,7 @@ Commands:
 - /league schedule_template - Show the schedule JSON format
 - /league timer_channel - Set notification channel (admin)
 - /league staff - View league staff
+- /history - The league's record book, or one season (top level: /league is at Discord's 25)
 - /league set_owner - Set league owner (admin)
 - /league set_commish - Set co-commissioner (admin)
 - /league pick_commish - Most active members, for co-commissioner (admin)
@@ -1146,6 +1147,33 @@ class LeagueCog(commands.Cog):
         embed.add_field(name="🏆 League Owner", value=owner, inline=False)
         embed.add_field(name="👔 Co-Commissioner", value=commish, inline=False)
         embed.set_footer(text="Harry's League Staff 🏈")
+        await interaction.response.send_message(embed=embed)
+
+    # Top level, not /league history: Discord caps a group at 25 subcommands and /league is full
+    @app_commands.command(name="history", description="The league's record book: champions, playoffs, job changes")
+    @app_commands.describe(season="One season (default: the whole record book)")
+    @requires_module(FeatureModule.LEAGUE)
+    async def history(self, interaction: discord.Interaction, season: Optional[int] = None):
+        """Show data/history.md, or one season of it."""
+        from ..utils.league_history import read_history, season_section
+
+        record = read_history()
+        if season is not None:
+            text = season_section(record, season)
+        else:
+            text = record[record.find("## "):] if "## " in record else ""  # every season, no intro
+        if not text:
+            missing = f"Nothing for Season {season} in the record book yet." if season is not None \
+                else "The record book's empty so far."
+            await interaction.response.send_message(f"📜 {missing}", ephemeral=True)
+            return
+
+        embed = discord.Embed(
+            title=f"📜 League History{f' · Season {season}' if season is not None else ''}",
+            description=text[:4000] + ("\n…" if len(text) > 4000 else ""),
+            color=Colors.PRIMARY,
+        )
+        embed.set_footer(text="Harry adds each season at End of Season Recap 🏈")
         await interaction.response.send_message(embed=embed)
 
     @league_group.command(name="set_owner", description="Set the league owner (Admin only)")

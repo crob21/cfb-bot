@@ -209,7 +209,9 @@ class AICharterAssistant:
                     content = f.read()
                     if content:
                         logger.info(f"Loaded local charter content ({len(content)} characters)")
-                        return content
+                        from ..utils.league_history import read_history
+                        history = read_history()
+                        return f"{content}\n\n{history}" if history else content
         except Exception as e:
             logger.warning(f"Local charter file failed: {e}")
 
