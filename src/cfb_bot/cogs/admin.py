@@ -14,6 +14,7 @@ Commands:
 - /admin config - Configure modules
 - /admin sync - Force sync slash commands
 - /admin channels - Manage channel whitelist
+- /admin no_reactions - Toggle clearing a member's reactions on other people's posts
 """
 
 import logging
@@ -30,6 +31,13 @@ from ..services.checks import ADMINS_ONLY, requires_admin
 from ..services.oops import NOT_READY, oops
 
 logger = logging.getLogger('CFBBot.Admin')
+
+NO_REACTIONS = "no_reaction_users"  # server setting: members whose reactions Harry removes
+
+
+def no_reaction_users(guild_id: int) -> list:
+    """Members whose reactions on other people's posts Harry takes off."""
+    return list(server_config.get_setting(guild_id, NO_REACTIONS, []) or [])
 
 
 class AdminCog(commands.Cog):
@@ -948,6 +956,64 @@ class AdminCog(commands.Cog):
                 ephemeral=True
             )
             logger.error(f"Schedule reload failed (requested by {interaction.user})")
+
+    @admin_group.command(name="no_reactions",
+                         description="Toggle Harry removing a member's reactions on other people's posts")
+    @app_commands.describe(user="The member to toggle (leave empty to see who's on the list)")
+    @requires_admin()
+    async def no_reactions(self, interaction: discord.Interaction, user: Optional[discord.Member] = None):
+        """Add or remove a member from the no-reactions list, or show it."""
+        guild_id = interaction.guild.id
+        members = no_reaction_users(guild_id)
+
+        if user is None:
+            names = [f"<@{uid}>" for uid in members]
+            embed = discord.Embed(
+                title="🚫 No Reactions",
+                description=("Harry takes these members' reactions off other people's posts:\n"
+                             + "\n".join(names)) if names else "Nobody's on the list.",
+                color=Colors.NEUTRAL,
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+
+        if user.id in members:
+            members.remove(user.id)
+            embed = discord.Embed(
+                title="✅ Reactions Back On",
+                description=f"{user.mention} can react to posts again.",
+                color=Colors.SUCCESS,
+            )
+        else:
+            members.append(user.id)
+            embed = discord.Embed(
+                title="🚫 No More Reactions",
+                description=(f"I'll take {user.mention}'s reactions off other people's posts as soon as "
+                             "they land. Reactions on their own posts stay.\n\n"
+                             "I need **Manage Messages** in each channel to do it."),
+                color=Colors.WARNING,
+            )
+        server_config.set_setting(guild_id, NO_REACTIONS, members)
+        await server_config.save_to_discord()
+        logger.info(f"No-reactions toggled for {user} by {interaction.user} ({len(members)} on the list)")
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @commands.Cog.listener()
+    async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
+        """Take a listed member's reaction off someone else's post."""
+        if not payload.guild_id or payload.user_id not in no_reaction_users(payload.guild_id):
+            return
+        if payload.message_author_id == payload.user_id:
+            return  # their own post: leave it
+        try:
+            channel = self.bot.get_channel(payload.channel_id) or await self.bot.fetch_channel(payload.channel_id)
+            message = channel.get_partial_message(payload.message_id)
+            await message.remove_reaction(payload.emoji, discord.Object(id=payload.user_id))
+            logger.info(f"Removed a reaction from user {payload.user_id} in channel {payload.channel_id}")
+        except discord.Forbidden:
+            logger.warning(f"Can't remove reactions in channel {payload.channel_id}: Harry needs Manage Messages")
+        except discord.HTTPException as e:
+            logger.warning(f"Couldn't remove a reaction in channel {payload.channel_id}: {e}")
 
 
 async def setup(bot: commands.Bot):

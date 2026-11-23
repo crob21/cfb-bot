@@ -3,6 +3,11 @@
 Full release history for Harry. The bot's `/changelog` command shows the most recent releases;
 this file keeps everything. Generated from `src/cfb_bot/utils/version_manager.py`.
 
+## 3.31.0 — Hands Off the Reactions 🚫 (2026-11-23)
+
+### New
+- NEW: /admin no_reactions @member makes Harry take that member's reactions off other people's posts (run it again to stop)
+
 ## 3.30.0 — The Whole Season 📜 (2026-11-23)
 
 ### Improvements

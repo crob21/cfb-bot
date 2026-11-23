@@ -138,6 +138,7 @@ Module: `-`
 | `/admin config` | Configure Harry's features for this server | `action`?, `module`? |
 | `/admin sync` | Force sync slash commands | - |
 | `/admin channels` | View/manage which channels Harry can respond in | `action`?, `channel`? |
+| `/admin no_reactions` | Toggle Harry removing a member's reactions on other people's posts | `user`? |
 | `/admin zyte` | Zyte API usage and cost (the paid On3 Cloudflare bypass) | - |
 | `/admin cache` | View or manage bot cache | `action`? |
 | `/admin budget` | View monthly API cost budget and spending | `action`? |
