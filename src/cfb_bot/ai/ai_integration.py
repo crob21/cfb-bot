@@ -9,6 +9,7 @@ import json
 import logging
 import re
 import os
+from datetime import datetime
 from typing import Optional
 
 import aiohttp
@@ -131,6 +132,7 @@ class AICharterAssistant:
     """AI-powered assistant for league charter questions"""
 
     def __init__(self):
+        self._spend_limit_told = None  # the month the owner was told AI is off
         self.openai_api_key = os.getenv('OPENAI_API_KEY')
         self.anthropic_api_key = os.getenv('ANTHROPIC_API_KEY')
         
@@ -337,8 +339,31 @@ class AICharterAssistant:
             - Do NOT make up specific league schedules, rosters, or game results
             """
 
+    async def _over_spend_limit(self) -> bool:
+        """True once this month's AI spend reaches AI_SPEND_LIMIT. Tells the owner once a month."""
+        try:
+            from ..utils.cost_tracker import get_cost_tracker
+            tracker = get_cost_tracker()
+            if not await tracker.is_ai_over_limit():
+                return False
+        except Exception as e:
+            logger.warning(f"Couldn't check the AI spend limit, so allowing the call: {e}")
+            return False
+        month = datetime.now().strftime('%Y-%m')
+        if self._spend_limit_told != month:
+            self._spend_limit_told = month
+            from ..utils.error_reporter import get_error_reporter
+            await get_error_reporter().send_notice(
+                "🛑 **AI spend limit reached**",
+                f"This month's AI spend hit AI_SPEND_LIMIT (${tracker.ai_spend_limit:.2f}), so Harry's AI "
+                "is off until next month. Raise the limit in the environment to turn it back on.")
+        return True
+
     async def _post(self, provider: str, url: str, headers: dict, body: dict) -> Optional[dict]:
-        """POST to a provider and return its JSON, or None (logged) on any failure."""
+        """POST to a provider and return its JSON, or None (logged) on any failure or past the spend limit."""
+        if await self._over_spend_limit():
+            logger.warning(f"Skipped a {provider} call: AI spend limit reached")
+            return None
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(url, headers=headers, json=body,

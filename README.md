@@ -133,6 +133,7 @@ Only the bot token is required. Everything else unlocks a feature.
 | `OPENAI_MODEL` | No | Default `gpt-5-mini` — swap models without touching code |
 | `ANTHROPIC_MODEL` | No | Default `claude-haiku-4-5` |
 | `AI_MONTHLY_BUDGET` | No | Spend before alerts fire (default `10`) |
+| `AI_SPEND_LIMIT` | No | Hard cap: AI turns off for the rest of the month at this spend (default `0` = no cap) |
 | `TIMER_CHANNEL_ID` / `DEV_CHANNEL_ID` | No | Default advance channel and startup-status channel |
 
 More in [`config/env.example`](config/env.example) — charter URL, Zyte dashboard stats, spend caps, cost estimates.

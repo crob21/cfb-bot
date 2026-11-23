@@ -13,6 +13,7 @@ Set one or both on the host (or in `.env`, copied from `config/env.example`):
 | `ANTHROPIC_API_KEY` | Fallback if OpenAI fails or isn't set. Model: `ANTHROPIC_MODEL` (default `claude-haiku-4-5`) |
 | `OPENAI_COST_PER_1K` / `ANTHROPIC_COST_PER_1K` | Blended $/1k tokens for the cost estimates in `/tokens` and `/admin budget` |
 | `AI_MONTHLY_BUDGET` | Monthly AI budget in USD (default 10). Harry DMs you at 50/80/90/100% |
+| `AI_SPEND_LIMIT` | Hard cap in USD (default 0 = none). At this spend Harry's AI is off until next month, and you get one DM |
 
 No code changes needed: a model swap is an env change.
 

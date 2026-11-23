@@ -39,8 +39,9 @@ class CostTracker:
             'total': float(os.getenv('TOTAL_MONTHLY_BUDGET', 15.0))
         }
 
-        # Hard cap: disable Zyte API calls when monthly spend reaches this (0 = no cap)
+        # Hard caps: stop Zyte / AI calls when monthly spend reaches these (0 = no cap)
         self.zyte_spend_limit = float(os.getenv('ZYTE_SPEND_LIMIT', 0))
+        self.ai_spend_limit = float(os.getenv('AI_SPEND_LIMIT', 0))
 
         # Alert thresholds (percentage of budget)
         self.alert_thresholds = [0.5, 0.8, 0.9, 1.0]  # 50%, 80%, 90%, 100%
@@ -68,15 +69,22 @@ class CostTracker:
 
         return {'ai': 0.0, 'zyte': 0.0, 'total': 0.0}
 
-    async def is_zyte_over_limit(self) -> bool:
-        """True if ZYTE_SPEND_LIMIT is set and current month Zyte spend >= limit (disables Zyte API calls)."""
-        if self.zyte_spend_limit <= 0:
+    async def _over_limit(self, service: str, limit: float) -> bool:
+        if limit <= 0:
             return False
-        costs = await self.get_monthly_costs()
-        if costs['zyte'] >= self.zyte_spend_limit:
-            logger.info(f"Zyte spend limit reached: ${costs['zyte']:.2f} >= ${self.zyte_spend_limit:.2f} (calls disabled)")
+        spent = (await self.get_monthly_costs())[service]
+        if spent >= limit:
+            logger.info(f"{service} spend limit reached: ${spent:.2f} >= ${limit:.2f} (calls disabled)")
             return True
         return False
+
+    async def is_zyte_over_limit(self) -> bool:
+        """True if ZYTE_SPEND_LIMIT is set and current month Zyte spend >= limit (disables Zyte API calls)."""
+        return await self._over_limit('zyte', self.zyte_spend_limit)
+
+    async def is_ai_over_limit(self) -> bool:
+        """True if AI_SPEND_LIMIT is set and current month AI spend >= limit (disables AI calls)."""
+        return await self._over_limit('ai', self.ai_spend_limit)
 
     async def record_cost(self, service: str, amount: float):
         """Record a cost and check if alerts should be sent
