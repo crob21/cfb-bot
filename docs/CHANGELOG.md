@@ -3,10 +3,16 @@
 Full release history for Harry. The bot's `/changelog` command shows the most recent releases;
 this file keeps everything. Generated from `src/cfb_bot/utils/version_manager.py`.
 
-## 3.33.1 — Room to Grow 🏟️ (2026-11-23)
+## 3.33.2 — Room to Grow 🏟️ (2026-11-23)
 
 ### Improvements
 - Each server's settings are saved separately, so Harry can join more servers without hitting Discord's message size limit
+
+## 3.33.1 — Lighter on His Feet 🪶 (2026-11-23)
+
+### Fixes
+- Harry closes his headless browser two minutes after the last recruiting lookup instead of keeping it running, which ran Render out of memory
+- The browser skips images, fonts and media, and Harry's caches are capped
 
 ## 3.33.0 — The Record Book 📜 (2026-11-23)
 

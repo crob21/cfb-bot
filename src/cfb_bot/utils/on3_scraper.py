@@ -59,6 +59,9 @@ except ImportError:
 
 from .recruiting_base import RecruitingScraperBase
 
+BROWSER_IDLE_SECONDS = 120  # close Chromium this long after the last lookup
+BROWSER_SKIPPED = {'image', 'font', 'media'}  # never downloaded: the scraper only reads HTML
+
 logger = logging.getLogger('CFBBot.On3Recruiting')
 
 # A fetch result meaning the page doesn't exist (404): no point trying another method
@@ -120,10 +123,14 @@ class On3Scraper(RecruitingScraperBase):
         self._rate_limit_delay_max = 2.5  # Maximum 2.5 seconds (randomized)
         self._is_blocked = False  # Track if we're currently blocked
 
-        # Playwright browser (best for Cloudflare)
+        # Playwright browser (best for Cloudflare). Chromium is the biggest thing Harry runs,
+        # so it's closed after BROWSER_IDLE_SECONDS without a lookup instead of living forever:
+        # left running, it grew until Render restarted the worker for running out of memory.
         self._playwright = None
         self._browser = None
         self._browser_context = None
+        self._pages_open = 0
+        self._idle_close = None
 
         # Cloudscraper fallback
         if CLOUDSCRAPER_AVAILABLE:
@@ -221,17 +228,42 @@ class On3Scraper(RecruitingScraperBase):
                     '--disable-blink-features=AutomationControlled',
                     '--no-sandbox',
                     '--disable-setuid-sandbox',
+                    '--disable-dev-shm-usage',  # containers have a tiny /dev/shm
+                    '--disable-gpu',
+                    '--disable-extensions',
+                    '--mute-audio',
                 ]
             )
             self._browser_context = await self._browser.new_context(
-                viewport={'width': 1920, 'height': 1080},
+                viewport={'width': 1280, 'height': 800},
                 user_agent='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
             )
+            # Only the HTML is read: images, fonts and media are the heaviest part of a page
+            await self._browser_context.route("**/*", self._skip_heavy)
             logger.info("Playwright browser initialized")
             return True
         except Exception as e:
             logger.error(f"Failed to initialize Playwright: {e}")
             return False
+
+    @staticmethod
+    async def _skip_heavy(route):
+        if route.request.resource_type in BROWSER_SKIPPED:
+            await route.abort()
+        else:
+            await route.continue_()
+
+    def _close_when_idle(self) -> None:
+        """Close the browser BROWSER_IDLE_SECONDS after the last lookup; each lookup restarts the wait."""
+        if self._idle_close:
+            self._idle_close.cancel()
+        self._idle_close = asyncio.create_task(self._idle_then_close())
+
+    async def _idle_then_close(self) -> None:
+        await asyncio.sleep(BROWSER_IDLE_SECONDS)
+        if self._pages_open == 0 and self._browser:
+            logger.info("Closing the idle Playwright browser to free memory")
+            await self._close_browser()
 
     async def _close_browser(self):
         """Clean up Playwright browser"""
@@ -321,7 +353,12 @@ class On3Scraper(RecruitingScraperBase):
             await self._init_browser()
         if not self._browser_context:
             return None
-        page = await self._browser_context.new_page()
+        self._pages_open += 1
+        try:
+            page = await self._browser_context.new_page()
+        except Exception:
+            self._pages_open -= 1
+            raise
         try:
             response = await page.goto(url, timeout=15000, wait_until='domcontentloaded')
             status = response.status if response else None
@@ -330,6 +367,8 @@ class On3Scraper(RecruitingScraperBase):
             return self._page_result('Playwright', status, await page.content() if status == 200 else '')
         finally:
             await page.close()
+            self._pages_open -= 1
+            self._close_when_idle()
 
     async def _fetch_cloudscraper(self, url: str):
         if not self._scraper:
@@ -1847,12 +1886,14 @@ class On3Scraper(RecruitingScraperBase):
 
     async def cleanup(self):
         """Clean up resources (call on bot shutdown)"""
+        if self._idle_close:
+            self._idle_close.cancel()
         await self._close_browser()
 
     def __del__(self):
         """Cleanup when object is destroyed"""
         # Note: Can't use async in __del__, so just log
-        if self._browser:
+        if getattr(self, '_browser', None):
             logger.warning("On3Scraper deleted without cleanup - browser may still be running")
 
 
