@@ -43,7 +43,7 @@ Every command group maps to a `FeatureModule` enum in `utils/server_config.py`. 
 Every cog command is gated by `@requires_module(FeatureModule.X)` (and `@requires_admin()` where needed) from `services/checks.py`, applied below the `app_commands` decorators. A command that must defer first (`/charter propose`) calls `check_module_enabled_deferred()` itself. `docs/COMMANDS.md` must list every command (tested).
 
 ### Storage
-`DiscordDMStorage` in `utils/storage.py`: JSON stored as edited messages in a DM to the bot owner. Free, survives redeploys, one Discord message (2,000 chars) per namespace — oversize saves are refused and DM the owner. `utils/owner_dm.py` is the one place that opens that DM.
+`DiscordDMStorage` in `utils/storage.py`: JSON stored as edited messages in a DM to the bot owner. Free, survives redeploys, one Discord message (2,000 chars) per namespace — oversize saves are refused and DM the owner. `utils/owner_dm.py` is the one place that opens that DM. Saved messages are pinned so newer DMs (errors, alerts) can't bury them: find them with `find_saved()` / `saved_messages()` and pin new ones with `keep()`, never by scanning `dm.history()` yourself (tested).
 
 ## Key Patterns and Conventions
 

@@ -15,6 +15,7 @@ from typing import Dict, Optional
 
 import discord
 from ..config import Colors
+from .owner_dm import find_saved, keep, saved_messages
 
 from zoneinfo import ZoneInfo
 
@@ -615,13 +616,14 @@ class TimekeeperManager:
                     self.state_message_id = None
 
             # Remove stale copies so the new message is the only timer state
-            async for message in dm.history(limit=100):
-                if message.author == self.bot.user and _parse_timer_state(message.content) is not None:
-                    try:
-                        await message.delete()
-                    except Exception:
-                        pass
+            stale = [m for m in await saved_messages(self.bot, dm) if _parse_timer_state(m.content) is not None]
+            for message in stale:
+                try:
+                    await message.delete()
+                except Exception:
+                    pass
             message = await dm.send(content=content)
+            await keep(message)
             self.state_message_id = message.id
             logger.info("Saved timer state to owner DM")
             return True
@@ -637,20 +639,17 @@ class TimekeeperManager:
             logger.warning("No owner DM available - can't restore the timer")
             return None
         try:
-            async for message in dm.history(limit=100):
-                if message.author != self.bot.user:
-                    continue
-                state = _parse_timer_state(message.content)
-                if state is None:
-                    continue
-                # The newest message is authoritative: if it says inactive, don't
-                # resurrect an older, stopped timer.
-                self.state_message_id = message.id
-                if 'end_time' not in state or not state.get('is_active', True):
-                    logger.info("Newest timer state in owner DM is inactive")
-                    return None
-                return state
-            return None
+            # The pinned (else newest) state is authoritative: if it says inactive, don't
+            # resurrect an older, stopped timer.
+            message = await find_saved(self.bot, dm, lambda m: _parse_timer_state(m.content) is not None)
+            if not message:
+                return None
+            state = _parse_timer_state(message.content)
+            self.state_message_id = message.id
+            if 'end_time' not in state or not state.get('is_active', True):
+                logger.info("Newest timer state in owner DM is inactive")
+                return None
+            return state
         except Exception as e:
             logger.error(f"Failed to load timer state from Discord: {e}")
             return None
@@ -969,15 +968,14 @@ class TimekeeperManager:
         content = f"```json\n{json.dumps({**state, 'type': type_name})}\n```"
         marker = f'"type": "{type_name}"'
         try:
-            async for message in dm_channel.history(limit=100):
-                if (message.author == self.bot.user
-                        and message.content.startswith("```json")
-                        and marker in message.content):
-                    await message.edit(content=content)
-                    logger.info(f"Updated {type_name} state in DM")
-                    return True
+            message = await find_saved(
+                self.bot, dm_channel, lambda m: m.content.startswith("```json") and marker in m.content)
+            if message:
+                await message.edit(content=content)
+                logger.info(f"Updated {type_name} state in DM")
+                return True
 
-            await dm_channel.send(content=content)
+            await keep(await dm_channel.send(content=content))
             logger.info(f"Created {type_name} state in DM")
             return True
         except Exception as e:
@@ -996,30 +994,23 @@ class TimekeeperManager:
         if not dm_channel:
             return None
 
-        marker = f'"type": "{type_name}"'
+        def parse(content: str) -> Optional[Dict]:
+            content = content.strip()
+            if content.startswith("```json"):
+                content = content[7:].removesuffix("```").strip()
+            elif not content.startswith("{"):
+                return None
+            try:
+                state = json.loads(content)
+            except json.JSONDecodeError:
+                return None
+            if not isinstance(state, dict):
+                return None
+            return state if state.get('type') == type_name or (legacy_key and legacy_key in state) else None
+
         try:
-            async for message in dm_channel.history(limit=100):
-                if message.author != self.bot.user:
-                    continue
-                content = message.content.strip()
-                if marker not in content and not (legacy_key and f'"{legacy_key}"' in content):
-                    continue
-
-                if content.startswith("```json"):
-                    content = content[7:]
-                    if content.endswith("```"):
-                        content = content[:-3]
-                    content = content.strip()
-                elif not content.startswith("{"):
-                    continue
-
-                try:
-                    state = json.loads(content)
-                except json.JSONDecodeError:
-                    continue
-
-                if state.get('type') == type_name or (legacy_key and legacy_key in state):
-                    return state
+            message = await find_saved(self.bot, dm_channel, lambda m: parse(m.content) is not None)
+            return parse(message.content) if message else None
         except Exception as e:
             logger.debug(f"Could not load {type_name} state from DM: {e}")
         return None

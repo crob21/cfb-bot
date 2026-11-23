@@ -3,6 +3,12 @@
 Full release history for Harry. The bot's `/changelog` command shows the most recent releases;
 this file keeps everything. Generated from `src/cfb_bot/utils/version_manager.py`.
 
+## 3.31.1 — Pinned Down 📌 (2026-11-23)
+
+### Fixes
+- Harry pins his saved settings, timers, schedule and charter in the owner DM, so a pile of newer messages can't make him forget them on restart
+- Saved messages from before pinning are found up to 500 messages back, then pinned
+
 ## 3.31.0 — Hands Off the Reactions 🚫 (2026-11-23)
 
 ### New

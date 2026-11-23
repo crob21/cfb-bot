@@ -18,6 +18,8 @@ import os
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional
 
+from .owner_dm import find_saved, keep
+
 # One namespace = one Discord message, and Discord caps a message at 2000 characters
 DISCORD_MESSAGE_LIMIT = 2000
 SAVE_WARN_THRESHOLD = 1700
@@ -119,6 +121,11 @@ class DiscordDMStorage(StorageBackend):
         from .owner_dm import get_owner_dm
         return await get_owner_dm(self.bot)
     
+    @staticmethod
+    def _matcher(namespace: str):
+        prefix = f"{namespace.upper()}:"
+        return lambda message: message.content.startswith(prefix)
+
     async def save(self, namespace: str, key: str, data: Dict[str, Any]) -> bool:
         """Save data to Discord DM"""
         # The whole namespace is one message, so it has to be loaded before one key is
@@ -171,14 +178,15 @@ class DiscordDMStorage(StorageBackend):
                     pass  # Message not found, create new
             
             # Search for existing message
-            async for message in dm.history(limit=100):
-                if message.author == self.bot.user and message.content.startswith(f"{namespace.upper()}:"):
-                    await message.edit(content=content)
-                    self._message_ids[namespace] = message.id
-                    logger.info(f"Updated {namespace} in Discord DM")
-                    return True
-            
+            message = await find_saved(self.bot, dm, self._matcher(namespace))
+            if message:
+                await message.edit(content=content)
+                self._message_ids[namespace] = message.id
+                logger.info(f"Updated {namespace} in Discord DM")
+                return True
+
             message = await dm.send(content)
+            await keep(message)
             self._message_ids[namespace] = message.id
             logger.info(f"Created {namespace} in Discord DM")
             return True
@@ -222,15 +230,15 @@ class DiscordDMStorage(StorageBackend):
             return False
         
         try:
-            async for message in dm.history(limit=100):
-                if message.author == self.bot.user and message.content.startswith(f"{namespace.upper()}:"):
-                    json_str = message.content[len(namespace) + 1:]  # Remove "NAMESPACE:"
-                    data = json.loads(json_str)
-                    self._cache[namespace] = data
-                    self._message_ids[namespace] = message.id
-                    logger.info(f"Loaded {namespace} from Discord ({len(data)} entries)")
-                    return True
-            
+            message = await find_saved(self.bot, dm, self._matcher(namespace))
+            if message:
+                json_str = message.content[len(namespace) + 1:]  # Remove "NAMESPACE:"
+                data = json.loads(json_str)
+                self._cache[namespace] = data
+                self._message_ids[namespace] = message.id
+                logger.info(f"Loaded {namespace} from Discord ({len(data)} entries)")
+                return True
+
             # Not found, initialize empty
             self._cache[namespace] = {}
             logger.info(f"No existing {namespace} found in Discord")

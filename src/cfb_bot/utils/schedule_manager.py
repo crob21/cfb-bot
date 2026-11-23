@@ -79,22 +79,22 @@ class ScheduleManager:
         if not dm:
             return False
         try:
-            async for message in dm.history(limit=100):
-                if (message.author == self.bot.user
-                        and message.content.startswith(SCHEDULE_BACKUP_MARKER)
-                        and message.attachments):
-                    raw = await message.attachments[0].read()
-                    data = json.loads(raw.decode('utf-8'))
-                    ok, err = self.validate_schedule(data, allow_empty=True)  # empty = cleared on purpose
-                    if not ok:
-                        logger.warning(f"Ignoring invalid schedule backup: {err}")
-                        return False
-                    self.load_from_dict(data)
-                    logger.info(
-                        f"Restored schedule from Discord backup "
-                        f"(Season {self.season}, {len(self.schedule_data.get('schedule', {}))} weeks)"
-                    )
-                    return True
+            from .owner_dm import find_saved
+            message = await find_saved(
+                self.bot, dm, lambda m: m.content.startswith(SCHEDULE_BACKUP_MARKER) and m.attachments)
+            if message:
+                raw = await message.attachments[0].read()
+                data = json.loads(raw.decode('utf-8'))
+                ok, err = self.validate_schedule(data, allow_empty=True)  # empty = cleared on purpose
+                if not ok:
+                    logger.warning(f"Ignoring invalid schedule backup: {err}")
+                    return False
+                self.load_from_dict(data)
+                logger.info(
+                    f"Restored schedule from Discord backup "
+                    f"(Season {self.season}, {len(self.schedule_data.get('schedule', {}))} weeks)"
+                )
+                return True
             logger.info("No schedule backup in Discord; using bundled schedule.json")
             return False
         except Exception as e:
@@ -125,17 +125,18 @@ class ScheduleManager:
 
             payload = json.dumps(self.schedule_data).encode('utf-8')
 
+            from .owner_dm import keep, saved_messages
+
             # Remove old backup message(s) to avoid duplicates
-            async for message in dm.history(limit=50):
-                if (message.author == self.bot.user
-                        and message.content.startswith(SCHEDULE_BACKUP_MARKER)):
-                    try:
-                        await message.delete()
-                    except Exception:
-                        pass
+            old = [m for m in await saved_messages(self.bot, dm) if m.content.startswith(SCHEDULE_BACKUP_MARKER)]
+            for message in old:
+                try:
+                    await message.delete()
+                except Exception:
+                    pass
 
             file = discord.File(io.BytesIO(payload), filename=SCHEDULE_BACKUP_FILENAME)
-            await dm.send(content=f"{SCHEDULE_BACKUP_MARKER} (Season {self.season})", file=file)
+            await keep(await dm.send(content=f"{SCHEDULE_BACKUP_MARKER} (Season {self.season})", file=file))
             logger.info("Schedule backed up to Discord (owner DM attachment)")
             return True
         except Exception as e:

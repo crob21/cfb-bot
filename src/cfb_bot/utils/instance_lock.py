@@ -13,7 +13,7 @@ import logging
 import uuid
 from typing import Optional
 
-from .owner_dm import get_owner_dm
+from .owner_dm import find_saved, get_owner_dm, keep
 
 logger = logging.getLogger('CFBBot.Instance')
 
@@ -42,13 +42,13 @@ async def claim(bot) -> bool:
         return False
     content = PREFIX + INSTANCE_ID
     try:
-        async for message in dm.history(limit=100):
-            if message.author == bot.user and owner_of(message.content):
-                await message.edit(content=content)
-                _message_id = message.id
-                break
+        message = await find_saved(bot, dm, lambda m: owner_of(m.content))
+        if message:
+            await message.edit(content=content)
         else:
-            _message_id = (await dm.send(content)).id
+            message = await dm.send(content)
+            await keep(message)
+        _message_id = message.id
     except Exception as e:
         logger.warning(f"Could not claim the instance lease: {e}")
         return False
