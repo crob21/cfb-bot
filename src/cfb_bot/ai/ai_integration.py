@@ -556,29 +556,3 @@ class AICharterAssistant:
             'anthropic_cost': anthropic_cost,
             'total_cost': total_cost
         }
-
-
-def setup_ai_integration():
-    """Setup instructions for AI integration"""
-    print("🤖 AI Integration Setup Instructions:")
-    print("=" * 50)
-    print("Choose your AI provider:")
-    print()
-    print("1. OpenAI (GPT-3.5/GPT-4)")
-    print("   - Go to: https://platform.openai.com/api-keys")
-    print("   - Create an API key")
-    print("   - Add to .env: OPENAI_API_KEY=your_key_here")
-    print()
-    print("2. Anthropic (Claude)")
-    print("   - Go to: https://console.anthropic.com/")
-    print("   - Create an API key")
-    print("   - Add to .env: ANTHROPIC_API_KEY=your_key_here")
-    print()
-    print("3. Both (recommended for reliability)")
-    print("   - Set up both APIs")
-    print("   - Bot will try OpenAI first, then Anthropic as fallback")
-    print()
-    print("📝 Note: AI integration is optional. The bot works great without it!")
-
-if __name__ == "__main__":
-    setup_ai_integration()

@@ -53,8 +53,6 @@ Every cog command is gated by `@requires_module(FeatureModule.X)` (and `@require
 
 **Timer advancement via @everyone**: The bot listens for `@everyone` + the word "advanced" in `on_message`. This advances the dynasty week and restarts a 48-hour countdown. Hardcoded social convention for the league.
 
-**Python 3.13 compatibility**: `utils/audioop_fix.py` must be imported before discord.py on Python 3.13+ (the `audioop` module was removed). Handled automatically via the import chain.
-
 **Recruiting scraper fallback chain**: On3 tries Playwright (headless Chromium) → cloudscraper → Zyte (when `ZYTE_API_KEY` is set and under `ZYTE_SPEND_LIMIT`) → plain httpx. 247Sports is plain httpx only. On Render, Playwright's Chromium must be installed in the build command.
 
 **Version tracking**: Version is defined in both `src/cfb_bot/__init__.py` (`__version__`) and `utils/version_manager.py` (`CURRENT_VERSION`). Update both when bumping, and add the changelog entry to the top of `CHANGELOG` in `version_manager.py` (keeps the last ~10 releases for `/changelog`) and to `docs/CHANGELOG.md` (full history; a test checks they agree). Log messages are plain text — emoji go in embeds only (also tested).

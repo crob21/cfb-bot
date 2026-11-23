@@ -89,7 +89,7 @@ Advancing past Training Results rolls over to Preseason of the next season.
 
 ## Quick start
 
-**You need:** Python 3.11+ (3.13 recommended) and a [Discord bot token](https://discord.com/developers/applications).
+**You need:** Python 3.13 and a [Discord bot token](https://discord.com/developers/applications).
 
 ```bash
 git clone https://github.com/crob21/cfb-bot.git

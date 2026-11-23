@@ -121,7 +121,7 @@ class ScheduleManager:
             return False
 
         try:
-            import discord  # lazy import (audioop_fix ordering handled by bot_main)
+            import discord
 
             payload = json.dumps(self.schedule_data).encode('utf-8')
 
