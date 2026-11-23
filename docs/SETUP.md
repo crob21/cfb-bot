@@ -8,7 +8,7 @@ Complete setup guide for Harry, the CFB 27 Rules Bot.
 
 - A Discord account
 - A Discord server where you have admin permissions
-- Python 3.11+ (3.13 recommended)
+- Python 3.13
 - Optional: OpenAI API Key (for AI features)
 - Optional: CollegeFootballData.com API Key (for CFB data)
 
