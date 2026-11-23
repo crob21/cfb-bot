@@ -59,6 +59,7 @@ Module: `league`
 | `/league schedule_template` | Show the schedule JSON format for uploads | - |
 | `/league timer_channel` | Set the channel for timer notifications (Admin only) | `channel` |
 | `/league staff` | View the current league owner and co-commissioner | - |
+| `/history` | The league's record book: champions, playoffs, job changes | `season`? |
 | `/league set_owner` | Set the league owner (Admin only) | `user` |
 | `/league set_commish` | Set the co-commissioner (Admin only) | `user`?, `none`? |
 | `/league pick_commish` | Rank the chat's most active members for co-commissioner (Admin only) | `channel`?, `hours`? |
@@ -78,7 +79,7 @@ Module: `league`
 | `/charter search` | Search the official league charter | `search_term` |
 | `/charter add` | Add a new rule to the charter (Admin only) | `section_title`, `rule_content`, `position`? |
 | `/charter propose` | Have Harry draft a charter change and open a pull request (charter editors only) | `instruction`, `summary`, `channel`?, `hours`? |
-| `/charter season_recap` | Have Harry write the season into League History (charter editors only) | `channel`?, `hours`? |
+| `/charter season_recap` | Have Harry write the season into the league's record book (charter editors only) | `channel`?, `hours`? |
 | `/charter update` | Update an existing rule (Admin only) | `section_identifier`, `new_content` |
 | `/charter backups` | View available backups (Admin only) | - |
 | `/charter restore` | Restore from backup (Admin only) | `backup_filename` |

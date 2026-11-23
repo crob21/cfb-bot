@@ -59,6 +59,8 @@ ANTHROPIC_COST_PER_1K = env_float('ANTHROPIC_COST_PER_1K', 0.002)
 # The old plain-text name is still read so an existing deployment keeps working.
 CHARTER_FILE = 'data/charter.md'
 CHARTER_FILE_LEGACY = 'data/charter_content.txt'
+# The league's record book (champions, playoffs, job changes), added to a season at a time by PR
+HISTORY_FILE = 'data/history.md'
 
 # The charter's shared Google Doc, linked from /charter and /harry answers.
 CHARTER_URL = env_str('CHARTER_URL', 'https://docs.google.com/document/d/1lX28DlMmH0P77aficBA_1Vo9ykEm_bAroSTpwMhWr_8/edit')

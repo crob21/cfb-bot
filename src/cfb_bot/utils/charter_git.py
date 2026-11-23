@@ -49,11 +49,11 @@ def for_github_text(text: str, limit: int = 200) -> str:
     return cleaned[:limit] if len(cleaned) > limit else cleaned
 
 
-def branch_name(summary: str) -> str:
-    """A readable, unique branch name for one charter change."""
+def branch_name(summary: str, prefix: str = "charter") -> str:
+    """A readable, unique branch name for one charter (or history) change."""
     slug = "".join(c if c.isalnum() else "-" for c in summary.lower())
     slug = "-".join(part for part in slug.split("-") if part)[:40].strip("-") or "update"
-    return f"charter/{slug}-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+    return f"{prefix}/{slug}-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
 
 
 class CharterPullRequest:
@@ -81,9 +81,10 @@ class CharterPullRequest:
                 raise RuntimeError(f"GitHub {method} {path} failed: {message}")
             return body
 
-    async def open(self, content: str, summary: str, author: str) -> Tuple[bool, Optional[str]]:
+    async def open(self, content: str, summary: str, author: str,
+                   path: str = CHARTER_FILE, label: str = "Charter") -> Tuple[bool, Optional[str]]:
         """
-        Put `content` on a new branch and open a PR.
+        Put `content` at `path` on a new branch and open a PR titled "{label}: {summary}".
 
         Returns (ok, pr_url_or_error). The PR is left open for a human to merge.
         """
@@ -92,7 +93,7 @@ class CharterPullRequest:
 
         summary = for_github_text(summary)
         author = for_github_text(author, limit=100)
-        branch = branch_name(summary)
+        branch = branch_name(summary, label.lower())
         timeout = aiohttp.ClientTimeout(total=HTTP_TIMEOUT)
 
         try:
@@ -108,37 +109,37 @@ class CharterPullRequest:
                 try:
                     existing = await self._request(
                         session, 'GET',
-                        f"/repos/{self.repo}/contents/{CHARTER_FILE}?ref={self.base}")
+                        f"/repos/{self.repo}/contents/{path}?ref={self.base}")
                     file_sha = existing.get('sha')
                 except RuntimeError:
                     file_sha = None
 
                 commit = {
-                    'message': f"Charter: {summary}\n\nProposed by {author} via Harry.",
+                    'message': f"{label}: {summary}\n\nProposed by {author} via Harry.",
                     'content': base64.b64encode(content.encode('utf-8')).decode('ascii'),
                     'branch': branch,
                 }
                 if file_sha:
                     commit['sha'] = file_sha
                 await self._request(
-                    session, 'PUT', f"/repos/{self.repo}/contents/{CHARTER_FILE}", json=commit)
+                    session, 'PUT', f"/repos/{self.repo}/contents/{path}", json=commit)
 
                 pull = await self._request(
                     session, 'POST', f"/repos/{self.repo}/pulls",
                     json={
-                        'title': f"Charter: {summary}",
+                        'title': f"{label}: {summary}",
                         'head': branch,
                         'base': self.base,
                         'body': (
-                            f"Charter change proposed by **{author}** through Harry.\n\n"
+                            f"{label} change to `{path}` proposed by **{author}** through Harry.\n\n"
                             f"**Summary:** {summary}\n\n"
                             "Harry can open this PR but cannot merge it — review and merge "
-                            "it yourself, then redeploy so he reads the new charter."
+                            "it yourself, then redeploy so he reads it."
                         ),
                     })
 
                 url = pull.get('html_url')
-                logger.info(f"Opened charter PR {url} on branch {branch} for {author}")
+                logger.info(f"Opened {label.lower()} PR {url} on branch {branch} for {author}")
                 return True, url
 
         except Exception as e:
