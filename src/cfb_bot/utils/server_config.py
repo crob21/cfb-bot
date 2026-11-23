@@ -84,6 +84,7 @@ class ServerConfigManager:
         self._configs: Dict[int, Dict[str, Any]] = {}
         self._bot = None
         self._loaded = False
+        self._saved: Dict[int, str] = {}  # each server's settings as last saved
 
     def set_bot(self, bot):
         """Set the bot instance for storage persistence"""
@@ -188,69 +189,56 @@ class ServerConfigManager:
 
     # ==================== STORAGE ====================
 
+    # Each server's settings are their own saved message: one shared message hit Discord's
+    # 2,000-character cap at four or five servers. "server_config"/"all" is the old shared
+    # message, read once to migrate and left in place as a backup.
+
+    @staticmethod
+    def _namespace(guild_id: int) -> str:
+        return f"server_config_{guild_id}"
+
     async def save_to_discord(self):
-        """Save all configs to storage backend (name kept for backwards compatibility)"""
+        """Save every server's settings that changed since the last save (name kept for callers)"""
         from .storage import get_storage
 
         storage = get_storage()
-
-        # Save all configs as one blob (for Discord DM efficiency)
-        # Convert int keys to strings for JSON
-        serializable = {str(k): v for k, v in self._configs.items()}
-
-        success = await storage.save("server_config", "all", serializable)
-        if success:
-            logger.info(f"Saved configs for {len(self._configs)} servers")
-        return success
+        ok = True
+        for guild_id, config in self._configs.items():
+            blob = json.dumps(config, sort_keys=True)
+            if self._saved.get(guild_id) == blob:
+                continue
+            if await storage.save(self._namespace(guild_id), "config", config):
+                self._saved[guild_id] = blob
+                logger.info(f"Saved config for server {guild_id}")
+            else:
+                ok = False
+        return ok
 
     async def load_from_discord(self):
-        """Load configs from storage backend (name kept for backwards compatibility)"""
+        """Load every server's settings: the old shared message first, each server's own on top"""
         if self._loaded:
             return True
 
         from .storage import get_storage, set_storage_bot
 
-        # Set bot for Discord storage
         if self._bot:
             set_storage_bot(self._bot)
-
         storage = get_storage()
 
         try:
-            # Try new format first (with "all" key)
-            data = await storage.load("server_config", "all")
-
-            if data:
-                # New format: {"guild_id": config, ...}
-                self._configs = {int(k): v for k, v in data.items()}
-                logger.info(f"Loaded configs for {len(self._configs)} servers")
-            else:
-                # Try loading old format (direct guild configs without "all" wrapper)
-                # Old format stored directly as SERVER_CONFIG:{guild_id: config, ...}
-                all_data = await storage.load_all("server_config")
-
-                # Check if it's old format (keys are guild IDs, not "all")
-                if all_data and "all" not in all_data:
-                    # Old format - guild IDs are top-level keys
-                    self._configs = {}
-                    for k, v in all_data.items():
-                        try:
-                            guild_id = int(k)
-                            self._configs[guild_id] = v
-                        except (ValueError, TypeError):
-                            continue
-
-                    if self._configs:
-                        logger.info(f"Migrated {len(self._configs)} server configs from old format")
-                        # Save in new format
-                        await self.save_to_discord()
-                    else:
-                        logger.info("No existing server configs found")
-                else:
-                    self._configs = {}
-                    logger.info("No existing server configs found")
-
+            shared = await storage.load("server_config", "all") or {}
+            configs = {int(k): v for k, v in shared.items() if str(k).isdigit()}
+            guild_ids = set(configs) | {g.id for g in (getattr(self._bot, 'guilds', None) or [])}
+            for guild_id in guild_ids:
+                own = await storage.load(self._namespace(guild_id), "config")
+                if own:
+                    configs[guild_id] = own
+                    self._saved[guild_id] = json.dumps(own, sort_keys=True)
+            self._configs = configs
             self._loaded = True
+            logger.info(f"Loaded configs for {len(configs)} servers")
+            if any(guild_id not in self._saved for guild_id in configs):
+                await self.save_to_discord()  # first run after the split: give each server its own
             return True
 
         except Exception as e:
