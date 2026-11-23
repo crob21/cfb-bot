@@ -153,3 +153,40 @@ class TestMentionPromptWording:
         assert "mentioned" not in prompt.split("Never narrate")[0]
         assert "Never narrate that you were mentioned" in prompt
         assert prompt.endswith("why corn gear?")
+
+
+class TestThreads:
+    def _in_thread(self, name="Trade talk", owner_id=1):
+        import discord
+        message = make_message()
+        thread = MagicMock(spec=discord.Thread)
+        thread.id, thread.parent_id, thread.name, thread.owner_id = 3, 2, name, owner_id
+        thread.typing = message.channel.typing
+        message.channel = thread
+        return message
+
+    def test_a_thread_follows_its_channels_whitelist(self):
+        from cfb_bot.cogs.ai_chat import whitelist_channel_id
+        assert whitelist_channel_id(self._in_thread().channel) == 2
+        assert whitelist_channel_id(MagicMock(id=5)) == 5
+        assert whitelist_channel_id(None) == 0
+
+    @pytest.mark.asyncio
+    async def test_replies_to_mentions_in_a_thread_of_an_enabled_channel(self):
+        cog, message = make_cog(), self._in_thread()
+        message.mentions = [cog.bot.user]
+        config = enabled_config()
+        with patch('cfb_bot.cogs.ai_chat.server_config', config):
+            await cog.on_message(message)
+        config.is_channel_enabled.assert_called_with(1, 2)
+        message.reply.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_leaves_the_season_history_thread_to_the_historian(self):
+        from cfb_bot.cogs.charter import history_thread_name
+        cog = make_cog()
+        message = self._in_thread(name=history_thread_name(5), owner_id=BOT_ID)
+        message.mentions = [cog.bot.user]
+        with patch('cfb_bot.cogs.ai_chat.server_config', enabled_config()):
+            await cog.on_message(message)
+        message.reply.assert_not_awaited()

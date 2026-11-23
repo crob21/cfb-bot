@@ -24,8 +24,18 @@ from ..config import CHARTER_URL, GAME_NAME, Colors
 from ..utils.server_config import server_config, FeatureModule
 from ..utils.input_validation import sanitize_string, MAX_INPUT_LENGTH
 from ..services.oops import NO_AI, NOT_READY, report
+from .charter import history_thread_season
 
 logger = logging.getLogger('CFBBot.AIChat')
+
+
+def whitelist_channel_id(channel) -> int:
+    """The channel `/admin channels` decides for: a thread follows the channel it's in."""
+    if channel is None:
+        return 0
+    if isinstance(channel, discord.Thread):
+        return channel.parent_id or channel.id
+    return channel.id
 
 
 def _echo(question: str) -> str:
@@ -68,7 +78,7 @@ class AIChatCog(commands.Cog):
         question = sanitize_string(question)
         
         guild_id = interaction.guild.id if interaction.guild else 0
-        channel_id = interaction.channel.id if interaction.channel else 0
+        channel_id = whitelist_channel_id(interaction.channel)
 
         # Check if AI_CHAT module is enabled
         if not server_config.is_module_enabled(guild_id, FeatureModule.AI_CHAT):
@@ -159,7 +169,7 @@ class AIChatCog(commands.Cog):
         question = sanitize_string(question)
 
         guild_id = interaction.guild.id if interaction.guild else 0
-        channel_id = interaction.channel.id if interaction.channel else 0
+        channel_id = whitelist_channel_id(interaction.channel)
 
         # Check if AI_CHAT module is enabled
         if not server_config.is_module_enabled(guild_id, FeatureModule.AI_CHAT):
@@ -228,7 +238,7 @@ class AIChatCog(commands.Cog):
     ):
         """Summarize channel activity"""
         guild_id = interaction.guild.id if interaction.guild else 0
-        channel_id = interaction.channel.id if interaction.channel else 0
+        channel_id = whitelist_channel_id(interaction.channel)
 
         # Check if AI_CHAT module is enabled
         if not server_config.is_module_enabled(guild_id, FeatureModule.AI_CHAT):
@@ -350,7 +360,10 @@ class AIChatCog(commands.Cog):
         if not server_config.is_module_enabled(guild_id, FeatureModule.AI_CHAT):
             return
         # Same channel whitelist /harry uses (`/admin channels`)
-        if not server_config.is_channel_enabled(guild_id, message.channel.id):
+        if not server_config.is_channel_enabled(guild_id, whitelist_channel_id(message.channel)):
+            return
+        # In Harry's season history thread, the historian answers instead
+        if history_thread_season(message.channel, self.bot.user) is not None:
             return
 
         question = self._strip_mentions(message)

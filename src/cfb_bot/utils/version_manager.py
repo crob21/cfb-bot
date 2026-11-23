@@ -34,6 +34,23 @@ CHANGELOG: Dict[str, Dict] = {
             }
         ]
     },
+    "3.30.0": {
+        "date": "2026-11-23",
+        "title": "The Whole Season 📜",
+        "emoji": "📜",
+        "features": [
+            {
+                "category": "Improvements",
+                "emoji": "⚡",
+                "changes": [
+                    "Harry reads the whole season for the history, every channel he's on, back to last season's write-up",
+                    "The history covers the runner-up, results between league members, each coach's season and the season's story",
+                    "Harry answers replies in the history thread: what he's got now, and what's still open",
+                    "@mention Harry in a thread and he answers, if he's on in that thread's channel"
+                ]
+            }
+        ]
+    },
     "3.29.1": {
         "date": "2026-11-11",
         "title": "Which Week Is It? 📅",
