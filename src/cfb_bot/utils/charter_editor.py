@@ -16,6 +16,7 @@ from typing import Dict, List, Optional, Tuple
 
 from ..config import GAME_NAME
 from .server_config import CHARTER_PERSONALITY
+from .owner_dm import keep, saved_messages
 
 
 logger = logging.getLogger('CFBBot.CharterEditor')
@@ -73,10 +74,10 @@ class CharterEditor:
 
             # Delete old charter messages first
             try:
-                async for message in dm_channel.history(limit=50):
-                    if (message.author == self.bot.user and
-                        message.content.startswith(("📜CHARTER_CHUNK_", BASE_MARKER))):
-                        await message.delete()
+                old = [m for m in await saved_messages(self.bot, dm_channel)
+                       if m.content.startswith(("📜CHARTER_CHUNK_", BASE_MARKER))]
+                for message in old:
+                    await message.delete()
             except Exception:
                 pass  # Ignore delete failures
 
@@ -94,8 +95,8 @@ class CharterEditor:
             total_chunks = len(chunks)
             for i, chunk in enumerate(chunks):
                 marker = f"📜CHARTER_CHUNK_{i+1}of{total_chunks}📜\n"
-                await dm_channel.send(marker + chunk)
-            await dm_channel.send(f"{BASE_MARKER}{self._committed_fingerprint}")
+                await keep(await dm_channel.send(marker + chunk))
+            await keep(await dm_channel.send(f"{BASE_MARKER}{self._committed_fingerprint}"))
             self._discord_base = self._committed_fingerprint
 
             logger.info(f"Charter saved to Discord ({total_chunks} chunks, {len(content)} chars)")
@@ -120,12 +121,14 @@ class CharterEditor:
             total_chunks = 0
 
             self._discord_base = None
-            async for message in dm_channel.history(limit=50):
-                if message.author == self.bot.user and message.content.startswith(BASE_MARKER):
-                    self._discord_base = message.content[len(BASE_MARKER):].strip()
+            # Pinned (current) copies come first; an older leftover copy never overrides them
+            for message in await saved_messages(self.bot, dm_channel):
+                if message.content.startswith(BASE_MARKER):
+                    if self._discord_base is None:
+                        self._discord_base = message.content[len(BASE_MARKER):].strip()
+                        await keep(message)
                     continue
-                if (message.author == self.bot.user and
-                    message.content.startswith("📜CHARTER_CHUNK_")):
+                if message.content.startswith("📜CHARTER_CHUNK_"):
                     # Parse chunk marker: 📜CHARTER_CHUNK_1of5📜
                     first_line = message.content.split('\n')[0]
                     try:
@@ -133,11 +136,14 @@ class CharterEditor:
                         marker_content = first_line.replace("📜CHARTER_CHUNK_", "").replace("📜", "")
                         chunk_num, total = marker_content.split("of")
                         chunk_num = int(chunk_num)
-                        total_chunks = int(total)
+                        if not chunks:
+                            total_chunks = int(total)
+                        elif int(total) != total_chunks or chunk_num in chunks:
+                            continue  # a chunk from an older copy
 
                         # Get content after the marker line
-                        content = '\n'.join(message.content.split('\n')[1:])
-                        chunks[chunk_num] = content
+                        chunks[chunk_num] = '\n'.join(message.content.split('\n')[1:])
+                        await keep(message)
                     except Exception:
                         continue
 
