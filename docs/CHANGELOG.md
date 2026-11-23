@@ -3,6 +3,11 @@
 Full release history for Harry. The bot's `/changelog` command shows the most recent releases;
 this file keeps everything. Generated from `src/cfb_bot/utils/version_manager.py`.
 
+## 3.32.0 — Tapped Out 💸 (2026-11-23)
+
+### New
+- NEW: AI_SPEND_LIMIT turns Harry's AI off for the rest of the month once AI spend reaches it, and DMs the owner once
+
 ## 3.31.1 — Pinned Down 📌 (2026-11-23)
 
 ### Fixes

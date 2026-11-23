@@ -105,3 +105,16 @@ async def test_old_months_are_dropped_so_the_message_stays_under_discords_limit(
     assert now in mock_storage.data
     assert len(mock_storage.data) <= MONTHS_KEPT
     assert "2024-01" not in mock_storage.data
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("limit,spent,over", [(10.0, 9.99, False), (10.0, 10.0, True), (0, 500.0, False)])
+async def test_is_ai_over_limit(mock_storage, limit, spent, over):
+    """AI_SPEND_LIMIT: off at or past the limit; 0 means no cap."""
+    with patch("cfb_bot.utils.cost_tracker.get_storage", return_value=mock_storage):
+        from cfb_bot.utils.cost_tracker import CostTracker
+
+        tracker = CostTracker()
+        tracker.ai_spend_limit = limit
+        await tracker.set_monthly_costs(ai_cost=spent)
+        assert await tracker.is_ai_over_limit() is over
