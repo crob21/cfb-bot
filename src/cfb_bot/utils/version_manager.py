@@ -15,11 +15,26 @@ def version_key(version: str) -> tuple:
     return tuple(int(part) for part in version.split('.'))
 
 # Current version
-CURRENT_VERSION = "3.33.2"
+CURRENT_VERSION = "3.34.0"
 
 # Recent releases, newest first. /changelog reads these; the full history is in
 # docs/CHANGELOG.md. Add new releases at the top.
 CHANGELOG: Dict[str, Dict] = {
+    "3.34.0": {
+        "date": "2026-11-23",
+        "title": "So Long, 247 🗄️",
+        "emoji": "🗄️",
+        "features": [
+            {
+                "category": "Simpler",
+                "emoji": "🧹",
+                "changes": [
+                    "247Sports is archived: it refused every request from Harry. On3/Rivals is the only recruiting source",
+                    "Removed /recruiting source and the 247-only deep_search option on /recruiting player"
+                ]
+            }
+        ]
+    },
     "3.33.2": {
         "date": "2026-11-23",
         "title": "Room to Grow 🏟️",

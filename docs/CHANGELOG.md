@@ -3,6 +3,12 @@
 Full release history for Harry. The bot's `/changelog` command shows the most recent releases;
 this file keeps everything. Generated from `src/cfb_bot/utils/version_manager.py`.
 
+## 3.34.0 — So Long, 247 🗄️ (2026-11-23)
+
+### Simpler
+- 247Sports is archived: it refused every request from Harry. On3/Rivals is the only recruiting source
+- Removed /recruiting source and the 247-only deep_search option on /recruiting player
+
 ## 3.33.2 — Room to Grow 🏟️ (2026-11-23)
 
 ### Improvements

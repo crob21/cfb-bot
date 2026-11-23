@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-What the two recruiting sources (247Sports and On3/Rivals) share: the shared cache, the
-recruiting-class year, and the parts of their Discord output that look the same.
+What a recruiting source shares with the cog: the shared cache, the recruiting-class year,
+and the parts of the Discord output that look the same. On3/Rivals is the only source since
+247Sports was archived (git tag archive/247-scraper).
 """
 
 from datetime import datetime
@@ -15,7 +16,7 @@ class RecruitingScraperBase:
 
     CACHE_NAMESPACE = ''
     _cache_ttl_seconds = 3600
-    # How the source's team-class average rating reads (247: 0.9123, On3: 91.23)
+    # How the source's team-class average rating reads (On3: 91.23)
     AVG_RATING_FORMAT = '.4f'
     POINTS_LABEL = 'Points'
 
