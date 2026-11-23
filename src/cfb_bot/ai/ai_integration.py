@@ -316,7 +316,12 @@ class AICharterAssistant:
     def _cache_response(self, cache_key: str, response: str):
         """Cache a response"""
         import time
-        self._response_cache[cache_key] = (response, time.time())
+        now = time.time()
+        if len(self._response_cache) >= 200:  # answers only expire when re-asked: drop stale ones
+            self._response_cache = {k: v for k, v in self._response_cache.items() if now - v[1] < self._cache_ttl}
+            while len(self._response_cache) >= 200:
+                self._response_cache.pop(next(iter(self._response_cache)))
+        self._response_cache[cache_key] = (response, now)
         logger.debug(f"Cached response (key: {cache_key[:8]}...)")
 
     def _build_prompt(self, question: str, context: str, personality_prompt: Optional[str],

@@ -1,5 +1,6 @@
 """On3's fetch chain: a block or error moves on to the next method, a 404 stops."""
 
+import asyncio
 import base64
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -108,6 +109,67 @@ class TestPlaywright:
         page = MagicMock(goto=AsyncMock(side_effect=TimeoutError()), close=AsyncMock())
         s._browser = object()
         s._browser_context = MagicMock(new_page=AsyncMock(return_value=page))
+        s._pages_open, s._idle_close = 0, None
+        s._close_when_idle = MagicMock()
         with patch.object(mod, 'PLAYWRIGHT_AVAILABLE', True), pytest.raises(TimeoutError):
             await s._fetch_playwright("u")
         page.close.assert_awaited_once()
+        assert s._pages_open == 0
+        s._close_when_idle.assert_called_once()
+
+
+class TestBrowserMemory:
+    """Chromium grew until Render restarted Harry for running out of memory. Now it's closed
+    when idle, and never downloads images, fonts or media."""
+
+    def _scraper(self):
+        s = mod.On3Scraper.__new__(mod.On3Scraper)
+        s._browser, s._pages_open, s._idle_close = object(), 0, None
+        s._close_browser = AsyncMock()
+        return s
+
+    async def test_closes_the_browser_once_idle(self):
+        s = self._scraper()
+        with patch.object(mod, 'BROWSER_IDLE_SECONDS', 0.01):
+            s._close_when_idle()
+            await s._idle_close
+        s._close_browser.assert_awaited_once()
+
+    async def test_another_lookup_restarts_the_wait(self):
+        s = self._scraper()
+        with patch.object(mod, 'BROWSER_IDLE_SECONDS', 0.05):
+            s._close_when_idle()
+            first = s._idle_close
+            s._close_when_idle()
+            await asyncio.sleep(0)
+            assert first.cancelled()
+            await s._idle_close
+        s._close_browser.assert_awaited_once()
+
+    async def test_never_closes_mid_lookup(self):
+        s = self._scraper()
+        s._pages_open = 1
+        with patch.object(mod, 'BROWSER_IDLE_SECONDS', 0.01):
+            s._close_when_idle()
+            await s._idle_close
+        s._close_browser.assert_not_called()
+
+    @pytest.mark.parametrize("kind,skipped", [("image", True), ("font", True), ("media", True),
+                                               ("document", False), ("script", False)])
+    async def test_skips_heavy_resources(self, kind, skipped):
+        route = MagicMock(abort=AsyncMock(), continue_=AsyncMock())
+        route.request.resource_type = kind
+        await mod.On3Scraper._skip_heavy(route)
+        assert route.abort.await_count == int(skipped) and route.continue_.await_count == int(not skipped)
+
+
+def test_the_shared_cache_is_capped():
+    from datetime import datetime, timedelta
+    from cfb_bot.utils import cache as cache_mod
+    c = cache_mod.CacheManager() if hasattr(cache_mod, 'CacheManager') else cache_mod.get_cache().__class__()
+    with patch.object(cache_mod, 'MAX_ENTRIES', 5):
+        c.set("old", 1, ttl_seconds=1)
+        c._cache["default:old"]['expires_at'] = datetime.now() - timedelta(seconds=1)
+        for i in range(10):
+            c.set(f"k{i}", i)
+    assert len(c._cache) <= 5 and "default:old" not in c._cache and "default:k9" in c._cache

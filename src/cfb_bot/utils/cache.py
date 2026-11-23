@@ -9,6 +9,8 @@ from typing import Any, Dict, Optional
 
 logger = logging.getLogger('CFBBot.Cache')
 
+MAX_ENTRIES = 500  # a cap, so lookups nobody repeats can't pile up forever
+
 
 class SimpleCache:
     """In-memory cache with TTL support"""
@@ -47,6 +49,8 @@ class SimpleCache:
     def set(self, key: str, value: Any, ttl_seconds: int = 3600, namespace: str = 'default'):
         """Set value in cache with TTL"""
         cache_key = f"{namespace}:{key}"
+        if len(self._cache) >= MAX_ENTRIES:
+            self._make_room()
 
         self._cache[cache_key] = {
             'value': value,
@@ -56,6 +60,16 @@ class SimpleCache:
 
         self._stats['saves'] += 1
         logger.debug(f"Cache SET: {cache_key} (TTL: {ttl_seconds}s)")
+
+    def _make_room(self):
+        """Entries only expire when read, so drop the expired ones, then the oldest."""
+        now = datetime.now()
+        for k in [k for k, e in self._cache.items() if e['expires_at'] <= now]:
+            del self._cache[k]
+            self._stats['evictions'] += 1
+        while len(self._cache) >= MAX_ENTRIES:
+            del self._cache[min(self._cache, key=lambda k: self._cache[k]['created_at'])]
+            self._stats['evictions'] += 1
 
     def delete(self, key: str, namespace: str = 'default'):
         """Delete value from cache"""
