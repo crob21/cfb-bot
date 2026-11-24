@@ -8,7 +8,7 @@ fixtures. It also hardcoded last season's user teams, so Harry claimed to suppor
 Nebraska long after that league ended.
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -180,3 +180,34 @@ async def test_only_harrys_own_voice_gets_told_to_be_sarcastic():
     await ai.ask_openai("Write the Season 6 entry.", "", personality_prompt=CHARTER_PERSONALITY)
     await ai.ask_openai("who won?", "")
     assert "sarcastic" not in sent[0] and "sarcastic" in sent[1]
+
+
+@pytest.mark.asyncio
+async def test_only_harrys_chat_answers_are_cached():
+    """A roast cached for an hour handed the same roast to the same person. Tasks with their own
+    persona (roasts, summaries, the historian) are never cached; Harry's chat answers still are."""
+    from cfb_bot.ai import ai_integration
+    from cfb_bot.utils.server_config import HARRY_PERSONALITY
+    with patch('cfb_bot.ai.ai_integration.get_storage'):
+        ai = ai_integration.AICharterAssistant()
+    ai.openai_api_key = "k"
+    ai._record_usage = AsyncMock()
+    replies = iter(["roast one", "roast two", "chat one", "chat two"])
+
+    async def post(provider, url, headers, body):
+        return {'choices': [{'message': {'content': next(replies)}}], 'usage': {}}
+    ai._post = post
+    assert await ai.ask_openai("roast Rob", "", personality_prompt=HARRY_PERSONALITY) == "roast one"
+    assert await ai.ask_openai("roast Rob", "", personality_prompt=HARRY_PERSONALITY) == "roast two"
+    assert await ai.ask_openai("who won?", "") == "chat one"
+    assert await ai.ask_openai("who won?", "") == "chat one"
+
+
+def test_summaries_roasts_and_comebacks_skip_the_chat_wrapper():
+    """Through the chat template /summarize got "keep it to a couple of sentences" plus the whole
+    charter, and roasts were told to "provide helpful, accurate information"."""
+    import inspect
+    from cfb_bot.cogs import fun
+    from cfb_bot.utils import summarizer
+    assert "personality_prompt=HARRY_PERSONALITY" in inspect.getsource(summarizer.ChannelSummarizer.summarize_messages)
+    assert inspect.getsource(fun).count("personality_prompt=HARRY_PERSONALITY") == 2

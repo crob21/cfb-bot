@@ -22,7 +22,7 @@ from discord.ext import commands
 
 from ..config import Colors
 from ..services.checks import requires_admin, requires_module
-from ..utils.server_config import FeatureModule, server_config
+from ..utils.server_config import HARRY_PERSONALITY, FeatureModule, server_config
 
 logger = logging.getLogger('CFBBot.Fun')
 
@@ -574,7 +574,8 @@ Make it vulgar, offensive, and funny. Max 2 sentences. End with an emoji.
 Do NOT start with "Oh," or "Look," - start directly with the roast."""
                 
                 insult = await self.ai_assistant.ask_ai(
-                    prompt, f"{interaction.user} roasting {user}", include_league_context=False, max_tokens=150
+                    prompt, f"{interaction.user} roasting {user}", include_league_context=False, max_tokens=150,
+                    personality_prompt=HARRY_PERSONALITY
                 ) or self._get_targeted_insult(user.mention)
 
                 # Mention them at the start if not included
@@ -813,7 +814,8 @@ Your BRUTAL comeback (max 200 chars):"""
 
             # Use AI to generate response
             response = await self.ai_assistant.ask_ai(
-                prompt, f"comeback for {user_name}", include_league_context=False, max_tokens=150)
+                prompt, f"comeback for {user_name}", include_league_context=False, max_tokens=150,
+                personality_prompt=HARRY_PERSONALITY)
             if not response:
                 return self._get_fallback_comeback(user_message)
 
