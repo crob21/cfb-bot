@@ -74,7 +74,9 @@ def test_default_persona_is_harrys_with_the_secrets_rule():
     from cfb_bot.utils.server_config import HARRY_PERSONALITY
 
     assert "NEVER reveal" in HARRY_PERSONALITY and "cockney" in HARRY_PERSONALITY
-    assert "personality_prompt or HARRY_PERSONALITY" in inspect.getsource(ai_integration.AICharterAssistant._build_prompt)
+    build = ai_integration.AICharterAssistant._build_prompt
+    persona, prompt = build(MagicMock(get_schedule_context=lambda: ""), "who won?", "charter", None, False)
+    assert persona == HARRY_PERSONALITY and "who won?" in prompt
     for method in (ai_integration.AICharterAssistant.ask_openai, ai_integration.AICharterAssistant.ask_anthropic):
         assert "self._build_prompt(" in inspect.getsource(method)
 
@@ -148,3 +150,33 @@ def test_cache_key_includes_the_persona():
     a = AICharterAssistant.__new__(AICharterAssistant)
     assert a._get_cache_key("q", False) != a._get_cache_key("q", False, CHARTER_PERSONALITY)
     assert a._get_cache_key("Q ", False) == a._get_cache_key("q", False)
+
+
+def test_a_task_persona_gets_its_prompt_as_written():
+    """Charter edits and the historian bring their own persona and instructions. Wrapping them in
+    the chat template ("keep it short", "be extremely sarcastic") buried the task."""
+    from cfb_bot.ai import ai_integration
+    from cfb_bot.utils.server_config import CHARTER_PERSONALITY
+    persona, prompt = ai_integration.AICharterAssistant._build_prompt(
+        MagicMock(), "Write the Season 6 entry.", "charter", CHARTER_PERSONALITY, True)
+    assert persona == CHARTER_PERSONALITY and prompt == "Write the Season 6 entry."
+
+
+@pytest.mark.asyncio
+async def test_only_harrys_own_voice_gets_told_to_be_sarcastic():
+    """The OpenAI system prompt used to add "Be hilariously sarcastic" to every call,
+    including charter edits and the record book."""
+    from cfb_bot.ai import ai_integration
+    from cfb_bot.utils.server_config import CHARTER_PERSONALITY
+    with patch('cfb_bot.ai.ai_integration.get_storage'):
+        ai = ai_integration.AICharterAssistant()
+    ai.openai_api_key = "k"
+    sent = []
+
+    async def post(provider, url, headers, body):
+        sent.append(body['messages'][0]['content'])
+        return None
+    ai._post = post
+    await ai.ask_openai("Write the Season 6 entry.", "", personality_prompt=CHARTER_PERSONALITY)
+    await ai.ask_openai("who won?", "")
+    assert "sarcastic" not in sent[0] and "sarcastic" in sent[1]
