@@ -326,9 +326,16 @@ class AICharterAssistant:
 
     def _build_prompt(self, question: str, context: str, personality_prompt: Optional[str],
                       include_league_context: bool) -> tuple:
-        """Harry's persona plus the question, with league charter/schedule when asked for."""
+        """Harry's persona plus the question, with league charter/schedule when asked for.
+
+        A call with its own persona is a task (a charter edit, the season history): its prompt
+        goes as written. Wrapping it in the chat template ("keep it short", "be extremely
+        sarcastic", "don't make up results") buried the task and made the historian repeat himself.
+        """
+        if personality_prompt is not None:
+            return personality_prompt, question
         # Harry's one persona (includes the never-reveal-secrets rule)
-        personality = personality_prompt or HARRY_PERSONALITY
+        personality = HARRY_PERSONALITY
         if include_league_context:
             return personality, league_prompt(personality, context, self.get_schedule_context(), question)
         # Generic CFB assistant mode (no league-specific data)
@@ -409,7 +416,7 @@ class AICharterAssistant:
         personality, prompt = self._build_prompt(question, context, personality_prompt, include_league_context)
         data = openai_request_body(
             OPENAI_MODEL,
-            f'{personality} Be hilariously sarcastic and helpful.',
+            personality if personality_prompt is not None else f'{personality} Be hilariously sarcastic and helpful.',
             prompt,
             max_tokens,
         )

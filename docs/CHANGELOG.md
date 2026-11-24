@@ -3,6 +3,13 @@
 Full release history for Harry. The bot's `/changelog` command shows the most recent releases;
 this file keeps everything. Generated from `src/cfb_bot/utils/version_manager.py`.
 
+## 3.34.1 — Heard You the First Time 👂 (2026-11-23)
+
+### Fixes
+- In the season history thread Harry answers only the new replies: what he's now got and what's still open, without repeating himself
+- Harry's first write-up of the season merges facts the chat mentioned more than once
+- Charter edits and the record book are no longer told to be sarcastic or keep it to a couple of sentences
+
 ## 3.34.0 — So Long, 247 🗄️ (2026-11-23)
 
 ### Simpler
