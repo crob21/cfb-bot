@@ -3,6 +3,12 @@
 Full release history for Harry. The bot's `/changelog` command shows the most recent releases;
 this file keeps everything. Generated from `src/cfb_bot/utils/version_manager.py`.
 
+## 3.34.2 — Fresh Material 🎤 (2026-11-23)
+
+### Fixes
+- /summarize writes a full summary instead of being told to keep it to a couple of sentences
+- /fun roasts and comebacks are fresh every time instead of repeating for an hour
+
 ## 3.34.1 — Heard You the First Time 👂 (2026-11-23)
 
 ### Fixes

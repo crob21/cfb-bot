@@ -68,10 +68,16 @@ async def find_saved(bot, dm, match: Callable[[object], bool]):
     """
     found = next((m for m in await _pinned(bot, dm) if match(m)), None)
     if found is None:
-        async for message in dm.history(limit=SCAN_LIMIT):
-            if message.author == bot.user and match(message):
-                found = message
-                break
+        history = dm.history(limit=SCAN_LIMIT)
+        try:
+            async for message in history:
+                if message.author == bot.user and match(message):
+                    found = message
+                    break
+        finally:
+            close = getattr(history, 'aclose', None)  # stopping early leaves the reader open
+            if close:
+                await close()
     if found is not None:
         await keep(found)
     return found
